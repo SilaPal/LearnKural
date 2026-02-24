@@ -9,6 +9,10 @@ export interface AuthUser {
     picture: string | null;
     tier: 'free' | 'paid';
     activeAvatarId: string;
+    role: 'student' | 'parent' | 'teacher' | 'school_admin' | 'super_admin';
+    schoolId: string | null;
+    classroomId: string | null;
+    parentId: string | null;
     createdAt: string;
 }
 

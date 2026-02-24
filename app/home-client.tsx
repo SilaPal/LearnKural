@@ -424,6 +424,26 @@ export default function HomeClient({ totalKurals, kuralOfDay, firstKuralSlug, al
             </div>
           </Link>
 
+          {user && (
+            <Link
+              href={
+                user.role === 'school_admin' ? '/dashboard/school' :
+                  user.role === 'teacher' ? '/dashboard/teacher' :
+                    user.role === 'parent' ? '/dashboard/parent' :
+                      '/schools/register'
+              }
+              className="relative hover:scale-110 transition-transform"
+              title={
+                user.role === 'student' ? (isTamil ? 'பள்ளியில் சேர' : 'Join a School') :
+                  (isTamil ? 'நிர்வாக மேடை' : 'Dashboard')
+              }
+            >
+              <div className="h-12 w-12 bg-gradient-to-br from-slate-700 to-slate-900 rounded-full flex items-center justify-center shadow-lg">
+                <span className="text-2xl">{user.role === 'student' ? '🏫' : '📊'}</span>
+              </div>
+            </Link>
+          )}
+
           <button
             onClick={toggleLanguage}
             className="flex items-center gap-2 px-3 py-1.5 bg-purple-600 hover:bg-purple-700 text-white rounded-lg transition-colors text-sm"

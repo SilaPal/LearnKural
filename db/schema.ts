@@ -1,4 +1,13 @@
-import { pgTable, varchar, timestamp, jsonb, integer, boolean, primaryKey } from 'drizzle-orm/pg-core';
+import { pgTable, varchar, timestamp, jsonb, integer, boolean, primaryKey, foreignKey } from 'drizzle-orm/pg-core';
+
+export const schools = pgTable('schools', {
+    id: varchar('id').primaryKey(),
+    name: varchar('name').notNull(),
+    logo: varchar('logo'),
+    banner: varchar('banner'),
+    subscriptionStatus: varchar('subscription_status', { enum: ['active', 'expired', 'trial'] }).default('active').notNull(),
+    createdAt: timestamp('created_at').defaultNow().notNull(),
+});
 
 export const users = pgTable('users', {
     id: varchar('id').primaryKey(), // Generated like user_timestamp_rand
@@ -10,7 +19,78 @@ export const users = pgTable('users', {
     coins: integer('coins').default(0).notNull(),
     activeAvatarId: varchar('active_avatar_id').default('default').notNull(),
     region: varchar('region').default('Global').notNull(),
+    role: varchar('role', { enum: ['student', 'parent', 'teacher', 'school_admin', 'super_admin'] }).default('student').notNull(),
+    schoolId: varchar('school_id'),
+    parentId: varchar('parent_id'),
     createdAt: timestamp('created_at').defaultNow().notNull(),
+}, (table) => {
+    return {
+        schoolReference: foreignKey({
+            columns: [table.schoolId],
+            foreignColumns: [schools.id]
+        }),
+        parentReference: foreignKey({
+            columns: [table.parentId],
+            foreignColumns: [table.id]
+        })
+    }
+});
+
+export const classrooms = pgTable('classrooms', {
+    id: varchar('id').primaryKey(),
+    schoolId: varchar('school_id').notNull(),
+    name: varchar('name').notNull(),
+    teacherId: varchar('teacher_id'),
+    createdAt: timestamp('created_at').defaultNow().notNull(),
+}, (table) => {
+    return {
+        schoolRef: foreignKey({
+            columns: [table.schoolId],
+            foreignColumns: [schools.id]
+        }).onDelete('cascade'),
+        teacherRef: foreignKey({
+            columns: [table.teacherId],
+            foreignColumns: [users.id]
+        })
+    }
+});
+
+export const classroomStudents = pgTable('classroom_students', {
+    classroomId: varchar('classroom_id').notNull(),
+    studentId: varchar('student_id').notNull(),
+    joinedAt: timestamp('joined_at').defaultNow().notNull(),
+}, (table) => {
+    return {
+        pk: primaryKey({ columns: [table.classroomId, table.studentId] }),
+        classroomRef: foreignKey({
+            columns: [table.classroomId],
+            foreignColumns: [classrooms.id]
+        }).onDelete('cascade'),
+        studentRef: foreignKey({
+            columns: [table.studentId],
+            foreignColumns: [users.id]
+        }).onDelete('cascade'),
+    }
+});
+
+export const schoolInvites = pgTable('school_invites', {
+    code: varchar('code').primaryKey(),
+    schoolId: varchar('school_id').notNull(),
+    classroomId: varchar('classroom_id'),
+    role: varchar('role', { enum: ['student', 'teacher'] }).default('student').notNull(),
+    expiresAt: timestamp('expires_at').notNull(),
+    createdAt: timestamp('created_at').defaultNow().notNull(),
+}, (table) => {
+    return {
+        schoolRef: foreignKey({
+            columns: [table.schoolId],
+            foreignColumns: [schools.id]
+        }).onDelete('cascade'),
+        classroomRef: foreignKey({
+            columns: [table.classroomId],
+            foreignColumns: [classrooms.id]
+        }).onDelete('cascade'),
+    }
 });
 
 export const userProgress = pgTable('user_progress', {
@@ -48,6 +128,6 @@ export const userAvatars = pgTable('user_avatars', {
     unlockedAt: timestamp('unlocked_at').defaultNow().notNull(),
 }, (t) => {
     return {
-        pk: primaryKey(t.userId, t.avatarId)
+        pk: primaryKey({ columns: [t.userId, t.avatarId] })
     }
 });
