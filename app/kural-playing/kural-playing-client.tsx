@@ -64,6 +64,7 @@ interface Props {
   initialKurals: Kural[];
   initialGame?: 'puzzle' | 'flying' | 'balloon' | 'race';
   initialKuralId?: number;
+  initialChapter?: number;
   isEmbed?: boolean;
 }
 
@@ -72,7 +73,7 @@ const getTextColorForBackground = (hexColor: string): string => {
   return lightColors.includes(hexColor.toUpperCase()) ? '#333333' : '#FFFFFF';
 };
 
-export default function KuralPlayingClient({ initialKurals, initialGame, initialKuralId, isEmbed = false }: Props) {
+export default function KuralPlayingClient({ initialKurals, initialGame, initialKuralId, initialChapter, isEmbed = false }: Props) {
   const [currentLanguage, setCurrentLanguage] = useState<'tamil' | 'english'>('english');
   const [gameMode, setGameMode] = useState<'puzzle' | 'flying' | 'balloon' | 'race'>(initialGame || 'puzzle');
 
@@ -146,6 +147,7 @@ export default function KuralPlayingClient({ initialKurals, initialGame, initial
   const { user, logout } = useAuth();
   const isPaidUser = user?.tier === 'paid';
   const [totalCoins, setTotalCoins] = useState(0);
+  const [userChapters, setUserChapters] = useState<number[]>([]);
   const [avatarEmotion, setAvatarEmotion] = useState<'idle' | 'happy' | 'sad' | 'excited' | 'thinking'>('idle');
 
   const currentKural = initialKurals[currentKuralIndex];
@@ -204,12 +206,21 @@ export default function KuralPlayingClient({ initialKurals, initialGame, initial
     }
   }, []);
 
-  // Fetch coins initially
+  // Fetch coins and progress initially
   useEffect(() => {
     if (user) {
       fetch('/api/user/coins')
         .then(res => res.json())
         .then(data => { if (data.coins !== undefined) setTotalCoins(data.coins); })
+        .catch(e => console.error(e));
+
+      fetch('/api/user/progress')
+        .then(res => res.json())
+        .then(data => {
+          if (data?.completedChapters) {
+            setUserChapters(data.completedChapters);
+          }
+        })
         .catch(e => console.error(e));
     }
   }, [user]);
@@ -476,6 +487,17 @@ export default function KuralPlayingClient({ initialKurals, initialGame, initial
     if (!currentKural) return;
 
     updateKuralActivity(currentKural.id, game);
+
+    // Register Quest Chapter completion!
+    if (user && initialChapter && !userChapters.includes(initialChapter)) {
+      const updatedChapters = [...userChapters, initialChapter];
+      setUserChapters(updatedChapters);
+      fetch('/api/user/progress', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ completedChapters: updatedChapters })
+      }).catch(err => console.error('Failed to sync quest completion', err));
+    }
 
     const stats = getSkillStats();
 

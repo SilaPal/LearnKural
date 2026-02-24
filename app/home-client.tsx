@@ -427,6 +427,25 @@ export default function HomeClient({ totalKurals, kuralOfDay, firstKuralSlug, al
           </button>
         </div>
 
+        {/* Kural Quest Map Banner */}
+        <Link href="/quest" className="group block mb-8 relative overflow-hidden rounded-3xl bg-gradient-to-br from-teal-500 to-indigo-700 p-8 shadow-2xl transition-all hover:scale-[1.01] active:scale-95">
+          <div className="absolute inset-0 opacity-20 group-hover:opacity-40 transition-opacity bg-cover bg-center" style={{ backgroundImage: 'url("/quest-map-bg.png")' }}></div>
+          <div className="relative z-10 flex flex-col sm:flex-row items-center justify-between gap-6">
+            <div className="text-white">
+              <h2 className="text-3xl font-black mb-2 flex items-center gap-3">
+                <span className="text-4xl">🗺️</span>
+                {isTamil ? 'குறள் பயணம்' : 'Kural Quest'}
+              </h2>
+              <p className="text-teal-50 text-lg font-medium opacity-90">
+                {isTamil ? 'அத்தியாயங்களை விளையாடி 133 நிலைகளை கடந்து வெற்றி பெறுங்கள்!' : 'Embark on a journey through 133 chapters. Play games to unlock the kingdoms!'}
+              </p>
+            </div>
+            <div className="bg-white text-indigo-700 px-8 py-4 rounded-2xl font-black shadow-xl group-hover:bg-indigo-50 transition-colors uppercase tracking-widest text-sm">
+              {isTamil ? 'தொடங்கு' : 'Start Journey'}
+            </div>
+          </div>
+        </Link>
+
         {/* Kural of the Day Section */}
         <div className="mb-6 bg-gradient-to-br from-purple-100 to-violet-100 rounded-lg shadow-md overflow-hidden border border-purple-200">
           <div className="p-6">

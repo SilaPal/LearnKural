@@ -31,7 +31,7 @@ export const metadata: Metadata = {
 };
 
 interface PageProps {
-  searchParams: Promise<{ game?: string; kural?: string; embed?: string }>;
+  searchParams: Promise<{ game?: string; kural?: string; chapter?: string; embed?: string }>;
 }
 
 export default async function KuralPlayingPage({ searchParams }: PageProps) {
@@ -39,6 +39,7 @@ export default async function KuralPlayingPage({ searchParams }: PageProps) {
   const params = await searchParams;
   const initialGame = params.game as 'puzzle' | 'flying' | 'balloon' | 'race' | undefined;
   const initialKuralId = params.kural ? parseInt(params.kural) : undefined;
+  const initialChapter = params.chapter ? parseInt(params.chapter) : undefined;
   const isEmbed = params.embed === '1';
 
   const jsonLd = {
@@ -66,7 +67,13 @@ export default async function KuralPlayingPage({ searchParams }: PageProps) {
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
       />
-      <KuralPlayingClient initialKurals={kurals} initialGame={initialGame} initialKuralId={initialKuralId} isEmbed={isEmbed} />
+      <KuralPlayingClient
+        initialKurals={kurals}
+        initialGame={initialGame}
+        initialKuralId={initialKuralId}
+        initialChapter={initialChapter}
+        isEmbed={isEmbed}
+      />
     </>
   );
 }

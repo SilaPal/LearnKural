@@ -22,7 +22,7 @@ export async function GET(request: NextRequest) {
 
     const [progress] = await db.select().from(userProgress).where(eq(userProgress.userId, userId));
 
-    return NextResponse.json(progress || { completedLetters: [], badges: [] });
+    return NextResponse.json(progress || { completedLetters: [], badges: [], completedChapters: [] });
 }
 
 export async function POST(request: NextRequest) {
@@ -31,7 +31,7 @@ export async function POST(request: NextRequest) {
 
     try {
         const body = await request.json();
-        const { completedLetters, badges } = body;
+        const { completedLetters, badges, completedChapters } = body;
 
         let [progress] = await db.select().from(userProgress).where(eq(userProgress.userId, userId));
 
@@ -39,11 +39,13 @@ export async function POST(request: NextRequest) {
             [progress] = await db.insert(userProgress).values({
                 userId,
                 completedLetters: completedLetters || [],
+                completedChapters: completedChapters || [],
                 badges: badges || [],
             }).returning();
         } else {
             [progress] = await db.update(userProgress).set({
                 completedLetters: completedLetters !== undefined ? completedLetters : progress.completedLetters,
+                completedChapters: completedChapters !== undefined ? completedChapters : progress.completedChapters,
                 badges: badges !== undefined ? badges : progress.badges,
                 updatedAt: new Date(),
             }).where(eq(userProgress.userId, userId)).returning();

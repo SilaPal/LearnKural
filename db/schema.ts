@@ -15,6 +15,7 @@ export const users = pgTable('users', {
 export const userProgress = pgTable('user_progress', {
     userId: varchar('user_id').primaryKey().references(() => users.id, { onDelete: 'cascade' }),
     completedLetters: jsonb('completed_letters').default([]).notNull(), // string array
+    completedChapters: jsonb('completed_chapters').default([]).notNull(), // number array representing Quest nodes
     badges: jsonb('badges').default([]).notNull(), // { categoryId: string, earnedAt: number, viewed?: boolean } array
     updatedAt: timestamp('updated_at').defaultNow().notNull(),
 });
