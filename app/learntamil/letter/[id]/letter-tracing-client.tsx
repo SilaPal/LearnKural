@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import { TamilLetter, LetterCategory, meiBaseLetters, uyirMarkers } from '@/lib/tamil-letters';
 import AuthModal from '@/components/auth-modal';
 import { useAuth } from '@/lib/use-auth';
+import ReactingAvatar from '@/components/reacting-avatar';
 
 interface Props {
   letter: TamilLetter;
@@ -41,6 +42,8 @@ export default function LetterTracingClient({
   const [showUserMenu, setShowUserMenu] = useState(false);
   const { user, logout } = useAuth();
   const isPaidUser = user?.tier === 'paid';
+  const [totalCoins, setTotalCoins] = useState(0);
+  const [avatarEmotion, setAvatarEmotion] = useState<'idle' | 'happy' | 'sad' | 'excited' | 'thinking'>('idle');
 
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -62,6 +65,26 @@ export default function LetterTracingClient({
       } catch { }
     }
   }, [letter.id]);
+
+  useEffect(() => {
+    if (user) {
+      fetch('/api/user/coins')
+        .then(res => res.json())
+        .then(data => { if (data.coins !== undefined) setTotalCoins(data.coins); })
+        .catch(e => console.error(e));
+    }
+  }, [user]);
+
+  const awardCoins = (amount: number) => {
+    if (!user) return;
+    fetch('/api/user/coins', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ amount })
+    }).then(res => res.json()).then(data => {
+      if (data.coins !== undefined) setTotalCoins(data.coins);
+    }).catch(e => console.error(e));
+  };
 
   useEffect(() => {
     drawCanvas();
@@ -256,8 +279,14 @@ export default function LetterTracingClient({
       }
     }
 
+    if (user) {
+      awardCoins(1);
+      setAvatarEmotion('happy');
+    }
+
     setTimeout(() => {
       setShowCelebration(false);
+      setAvatarEmotion('idle');
     }, 3000);
   };
 
@@ -520,6 +549,12 @@ export default function LetterTracingClient({
           </div>
         </div>
       </main>
+
+      {user && (
+        <div className="fixed bottom-4 left-4 z-40 hidden md:block">
+          <ReactingAvatar emotion={avatarEmotion} />
+        </div>
+      )}
       <AuthModal
         isOpen={showAuthModal}
         onClose={() => setShowAuthModal(false)}

@@ -2,10 +2,12 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import Link from 'next/link';
+import Confetti from 'react-confetti';
 import { Kural } from '@/shared/schema';
 import BadgeModal from '@/components/badge-modal';
 import AuthModal from '@/components/auth-modal';
 import { useAuth } from '@/lib/use-auth';
+import ReactingAvatar from '@/components/reacting-avatar';
 import {
   updateKuralActivity,
   updateStreak,
@@ -143,6 +145,8 @@ export default function KuralPlayingClient({ initialKurals, initialGame, initial
   const [showUserMenu, setShowUserMenu] = useState(false);
   const { user, logout } = useAuth();
   const isPaidUser = user?.tier === 'paid';
+  const [totalCoins, setTotalCoins] = useState(0);
+  const [avatarEmotion, setAvatarEmotion] = useState<'idle' | 'happy' | 'sad' | 'excited' | 'thinking'>('idle');
 
   const currentKural = initialKurals[currentKuralIndex];
 
@@ -199,6 +203,27 @@ export default function KuralPlayingClient({ initialKurals, initialGame, initial
       setNewBadgeCount(prev => prev + 1);
     }
   }, []);
+
+  // Fetch coins initially
+  useEffect(() => {
+    if (user) {
+      fetch('/api/user/coins')
+        .then(res => res.json())
+        .then(data => { if (data.coins !== undefined) setTotalCoins(data.coins); })
+        .catch(e => console.error(e));
+    }
+  }, [user]);
+
+  const awardCoins = (amount: number) => {
+    if (!user) return;
+    fetch('/api/user/coins', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ amount })
+    }).then(res => res.json()).then(data => {
+      if (data.coins !== undefined) setTotalCoins(data.coins);
+    }).catch(e => console.error(e));
+  };
 
   useEffect(() => {
     if (!currentKural) return;
@@ -552,9 +577,11 @@ export default function KuralPlayingClient({ initialKurals, initialGame, initial
 
     if (runnerNextWord >= totalWords && newPosition >= 98 && !hasFinishedRef.current) {
       hasFinishedRef.current = true;
-      setRunnerFinished(true);
       setIsSolved(true);
-      setShowMeaning(true);
+      setPuzzleTimerActive(false); // This line seems out of place for runner game
+      if (user) awardCoins(1);
+      setAvatarEmotion('happy');
+      setTimeout(() => setAvatarEmotion('idle'), 3000);
       playCompletionAudio();
       setSolvedCount(prevCount => prevCount + 1);
 
@@ -565,7 +592,7 @@ export default function KuralPlayingClient({ initialKurals, initialGame, initial
         localStorage.setItem('thirukural-runner-solved', JSON.stringify(solved));
       }
     }
-  }, [gameMode, runnerFinished, runnerNextWord, runnerWords.length, currentKural, maxPositionReached, playCompletionAudio]);
+  }, [gameMode, runnerFinished, runnerNextWord, runnerWords.length, currentKural, maxPositionReached, playCompletionAudio, user]);
 
   useEffect(() => {
     if (!autoRunning || runnerFinished) return;
@@ -602,7 +629,7 @@ export default function KuralPlayingClient({ initialKurals, initialGame, initial
     }, 30);
 
     return () => clearInterval(interval);
-  }, [autoRunning, runnerFinished, ribbonBroken, currentKural]);
+  }, [autoRunning, runnerFinished, ribbonBroken, currentKural, playCompletionAudio, handleGameComplete]);
 
   useEffect(() => {
     if (placedPieces.length === 0) return;
@@ -621,17 +648,24 @@ export default function KuralPlayingClient({ initialKurals, initialGame, initial
       setPuzzleBonusPoints(prev => prev + timeBonus);
       setShowMeaning(true);
       playCompletionAudio();
-      setSolvedCount(prev => prev + 1);
 
       const savedSolved = localStorage.getItem('thirukural-puzzle-solved');
-      const solved = savedSolved ? JSON.parse(savedSolved) : [];
-      if (!solved.includes(currentKural?.id)) {
-        solved.push(currentKural?.id);
-        localStorage.setItem('thirukural-puzzle-solved', JSON.stringify(solved));
+      const solvedKurals = savedSolved ? JSON.parse(savedSolved) : [];
+      if (!solvedKurals.includes(currentKural?.id)) {
+        const uniqueSolved = new Set([...solvedKurals, currentKural.id]);
+        localStorage.setItem('thirukural-puzzle-solved', JSON.stringify(Array.from(uniqueSolved)));
+        setSolvedCount(uniqueSolved.size);
+
+        if (user) {
+          awardCoins(1); // Give 1 coin for solving
+          setAvatarEmotion('excited');
+          setTimeout(() => setAvatarEmotion('idle'), 3000);
+        }
+
         setTimeout(() => handleGameComplete('puzzle', puzzleTimer > 0 ? 120 - puzzleTimer : undefined), 100);
       }
     }
-  }, [placedPieces, isSolved, currentKural, playCompletionAudio, puzzleTimer]);
+  }, [placedPieces, isSolved, currentKural, playCompletionAudio, puzzleTimer, handleGameComplete, user]);
 
   const handlePieceClick = (piece: PuzzlePiece) => {
     const emptySlotIndex = placedPieces.findIndex(p => p === null);
@@ -907,17 +941,22 @@ export default function KuralPlayingClient({ initialKurals, initialGame, initial
                     <p className="text-xs text-gray-500 truncate">{user.email}</p>
                   </div>
                   {/* Plan Badge */}
-                  <div className="px-3 py-2.5 border-b border-gray-100">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-1.5">
-                        <span className="text-base">{isPaidUser ? '✨' : '🆓'}</span>
-                        <span className="text-xs font-semibold text-gray-700">
-                          {isPaidUser
-                            ? (currentLanguage === 'tamil' ? 'பிரீமியம்' : 'Premium Plan')
-                            : (currentLanguage === 'tamil' ? 'இலவச திட்டம்' : 'Free Plan')}
-                        </span>
+                  <div className="px-3 py-2.5 border-b border-gray-100 flex items-center justify-between">
+                    <div>
+                      <span className="text-xs font-bold text-gray-500 uppercase tracking-wider">Plan</span>
+                      <div className="mt-1 flex items-center gap-1">
+                        {isPaidUser ? (
+                          <span className="bg-gradient-to-r from-yellow-400 to-yellow-600 text-white text-[10px] font-bold px-2 py-0.5 rounded shadow-sm">PREMIUM</span>
+                        ) : (
+                          <span className="bg-gray-100 text-gray-600 border border-gray-200 text-[10px] font-bold px-2 py-0.5 rounded">FREE</span>
+                        )}
                       </div>
                     </div>
+                    {user && (
+                      <div className="bg-orange-100 px-3 py-1 rounded-full border border-orange-200">
+                        <span className="text-sm font-bold text-orange-600">🪙 {totalCoins}</span>
+                      </div>
+                    )}
                   </div>
                   <button
                     onClick={async () => { await logout(); setShowUserMenu(false); }}

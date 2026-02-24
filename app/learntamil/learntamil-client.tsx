@@ -36,6 +36,7 @@ export default function LearnTamilClient() {
   const [activeTab, setActiveTab] = useState<'games' | 'practice'>('practice');
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [showUserMenu, setShowUserMenu] = useState(false);
+  const [totalCoins, setTotalCoins] = useState(0);
 
   // Badge notification state
   const [badgeCount, setBadgeCount] = useState(0);
@@ -76,21 +77,21 @@ export default function LearnTamilClient() {
   useEffect(() => {
     if (user) {
       fetch('/api/user/progress')
-        .then(res => {
-          if (res.ok) return res.json();
-          return null;
-        })
+        .then(res => res.ok ? res.json() : null)
         .then(data => {
           if (data) {
-            const dbCompleted = data.completedLetters || [];
-            const dbBadges = data.badges || [];
-            setCompletedLetters(dbCompleted);
-            setBadges(dbBadges);
-            localStorage.setItem('learntamil-completed', JSON.stringify(dbCompleted));
-            localStorage.setItem('learntamil-badges', JSON.stringify(dbBadges));
+            setCompletedLetters(data.completedLetters || []);
+            setBadges(data.badges || []);
+            localStorage.setItem('learntamil-completed', JSON.stringify(data.completedLetters || []));
+            localStorage.setItem('learntamil-badges', JSON.stringify(data.badges || []));
           }
         })
         .catch(err => console.error('Failed to load progress from DB', err));
+
+      fetch('/api/user/coins')
+        .then(res => res.json())
+        .then(data => { if (data.coins !== undefined) setTotalCoins(data.coins); })
+        .catch(e => console.error(e));
     }
   }, [user]);
 
@@ -149,17 +150,22 @@ export default function LearnTamilClient() {
                     <p className="text-xs font-semibold text-gray-800 truncate">{user.name}</p>
                     <p className="text-xs text-gray-500 truncate">{user.email}</p>
                   </div>
-                  <div className="px-3 py-2.5 border-b border-gray-100">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-1.5">
-                        <span className="text-base">{isPaidUser ? '✨' : '🆓'}</span>
-                        <span className="text-xs font-semibold text-gray-700">
-                          {isPaidUser
-                            ? (isTamil ? 'பிரீமியம்' : 'Premium Plan')
-                            : (isTamil ? 'இலவச திட்டம்' : 'Free Plan')}
-                        </span>
+                  <div className="px-3 py-2.5 border-b border-gray-100 flex items-center justify-between">
+                    <div>
+                      <span className="text-xs font-bold text-gray-500 uppercase tracking-wider">Plan</span>
+                      <div className="mt-1 flex items-center gap-1">
+                        {isPaidUser ? (
+                          <span className="bg-gradient-to-r from-yellow-400 to-yellow-600 text-white text-[10px] font-bold px-2 py-0.5 rounded shadow-sm">PREMIUM</span>
+                        ) : (
+                          <span className="bg-gray-100 text-gray-600 border border-gray-200 text-[10px] font-bold px-2 py-0.5 rounded">FREE</span>
+                        )}
                       </div>
                     </div>
+                    {user && (
+                      <div className="bg-orange-100 px-3 py-1 rounded-full border border-orange-200">
+                        <span className="text-sm font-bold text-orange-600">🪙 {totalCoins}</span>
+                      </div>
+                    )}
                   </div>
                   <button
                     onClick={async () => { await logout(); setShowUserMenu(false); }}
