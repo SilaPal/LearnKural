@@ -1,0 +1,195 @@
+Product Requirements Document: Thirukural Learning Web App
+1. Introduction/Overview
+This document outlines the requirements for a web application designed to help users, primarily children, learn Thirukural in an engaging and interactive manner. The application will provide individual kurals, their meanings, audio pronunciations, and supplementary YouTube video content, with support for both English and Tamil languages.
+2. Problem Statement
+Many children find it challenging to learn and understand ancient texts like Thirukural due to traditional teaching methods that may lack interactivity and modern engagement tools. There is a need for a fun, accessible, and interactive platform that simplifies the learning process and encourages correct pronunciation and comprehension.
+3. Goals/Objectives
+To provide an engaging and interactive platform for children to learn Thirukural.
+To facilitate correct pronunciation of kurals through immediate feedback.
+To offer comprehensive understanding of kurals through meanings and visual aids (YouTube videos).
+To support bilingual learning (Tamil and English) to cater to a wider audience.
+To make Thirukural learning accessible and enjoyable for the target audience.
+4. Target Audience
+Primary Users: Children aged 6-14 years old, interested in learning Thirukural.
+Secondary Users: Parents and educators who wish to introduce Thirukural to children in an engaging way.
+5. Key Features
+The web application will include the following core functionalities:
+5.1. Kural Display and Meaning
+Description: Each page will prominently display a single Thirukural verse. Below the kural, its corresponding meaning will be provided.
+User Interface: Clear, large font for the kural and meaning to ensure readability for children.
+5.2. Kural Audio Playback
+Description: A clickable loudspeaker icon will be associated with each kural. Upon clicking, the audio pronunciation of the kural will be played.
+User Interface: A distinct and easily recognizable loudspeaker icon.
+Behavior: Audio playback should be clear and of high quality.
+5.3. Embedded YouTube Video
+Description: An embedded YouTube video relevant to the displayed kural will be present on the page. This video will offer additional context, explanation, or visual representation of the kural's meaning.
+User Interface: Standard YouTube embed player.
+5.4. Pronunciation Recording and Feedback
+Description: A microphone icon will allow users to record their pronunciation of the kural. The application will then analyze the recording and provide immediate visual feedback.
+User Interface: A clear microphone icon.
+Behavior:
+When the microphone icon is clicked, recording begins.
+Upon completion of recording (e.g., user clicks again or a set time limit is reached), the audio is processed.
+If the pronunciation is deemed correct, a "happy face" visual feedback will be displayed.
+Considerations for incorrect pronunciation feedback (e.g., a sad face, or prompt to try again) will be addressed in future iterations, or a neutral face. For V1, focus on positive reinforcement.
+5.5. Language Toggle (English/Tamil)
+Description: A toggle button at the top of the page will allow users to switch between English and Tamil language modes.
+User Interface: A prominent toggle switch (e.g., "English | தமிழ்").
+Behavior:
+When "English" is selected:
+Kural meaning will be displayed in English.
+Kural audio will be in English pronunciation (if available, otherwise a default).
+Embedded YouTube videos will be English-language relevant.
+When "Tamil" is selected:
+Kural meaning will be displayed in Tamil.
+Kural audio will be in Tamil pronunciation.
+Embedded YouTube videos will be Tamil-language relevant.
+6. User Stories
+As a child, I want to see a Thirukural and its meaning so I can understand what it says.
+As a child, I want to click a speaker icon and hear the kural so I can learn how to pronounce it.
+As a child, I want to watch a YouTube video related to the kural so I can get more context and visual understanding.
+As a child, I want to click a microphone icon, say the kural, and see a happy face if I said it correctly, so I know I'm learning well.
+As a user, I want to toggle between English and Tamil so I can learn in my preferred language.
+As a developer, I want all kural data, audio links, and video links to be stored in a Google Sheet so it's easy to manage and update.
+7. Technical Requirements (High-Level)
+Frontend: Web application (HTML, CSS, JavaScript, potentially a framework like React).
+Backend: Minimal backend for serving static files and potentially proxying Google Sheet data access if direct client-side access is restricted or complex.
+Data Storage: Google Sheet for storing Kural text (Tamil and English), Kural meaning (Tamil and English), Kural audio file links (Tamil and English), and YouTube video links (Tamil and English).
+Audio Playback: Standard HTML5 Audio API.
+Speech Recognition: Utilize Web Speech API (SpeechRecognition) for recording and analysis. Integration with a robust speech-to-text and pronunciation assessment API will be crucial for accurate feedback.
+YouTube Embed: Standard YouTube IFrame API.
+Responsiveness: The web application must be fully responsive and optimized for various screen sizes (desktop, tablet, mobile).
+Proposed plan (single-page app with optional routes)
+Goal: Smooth, kid-friendly SPA that shows one Kural at a time, with Next/Previous, language toggle, audio play, YouTube embed, and pronunciation recording/feedback.
+Core ideas
+SPA with hash routing (e.g. /#kural=42) — gives shareable URLs without a backend.
+
+
+Preload data from Google Sheets (either via a published CSV or via Sheets API). Data structure matches your earlier spec:
+
+ bash
+CopyEdit
+id, kural_tamil, kural_english, meaning_tamil, meaning_english,
+audio_tamil_url, audio_english_url, youtube_tamil_url, youtube_english_url
+
+UI: Large readable Kural text, meaning, audio button, YouTube embed, mic button, happy/neutral face feedback, top language toggle.
+On load: fetch all Kurals → display index = 0 or kural from hash.
+
+
+Clicking Next increments index; update URL hash to #kural=5.
+
+
+Language toggle switches displayed text, audio source, and video embed.
+
+
+Press mic → record and transcribe → score → show happy face + small confetti animation if above threshold.
+
+
+Optional: keyboard arrows for next/prev.
+
+
+
+Pronunciation: Use browser Web Speech API (SpeechRecognition) where available to capture and transcribe audio. Then compare the recognized text (or phonetic form) against the expected text using fuzzy matching (Levenshtein / similarity threshold).
+
+
+Note: Browser SpeechRecognition support for Tamil is limited and accuracy varies. For reliable Tamil pronunciation scoring you may want a server-side ASR (Google Speech-to-Text, AssemblyAI, etc.). I’ll include a pluggable layer so you can swap in any ASR later.
+
+
+Audio playback: HTML5 <audio> using URLs from the sheet.
+
+
+YouTube embed: iframe with language-specific URL from sheet.
+
+
+Storage: No server required if the Google Sheet is published as CSV. If you need private sheets, we’ll use Google Sheets API with an API key or a small backend to hide credentials.
+
+index.html — the single page (responsive, kid-friendly styling).
+
+
+styles.css — simple CSS.
+
+
+app.js — logic:
+
+
+fetch CSV or use embedded mock JSON,
+
+
+render Kural,
+
+
+language toggle,
+
+
+audio playback,
+
+
+YouTube embed,
+
+
+mic & scoring (using Web Speech API and a simple fuzzy matching function),
+
+
+hash routing.
+
+
+mock-data.json — sample Kurals (5–10 examples).
+
+
+README.md — how to run (open index.html locally or host).
+
+
+Or, if you prefer a version that connects to your Google Sheet, I can:
+Option A: Use published CSV (you paste the sheet’s “publish to web” CSV URL) — no API keys; easy and public.
+
+
+Option B: Use Sheets API — you provide an API key or I include instructions to add one (more private control but needs a tiny backend for security if you want to keep keys secret).
+
+
+8. Data Source
+All Thirukural content, including the kural text, its meaning, associated audio file links, and relevant YouTube video links, will be stored in a Google Sheet. The web application will access this Google Sheet to dynamically populate the content. The structure of the Google Sheet will need to be clearly defined 
+All Kural data stored in Google Sheets with columns:
+
+
+Kural ID
+
+
+Kural Text (Tamil)
+
+
+Kural Text (English Transliteration)
+
+
+Meaning (Tamil)
+
+
+Meaning (English)
+
+
+Audio URL (Tamil)
+
+
+Audio URL (English)
+
+
+YouTube URL (Tamil)
+
+
+YouTube URL (English)
+
+
+Web app fetches data dynamically from Google Sheets.
+
+9. Future Considerations
+Gamification elements (points, badges, progress tracking).
+User profiles to track learning progress.
+More detailed feedback on pronunciation (e.g., highlighting mispronounced words).
+Additional learning modules (quizzes, flashcards).
+Support for more languages.
+10. Success Metrics
+User Engagement: Number of active users, average session duration, number of kurals viewed per session.
+Pronunciation Accuracy: Percentage of successful pronunciations.
+Content Consumption: Number of audio plays and YouTube video views.
+Retention Rate: Percentage of users returning to the app over time.
+User Feedback: Positive feedback from parents and children.
+
