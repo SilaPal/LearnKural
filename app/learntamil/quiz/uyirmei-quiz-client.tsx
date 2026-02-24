@@ -3,6 +3,8 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { meiBaseLetters, uyirMarkers } from '@/lib/tamil-letters';
+import AuthModal from '@/components/auth-modal';
+import { useAuth } from '@/lib/use-auth';
 
 interface QuizQuestion {
   letter: string;
@@ -14,31 +16,31 @@ interface QuizQuestion {
 
 function generateQuiz(count: number): QuizQuestion[] {
   const questions: QuizQuestion[] = [];
-  
+
   for (let i = 0; i < count; i++) {
     const randomMei = meiBaseLetters[Math.floor(Math.random() * meiBaseLetters.length)];
     const randomUyir = uyirMarkers[Math.floor(Math.random() * uyirMarkers.length)];
-    
+
     const letter = randomMei.base + randomUyir.marker;
-    
+
     const options: { mei: string; uyir: string }[] = [];
     const correctOption = { mei: randomMei.mei, uyir: randomUyir.uyir };
-    
+
     while (options.length < 3) {
       const wrongMei = meiBaseLetters[Math.floor(Math.random() * meiBaseLetters.length)];
       const wrongUyir = uyirMarkers[Math.floor(Math.random() * uyirMarkers.length)];
       const wrongOption = { mei: wrongMei.mei, uyir: wrongUyir.uyir };
-      
+
       if (wrongMei.mei !== randomMei.mei || wrongUyir.uyir !== randomUyir.uyir) {
         if (!options.some(o => o.mei === wrongOption.mei && o.uyir === wrongOption.uyir)) {
           options.push(wrongOption);
         }
       }
     }
-    
+
     const correctIndex = Math.floor(Math.random() * 4);
     options.splice(correctIndex, 0, correctOption);
-    
+
     questions.push({
       letter,
       meiBase: randomMei.base,
@@ -47,7 +49,7 @@ function generateQuiz(count: number): QuizQuestion[] {
       correctIndex,
     });
   }
-  
+
   return questions;
 }
 
@@ -59,6 +61,10 @@ export default function UyirmeiQuizClient() {
   const [answered, setAnswered] = useState<number | null>(null);
   const [isComplete, setIsComplete] = useState(false);
   const [showCelebration, setShowCelebration] = useState(false);
+  const [showAuthModal, setShowAuthModal] = useState(false);
+  const [showUserMenu, setShowUserMenu] = useState(false);
+  const { user, logout } = useAuth();
+  const isPaidUser = user?.tier === 'paid';
 
   useEffect(() => {
     const savedLang = localStorage.getItem('thirukural-language');
@@ -70,13 +76,13 @@ export default function UyirmeiQuizClient() {
 
   const handleAnswer = (optionIndex: number) => {
     if (answered !== null) return;
-    
+
     setAnswered(optionIndex);
-    
+
     if (optionIndex === questions[currentIndex].correctIndex) {
       setScore(prev => prev + 1);
     }
-    
+
     setTimeout(() => {
       if (currentIndex < questions.length - 1) {
         setCurrentIndex(prev => prev + 1);
@@ -146,15 +152,77 @@ export default function UyirmeiQuizClient() {
                 </p>
               </div>
             </div>
-            <button
-              onClick={toggleLanguage}
-              className="p-2 bg-white/20 hover:bg-white/30 rounded-lg transition"
-            >
-              <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <circle cx="12" cy="12" r="10"/>
-                <path d="M2 12h20"/>
-              </svg>
-            </button>
+            <div className="flex items-center gap-2">
+              <div className="flex items-center gap-1.5">
+                {user ? (
+                  <div className="relative">
+                    <button
+                      onClick={() => setShowUserMenu(!showUserMenu)}
+                      className="flex items-center gap-2 hover:opacity-80 transition-opacity"
+                    >
+                      {user.picture ? (
+                        <img
+                          src={user.picture}
+                          alt={user.name}
+                          className="h-8 w-8 rounded-full border-2 border-white/60 shadow-lg"
+                        />
+                      ) : (
+                        <div className="h-8 w-8 rounded-full bg-blue-500 border-2 border-white/60 shadow-lg flex items-center justify-center text-white font-bold text-xs">
+                          {user.name.charAt(0).toUpperCase()}
+                        </div>
+                      )}
+                    </button>
+                    {showUserMenu && (
+                      <div className="absolute right-0 mt-2 w-52 bg-white rounded-xl shadow-xl border border-gray-100 py-1 z-50">
+                        <div className="px-3 py-2 border-b border-gray-100 text-gray-800">
+                          <p className="text-xs font-semibold truncate text-left">{user.name}</p>
+                          <p className="text-xs text-gray-500 truncate text-left">{user.email}</p>
+                        </div>
+                        <div className="px-3 py-2.5 border-b border-gray-100">
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-1.5">
+                              <span className="text-base">{isPaidUser ? '✨' : '🆓'}</span>
+                              <span className="text-xs font-semibold text-gray-700">
+                                {isPaidUser
+                                  ? (isTamil ? 'பிரீமியம்' : 'Premium Plan')
+                                  : (isTamil ? 'இலவச திட்டம்' : 'Free Plan')}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                        <button
+                          onClick={async () => { await logout(); setShowUserMenu(false); }}
+                          className="w-full text-left px-3 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors"
+                        >
+                          {isTamil ? 'வெளியேறு' : 'Logout'}
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <button
+                    onClick={() => setShowAuthModal(true)}
+                    className="flex items-center gap-1 bg-white/20 hover:bg-white/30 border border-white/40 text-white p-1.5 rounded-lg transition-all"
+                    title={isTamil ? 'உள்நுழைவு / பதிவு' : 'Login / Sign Up'}
+                    aria-label={isTamil ? 'உள்நுழைவு' : 'Login'}
+                  >
+                    <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                      <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+                      <circle cx="12" cy="7" r="4" />
+                    </svg>
+                  </button>
+                )}
+              </div>
+              <button
+                onClick={toggleLanguage}
+                className="p-2 bg-white/20 hover:bg-white/30 rounded-lg transition"
+              >
+                <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <circle cx="12" cy="12" r="10" />
+                  <path d="M2 12h20" />
+                </svg>
+              </button>
+            </div>
           </div>
         </div>
       </header>
@@ -173,8 +241,8 @@ export default function UyirmeiQuizClient() {
 
             <div className="text-center mb-8">
               <p className="text-gray-600 mb-4">
-                {isTamil 
-                  ? 'இந்த எழுத்தை உருவாக்க எந்த மெய் + உயிர் சேர்க்கவேண்டும்?' 
+                {isTamil
+                  ? 'இந்த எழுத்தை உருவாக்க எந்த மெய் + உயிர் சேர்க்கவேண்டும்?'
                   : 'Which consonant + vowel makes this letter?'}
               </p>
               <div className="text-9xl font-bold text-purple-600 py-8">
@@ -186,7 +254,7 @@ export default function UyirmeiQuizClient() {
               {currentQuestion.options.map((option, idx) => {
                 const isCorrect = idx === currentQuestion.correctIndex;
                 const isSelected = answered === idx;
-                
+
                 let bgColor = 'bg-gray-50 hover:bg-purple-50 border-gray-200';
                 if (answered !== null) {
                   if (isCorrect) {
@@ -195,7 +263,7 @@ export default function UyirmeiQuizClient() {
                     bgColor = 'bg-red-100 border-red-500';
                   }
                 }
-                
+
                 return (
                   <button
                     key={idx}
@@ -230,9 +298,9 @@ export default function UyirmeiQuizClient() {
               {score} / {questions.length}
             </p>
             <p className="text-gray-600 mb-6">
-              {score >= 8 
+              {score >= 8
                 ? (isTamil ? 'அற்புதம்! நீங்கள் உயிர்மெய் நிபுணர்!' : 'Amazing! You are an Uyirmei expert!')
-                : score >= 5 
+                : score >= 5
                   ? (isTamil ? 'நன்றாக செய்தீர்கள்! தொடர்ந்து பயிற்சி செய்யுங்கள்!' : 'Good job! Keep practicing!')
                   : (isTamil ? 'மீண்டும் முயற்சிக்கவும்!' : 'Try again!')}
             </p>
@@ -253,6 +321,11 @@ export default function UyirmeiQuizClient() {
           </div>
         )}
       </main>
+      <AuthModal
+        isOpen={showAuthModal}
+        onClose={() => setShowAuthModal(false)}
+        isTamil={isTamil}
+      />
     </>
   );
 }

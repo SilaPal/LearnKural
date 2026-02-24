@@ -4,12 +4,16 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Kural } from '@/shared/schema';
+import PricingModal from '@/components/pricing-modal';
 import BadgeModal from '@/components/badge-modal';
 import { NavigationModal, KuralSlugMap as NavKuralSlugMap } from '@/components/navigation-modal';
-import { 
-  updateKuralActivity, 
-  updateStreak, 
-  getSkillStats, 
+import AuthModal from '@/components/auth-modal';
+import { useAuth } from '@/lib/use-auth';
+import { syncFavoritesToDB, syncProgressToDB } from '@/lib/db-sync';
+import {
+  updateKuralActivity,
+  updateStreak,
+  getSkillStats,
   saveSkillStats,
   checkSkillBadge,
   checkMasteryBadge,
@@ -111,9 +115,9 @@ interface Props {
   allKuralSlugs: KuralSlugMap[];
 }
 
-export default function KuralLearningClient({ 
-  kural, 
-  kuralIndex, 
+export default function KuralLearningClient({
+  kural,
+  kuralIndex,
   totalKurals,
   prevKuralSlug,
   nextKuralSlug,
@@ -135,7 +139,7 @@ export default function KuralLearningClient({
     }
     return 'puzzle';
   });
-  
+
   const [shuffledPieces, setShuffledPieces] = useState<PuzzlePiece[]>([]);
   const [placedPieces, setPlacedPieces] = useState<(PuzzlePiece | null)[]>([]);
   const [gameSolved, setGameSolved] = useState(false);
@@ -145,16 +149,16 @@ export default function KuralLearningClient({
   const [puzzleBonusPoints, setPuzzleBonusPoints] = useState(0);
   const [lastPlacedCorrect, setLastPlacedCorrect] = useState<number | null>(null);
   const [shakeWrongSlot, setShakeWrongSlot] = useState<number | null>(null);
-  
+
   const [flyingWords, setFlyingWords] = useState<FlyingWord[]>([]);
   const [nextExpectedPosition, setNextExpectedPosition] = useState(0);
   const [flyingSpeed, setFlyingSpeed] = useState<'slow' | 'medium' | 'fast'>('slow');
-  
+
   const [balloonWords, setBalloonWords] = useState<BalloonWord[]>([]);
   const [revealedWords, setRevealedWords] = useState<BalloonWord[]>([]);
   const [arrangedWords, setArrangedWords] = useState<(BalloonWord | null)[]>([]);
   const [balloonPhase, setBalloonPhase] = useState<'popping' | 'arranging'>('popping');
-  
+
   // Race game state
   const [raceWords, setRaceWords] = useState<{ id: number; word: string; position: number }[]>([]);
   const [playerProgress, setPlayerProgress] = useState(0);
@@ -165,9 +169,9 @@ export default function KuralLearningClient({
   const [userAvatar, setUserAvatar] = useState('🧒');
   const [showAvatarModal, setShowAvatarModal] = useState(false);
   const aiIntervalRef = useRef<NodeJS.Timeout | null>(null);
-  
+
   const avatarOptions = ['🧒', '👦', '👧', '🦸', '🦹', '🐱', '🐶', '🦊', '🐰', '🦁', '🐯', '🐻', '🐼', '🐨', '🐸', '🦄', '🐧', '🦋', '🐢', '🦉'];
-  
+
   const [videoWatched, setVideoWatched] = useState(false);
   const [isDesktop, setIsDesktop] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
@@ -178,9 +182,15 @@ export default function KuralLearningClient({
   const [showBadgeModal, setShowBadgeModal] = useState(false);
   const [celebrationType, setCelebrationType] = useState<CelebrationType>(null);
   const [newlyEarnedBadge, setNewlyEarnedBadge] = useState<Badge | null>(null);
+  const { user, logout } = useAuth();
+  const isPaidUser = user?.tier === 'paid';
+  const FREE_FAVORITES_LIMIT = 10;
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const recognitionRef = useRef<any>(null);
   const router = useRouter();
+  const [showPricingModal, setShowPricingModal] = useState(false);
+  const [showAuthModal, setShowAuthModal] = useState(false);
+  const [showUserMenu, setShowUserMenu] = useState(false);
 
   useEffect(() => {
     const savedLang = localStorage.getItem('thirukural-language');
@@ -192,14 +202,14 @@ export default function KuralLearningClient({
         setCurrentLanguage('tamil');
       }
     }
-    
+
     const savedAvatar = localStorage.getItem('thirukural-race-avatar');
     if (savedAvatar) {
       setUserAvatar(savedAvatar);
     }
 
     setNewBadgeCount(getUnviewedBadgeCount());
-    
+
     const { newBadge } = updateStreak();
     if (newBadge) {
       saveBadge(newBadge);
@@ -211,7 +221,26 @@ export default function KuralLearningClient({
     if (savedBookmarks) {
       setBookmarks(JSON.parse(savedBookmarks));
     }
+  }, [kural.id]);
 
+  useEffect(() => {
+    if (user) {
+      fetch('/api/user/favorites')
+        .then(res => {
+          if (res.ok) return res.json();
+          return null;
+        })
+        .then(data => {
+          if (data && Array.isArray(data)) {
+            setBookmarks(data);
+            localStorage.setItem('thirukural-bookmarks', JSON.stringify(data));
+          }
+        })
+        .catch(err => console.error('Failed to load favorites from DB', err));
+    }
+  }, [user]);
+
+  useEffect(() => {
     const savedVisited = localStorage.getItem('thirukural-visited');
     const visited = savedVisited ? JSON.parse(savedVisited) : [];
     if (!visited.includes(kural.id)) {
@@ -224,18 +253,24 @@ export default function KuralLearningClient({
     const isMobile = /iphone|ipod|android.*mobile/.test(userAgent) || window.innerWidth <= 768;
     const isTablet = /ipad/.test(userAgent) || (/android/.test(userAgent) && !/mobile/.test(userAgent));
     setIsDesktop(!isMobile && !isTablet);
-    
+
     const hasSpeechRecognition = ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window);
     setSpeechSupported(hasSpeechRecognition);
   }, [kural.id]);
 
   const toggleBookmark = (kuralId?: number) => {
     const id = kuralId ?? kural.id;
+    // Free tier: max 10 favorites
+    if (!isPaidUser && !bookmarks.includes(id) && bookmarks.length >= FREE_FAVORITES_LIMIT) {
+      setShowPricingModal(true);
+      return;
+    }
     const newBookmarks = bookmarks.includes(id)
       ? bookmarks.filter(b => b !== id)
       : [...bookmarks, id];
     setBookmarks(newBookmarks);
     localStorage.setItem('thirukural-bookmarks', JSON.stringify(newBookmarks));
+    if (user) syncFavoritesToDB(newBookmarks);
   };
 
   const handleJumpToKural = () => {
@@ -305,7 +340,7 @@ export default function KuralLearningClient({
     setRaceActive(true);
     setRaceResult('none');
     setGameSolved(false);
-    
+
     // Clear any existing AI interval
     if (aiIntervalRef.current) clearInterval(aiIntervalRef.current);
   }, [kural.kural_tamil]);
@@ -313,9 +348,9 @@ export default function KuralLearningClient({
   // AI opponent logic for race game
   useEffect(() => {
     if (selectedGame !== 'race' || !raceActive || raceResult !== 'none') return;
-    
+
     const aiSpeed = raceDifficulty === 'easy' ? 3000 : raceDifficulty === 'hard' ? 1000 : 1800;
-    
+
     aiIntervalRef.current = setInterval(() => {
       setAiProgress(prev => {
         const totalWords = raceWords.length;
@@ -327,7 +362,7 @@ export default function KuralLearningClient({
         return prev + 1;
       });
     }, aiSpeed);
-    
+
     return () => {
       if (aiIntervalRef.current) clearInterval(aiIntervalRef.current);
     };
@@ -335,13 +370,13 @@ export default function KuralLearningClient({
 
   const handleRaceWordClick = (word: { id: number; word: string; position: number }) => {
     if (!raceActive || raceResult !== 'none') return;
-    
+
     // Check if this is the correct next word
     if (word.position === playerProgress) {
       const newProgress = playerProgress + 1;
       setPlayerProgress(newProgress);
       setRaceWords(prev => prev.filter(w => w.id !== word.id));
-      
+
       if (newProgress >= raceWords.length + playerProgress) {
         // Player wins!
         setRaceResult('win');
@@ -416,7 +451,7 @@ export default function KuralLearningClient({
       newPlacedPieces[emptySlotIndex] = piece;
       setPlacedPieces(newPlacedPieces);
       setShuffledPieces(prev => prev.filter(p => p.id !== piece.id));
-      
+
       if (isCorrectPlacement) {
         setLastPlacedCorrect(emptySlotIndex);
         setPuzzleStreak(prev => prev + 1);
@@ -494,11 +529,11 @@ export default function KuralLearningClient({
     else if (selectedGame === 'race') initializeRaceGame();
   };
 
-  
+
   const openBadgeModal = () => {
     const allBadges = getAllBadges();
     const unviewedBadges = allBadges.filter(b => !b.viewed);
-    
+
     if (unviewedBadges.length > 0) {
       const lastBadge = unviewedBadges[unviewedBadges.length - 1];
       // Tier-based celebration effects
@@ -520,28 +555,28 @@ export default function KuralLearningClient({
     } else if (allBadges.length > 0) {
       setCelebrationType('sparkles');
     }
-    
+
     setShowBadgeModal(true);
     setNewBadgeCount(0);
   };
-  
+
   const closeBadgeModal = () => {
     setShowBadgeModal(false);
     setCelebrationType(null);
     setNewlyEarnedBadge(null);
   };
-  
+
   const handleActivityComplete = useCallback((activity: 'audio' | 'video' | 'puzzle' | 'flying' | 'balloon' | 'race', timeSeconds?: number) => {
     updateKuralActivity(kural.id, activity);
-    
+
     const stats = getSkillStats();
-    
+
     if (activity === 'puzzle' && timeSeconds !== undefined) {
       if (stats.puzzleFastestTime === null || timeSeconds < stats.puzzleFastestTime) {
         stats.puzzleFastestTime = timeSeconds;
         saveSkillStats(stats);
       }
-      
+
       const speedBadge = checkSkillBadge('speedDemon', stats);
       if (speedBadge) {
         saveBadge(speedBadge);
@@ -550,7 +585,7 @@ export default function KuralLearningClient({
         setCelebrationType('snow');
       }
     }
-    
+
     if (activity === 'balloon' && stats.balloonPerfectGames >= 0) {
       const balloonBadge = checkSkillBadge('balloonMaster', stats);
       if (balloonBadge) {
@@ -560,7 +595,7 @@ export default function KuralLearningClient({
         setCelebrationType('confetti');
       }
     }
-    
+
     if (activity === 'flying' && stats.flyingPerfectGames >= 0) {
       const flyingBadge = checkSkillBadge('flyingAce', stats);
       if (flyingBadge) {
@@ -570,7 +605,7 @@ export default function KuralLearningClient({
         setCelebrationType('confetti');
       }
     }
-    
+
     const masteredCount = getMasteredCount();
     const masteryBadge = checkMasteryBadge(masteredCount);
     if (masteryBadge) {
@@ -589,15 +624,15 @@ export default function KuralLearningClient({
 
   const startSpeechRecognition = useCallback(() => {
     if (!speechSupported) return;
-    
+
     try {
       const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
       const recognition = new SpeechRecognition();
-      
+
       recognition.continuous = true;
       recognition.interimResults = true;
       recognition.lang = 'ta-IN';
-      
+
       const timeout = setTimeout(() => {
         if (recognitionRef.current === recognition) {
           recognition.stop();
@@ -605,7 +640,7 @@ export default function KuralLearningClient({
       }, 10000);
 
       recognition.onstart = () => setIsRecording(true);
-      
+
       recognition.onresult = (event: any) => {
         let transcript = '';
         for (let i = 0; i < event.results.length; i++) {
@@ -645,23 +680,23 @@ export default function KuralLearningClient({
     if (recognitionRef.current) {
       recognitionRef.current.stop();
     }
-    
+
     if (!pronunciationPracticed) {
       setPronunciationPracticed(true);
     }
-    
+
     setTimeout(() => {
       const result = window.pronunciationResult;
       if (result && result.score > 0.25) {
         setPronunciationFeedback('success');
         setTimeout(() => setPronunciationFeedback('none'), 3000);
-        
+
         // Track perfect pronunciation for skill badge
         if (result.score >= 0.8) {
           const stats = getSkillStats();
           stats.perfectPronunciations = (stats.perfectPronunciations || 0) + 1;
           saveSkillStats(stats);
-          
+
           const sharpBadge = checkSkillBadge('sharpEars', stats);
           if (sharpBadge) {
             saveBadge(sharpBadge);
@@ -691,12 +726,12 @@ export default function KuralLearningClient({
     }
     setPronunciationFeedback('success');
     setTimeout(() => setPronunciationFeedback('none'), 3000);
-    
+
     // Track as perfect pronunciation for skill badge
     const stats = getSkillStats();
     stats.perfectPronunciations = (stats.perfectPronunciations || 0) + 1;
     saveSkillStats(stats);
-    
+
     const sharpBadge = checkSkillBadge('sharpEars', stats);
     if (sharpBadge) {
       saveBadge(sharpBadge);
@@ -715,7 +750,7 @@ export default function KuralLearningClient({
 
     const audio = new Audio(audioUrl);
     audioRef.current = audio;
-    
+
     audio.onended = () => {
       setIsPlaying(false);
       if (!audioPlayed) {
@@ -739,8 +774,87 @@ export default function KuralLearningClient({
   const videoUrl = currentLanguage === 'tamil' ? kural.youtube_tamil_url : kural.youtube_english_url;
 
   return (
-    <article className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
-      <div className="max-w-4xl mx-auto px-4 py-8">
+    <article className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 relative">
+      {/* Auth Button (Top Right) */}
+      <div className="absolute top-4 right-4 sm:top-6 sm:right-6 z-50">
+        {user ? (
+          <>
+            <button
+              onClick={() => setShowUserMenu(!showUserMenu)}
+              className="flex items-center gap-2 hover:opacity-80 transition-opacity"
+            >
+              {user.picture ? (
+                <img
+                  src={user.picture}
+                  alt={user.name}
+                  className="h-9 w-9 rounded-full border-2 border-white/60 shadow-lg"
+                />
+              ) : (
+                <div className="h-9 w-9 rounded-full bg-blue-500 border-2 border-white/60 shadow-lg flex items-center justify-center text-white font-bold text-sm">
+                  {user.name.charAt(0).toUpperCase()}
+                </div>
+              )}
+            </button>
+            {showUserMenu && (
+              <div className="absolute right-0 mt-2 w-52 bg-white rounded-xl shadow-xl border border-gray-100 py-1 z-50">
+                <div className="px-3 py-2 border-b border-gray-100">
+                  <p className="text-xs font-semibold text-gray-800 truncate">{user.name}</p>
+                  <p className="text-xs text-gray-500 truncate">{user.email}</p>
+                </div>
+                {/* Plan Badge */}
+                <div className="px-3 py-2.5 border-b border-gray-100">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-base">{isPaidUser ? '✨' : '🆓'}</span>
+                      <span className="text-xs font-semibold text-gray-700">
+                        {isPaidUser
+                          ? (currentLanguage === 'tamil' ? 'பிரீமியம்' : 'Premium Plan')
+                          : (currentLanguage === 'tamil' ? 'இலவச திட்டம்' : 'Free Plan')}
+                      </span>
+                    </div>
+                    {!isPaidUser && (
+                      <button
+                        onClick={() => { setShowUserMenu(false); setShowPricingModal(true); }}
+                        className="text-xs bg-gradient-to-r from-purple-600 to-violet-600 text-white font-semibold px-2.5 py-1 rounded-full hover:opacity-90 transition"
+                      >
+                        {currentLanguage === 'tamil' ? 'மேம்படுத்து' : 'Upgrade'}
+                      </button>
+                    )}
+                  </div>
+                  {!isPaidUser && (
+                    <p className="text-xs text-gray-400 mt-1">
+                      {currentLanguage === 'tamil'
+                        ? `${bookmarks.length}/10 பிடித்தவை`
+                        : `${bookmarks.length}/10 favorites used`}
+                    </p>
+                  )}
+                </div>
+                <button
+                  onClick={async () => { await logout(); setShowUserMenu(false); }}
+                  className="w-full text-left px-3 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors"
+                >
+                  {currentLanguage === 'tamil' ? 'வெளியேறு' : 'Logout'}
+                </button>
+              </div>
+            )}
+          </>
+        ) : (
+          <button
+            onClick={() => setShowAuthModal(true)}
+            className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-500 hover:bg-blue-600 border border-transparent text-white rounded-lg transition-all text-sm font-semibold shadow"
+            title={currentLanguage === 'tamil' ? 'உள்நுழைவு / பதிவு' : 'Login / Sign Up'}
+            aria-label={currentLanguage === 'tamil' ? 'உள்நுழைவு' : 'Login'}
+          >
+            <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+              <circle cx="12" cy="7" r="4" />
+            </svg>
+            <span className="hidden sm:inline">{currentLanguage === 'tamil' ? 'உள்நுழைவு' : 'Login'}</span>
+          </button>
+        )}
+      </div>
+
+      <div className="max-w-4xl mx-auto px-4 py-8 mt-6">
         <header className="mb-6">
           <div className="flex items-center justify-center gap-3 mb-2">
             <Link href="/">
@@ -751,13 +865,13 @@ export default function KuralLearningClient({
             </h1>
           </div>
           <p className="text-gray-600 text-sm text-center">
-            {currentLanguage === 'tamil' 
+            {currentLanguage === 'tamil'
               ? 'ஒலி மற்றும் காணொளியுடன் தமிழ் ஞானத்தைக் கற்றுக்கொள்ளுங்கள்'
               : 'Interactive Tamil wisdom learning with audio and video'
             }
           </p>
         </header>
-        
+
         <div className="flex items-center justify-between mb-3 gap-2">
           <div className="flex items-center gap-2">
             <button
@@ -775,11 +889,10 @@ export default function KuralLearningClient({
             </button>
             <button
               onClick={() => toggleBookmark()}
-              className={`px-2 py-1 border-2 rounded-lg transition flex items-center ${
-                bookmarks.includes(kural.id) 
-                  ? 'border-red-400 bg-red-50' 
-                  : 'border-gray-300 bg-white hover:border-red-300'
-              }`}
+              className={`px-2 py-1 border-2 rounded-lg transition flex items-center ${bookmarks.includes(kural.id)
+                ? 'border-red-400 bg-red-50'
+                : 'border-gray-300 bg-white hover:border-red-300'
+                }`}
               aria-label={currentLanguage === 'tamil' ? 'புத்தகக்குறி' : 'Bookmark'}
               title={currentLanguage === 'tamil' ? 'இந்தக் குறளை சேமி' : 'Save this kural'}
             >
@@ -799,14 +912,14 @@ export default function KuralLearningClient({
             className="px-3 py-1.5 bg-purple-600 text-white text-sm rounded-lg hover:bg-purple-700 transition flex items-center gap-1.5"
           >
             <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <circle cx="12" cy="12" r="10"/>
-              <path d="M2 12h20"/>
-              <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>
+              <circle cx="12" cy="12" r="10" />
+              <path d="M2 12h20" />
+              <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" />
             </svg>
             {currentLanguage === 'tamil' ? 'English' : 'தமிழ்'}
           </button>
         </div>
-        
+
         <section className="mb-6 rounded-2xl shadow-lg overflow-hidden">
           <h2 className="sr-only">Kural Text</h2>
           <div className="bg-purple-50 p-6">
@@ -823,8 +936,8 @@ export default function KuralLearningClient({
             </p>
           </div>
         </section>
-        
-        
+
+
         <div className="space-y-6">
           {(audioUrl || isDesktop) && (
             <div className={`grid gap-4 ${audioUrl && isDesktop ? 'grid-cols-1 md:grid-cols-2' : 'grid-cols-1'}`}>
@@ -837,11 +950,10 @@ export default function KuralLearningClient({
                     <button
                       onClick={playAudio}
                       disabled={isPlaying}
-                      className={`w-12 h-12 rounded-full flex items-center justify-center text-white transition-all duration-200 transform hover:scale-105 mx-auto mb-4 ${
-                        isPlaying 
-                          ? 'bg-purple-400 cursor-not-allowed' 
-                          : 'bg-purple-600 hover:bg-purple-700'
-                      }`}
+                      className={`w-12 h-12 rounded-full flex items-center justify-center text-white transition-all duration-200 transform hover:scale-105 mx-auto mb-4 ${isPlaying
+                        ? 'bg-purple-400 cursor-not-allowed'
+                        : 'bg-purple-600 hover:bg-purple-700'
+                        }`}
                     >
                       <svg className="h-5 w-5" viewBox="0 0 24 24" fill="currentColor">
                         {isPlaying ? (
@@ -855,8 +967,8 @@ export default function KuralLearningClient({
                       </svg>
                     </button>
                     <p className="text-gray-600 text-sm mb-2">
-                      {isPlaying 
-                        ? (currentLanguage === 'tamil' ? 'இயங்குகிறது...' : 'Playing...') 
+                      {isPlaying
+                        ? (currentLanguage === 'tamil' ? 'இயங்குகிறது...' : 'Playing...')
                         : (currentLanguage === 'tamil' ? 'ஒலியை கேள்' : 'Click to play audio')
                       }
                     </p>
@@ -873,11 +985,10 @@ export default function KuralLearningClient({
                     {speechSupported ? (
                       <button
                         onClick={handlePronunciationToggle}
-                        className={`w-12 h-12 rounded-full flex items-center justify-center text-white transition-all duration-200 transform hover:scale-105 mx-auto mb-4 ${
-                          isRecording 
-                            ? 'bg-red-500 hover:bg-red-600' 
-                            : 'bg-purple-600 hover:bg-purple-700'
-                        }`}
+                        className={`w-12 h-12 rounded-full flex items-center justify-center text-white transition-all duration-200 transform hover:scale-105 mx-auto mb-4 ${isRecording
+                          ? 'bg-red-500 hover:bg-red-600'
+                          : 'bg-purple-600 hover:bg-purple-700'
+                          }`}
                         title={isRecording ? 'Click to stop recording' : 'Click to start recording'}
                       >
                         {isRecording ? (
@@ -886,10 +997,10 @@ export default function KuralLearningClient({
                           </svg>
                         ) : (
                           <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                            <rect x="9" y="2" width="6" height="11" rx="3" fill="currentColor"/>
-                            <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
-                            <line x1="12" y1="19" x2="12" y2="22"/>
-                            <line x1="8" y1="22" x2="16" y2="22"/>
+                            <rect x="9" y="2" width="6" height="11" rx="3" fill="currentColor" />
+                            <path d="M19 10v2a7 7 0 0 1-14 0v-2" />
+                            <line x1="12" y1="19" x2="12" y2="22" />
+                            <line x1="8" y1="22" x2="16" y2="22" />
                           </svg>
                         )}
                       </button>
@@ -900,23 +1011,23 @@ export default function KuralLearningClient({
                         title="Practice pronunciation (tap after you try)"
                       >
                         <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                          <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
-                          <polyline points="22 4 12 14.01 9 11.01"/>
+                          <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
+                          <polyline points="22 4 12 14.01 9 11.01" />
                         </svg>
                       </button>
                     )}
-                    
+
                     <p className="text-gray-600 text-sm mb-2">
-                      {speechSupported 
-                        ? (currentLanguage === 'tamil' 
+                      {speechSupported
+                        ? (currentLanguage === 'tamil'
                           ? (isRecording ? 'நிறுத்த அழுத்தவும்' : 'பதிவைத் தொடங்க')
                           : (isRecording ? 'Click to stop' : 'Click to record'))
-                        : (currentLanguage === 'tamil' 
-                          ? 'உச்சரித்து அழுத்தவும்' 
+                        : (currentLanguage === 'tamil'
+                          ? 'உச்சரித்து அழுத்தவும்'
                           : 'Practice & tap')
                       }
                     </p>
-                    
+
                     {pronunciationFeedback === 'success' && (
                       <div className="animate-pulse">
                         <div className="text-3xl mb-1">😊</div>
@@ -925,7 +1036,7 @@ export default function KuralLearningClient({
                         </p>
                       </div>
                     )}
-                    
+
                     {pronunciationFeedback === 'failed' && (
                       <div>
                         <div className="text-3xl mb-1">😞</div>
@@ -934,7 +1045,7 @@ export default function KuralLearningClient({
                         </p>
                       </div>
                     )}
-                    
+
                   </div>
                 </section>
               )}
@@ -944,26 +1055,23 @@ export default function KuralLearningClient({
           <section className="bg-white rounded-2xl shadow-lg overflow-hidden">
             <div className="flex justify-center py-3">
               <div className="relative inline-flex bg-gray-100 rounded-full p-1">
-                <div 
-                  className={`absolute top-1 bottom-1 w-[calc(50%-4px)] rounded-full transition-all duration-300 ease-out ${
-                    contentMode === 'video' 
-                      ? 'left-1 bg-purple-600' 
-                      : 'left-[calc(50%+2px)] bg-green-600'
-                  }`}
+                <div
+                  className={`absolute top-1 bottom-1 w-[calc(50%-4px)] rounded-full transition-all duration-300 ease-out ${contentMode === 'video'
+                    ? 'left-1 bg-purple-600'
+                    : 'left-[calc(50%+2px)] bg-green-600'
+                    }`}
                 />
                 <button
                   onClick={() => setContentMode('video')}
-                  className={`relative z-10 py-1.5 px-4 rounded-full text-sm font-medium transition-all duration-300 flex items-center gap-1.5 ${
-                    contentMode === 'video' ? 'text-white' : 'text-gray-500'
-                  }`}
+                  className={`relative z-10 py-1.5 px-4 rounded-full text-sm font-medium transition-all duration-300 flex items-center gap-1.5 ${contentMode === 'video' ? 'text-white' : 'text-gray-500'
+                    }`}
                 >
                   ▶️ {currentLanguage === 'tamil' ? 'காணொளி' : 'Video'}
                 </button>
                 <button
                   onClick={() => setContentMode('games')}
-                  className={`relative z-10 py-1.5 px-4 rounded-full text-sm font-medium transition-all duration-300 flex items-center gap-1.5 ${
-                    contentMode === 'games' ? 'text-white' : 'text-gray-500'
-                  }`}
+                  className={`relative z-10 py-1.5 px-4 rounded-full text-sm font-medium transition-all duration-300 flex items-center gap-1.5 ${contentMode === 'games' ? 'text-white' : 'text-gray-500'
+                    }`}
                 >
                   🎮 {currentLanguage === 'tamil' ? 'விளையாட்டு' : 'Games'}
                 </button>
@@ -998,33 +1106,29 @@ export default function KuralLearningClient({
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-4">
                   <button
                     onClick={() => setSelectedGame('puzzle')}
-                    className={`flex items-center justify-center gap-1 px-3 py-2 rounded-lg font-medium text-sm transition ${
-                      selectedGame === 'puzzle' ? 'bg-purple-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                    }`}
+                    className={`flex items-center justify-center gap-1 px-3 py-2 rounded-lg font-medium text-sm transition ${selectedGame === 'puzzle' ? 'bg-purple-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                      }`}
                   >
                     🧩 {currentLanguage === 'tamil' ? 'புதிர்' : 'Puzzle'}
                   </button>
                   <button
                     onClick={() => setSelectedGame('flying')}
-                    className={`flex items-center justify-center gap-1 px-3 py-2 rounded-lg font-medium text-sm transition ${
-                      selectedGame === 'flying' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                    }`}
+                    className={`flex items-center justify-center gap-1 px-3 py-2 rounded-lg font-medium text-sm transition ${selectedGame === 'flying' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                      }`}
                   >
                     🦋 {currentLanguage === 'tamil' ? 'பறக்கும்' : 'Flying'}
                   </button>
                   <button
                     onClick={() => setSelectedGame('balloon')}
-                    className={`flex items-center justify-center gap-1 px-3 py-2 rounded-lg font-medium text-sm transition ${
-                      selectedGame === 'balloon' ? 'bg-pink-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                    }`}
+                    className={`flex items-center justify-center gap-1 px-3 py-2 rounded-lg font-medium text-sm transition ${selectedGame === 'balloon' ? 'bg-pink-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                      }`}
                   >
                     🎈 {currentLanguage === 'tamil' ? 'பலூன்' : 'Balloon'}
                   </button>
                   <button
                     onClick={() => setSelectedGame('race')}
-                    className={`flex items-center justify-center gap-1 px-3 py-2 rounded-lg font-medium text-sm transition ${
-                      selectedGame === 'race' ? 'bg-green-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                    }`}
+                    className={`flex items-center justify-center gap-1 px-3 py-2 rounded-lg font-medium text-sm transition ${selectedGame === 'race' ? 'bg-green-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                      }`}
                   >
                     🏁 {currentLanguage === 'tamil' ? 'போட்டி' : 'Race'}
                   </button>
@@ -1035,15 +1139,14 @@ export default function KuralLearningClient({
                     <div className="bg-blue-50 p-3 rounded-lg mb-4">
                       <div className="flex items-center justify-between mb-2">
                         <p className="text-blue-800 text-sm">
-                          {currentLanguage === 'tamil' 
+                          {currentLanguage === 'tamil'
                             ? '📝 சொற்களை சரியான வரிசையில் அமைக்கவும்'
                             : '📝 Arrange words in correct order'}
                         </p>
                       </div>
                       <div className="flex items-center justify-between">
-                        <div className={`flex items-center gap-2 px-3 py-1 rounded-full text-sm font-bold ${
-                          puzzleTimer <= 10 ? 'bg-red-100 text-red-600 animate-pulse' : 'bg-white text-blue-600'
-                        }`}>
+                        <div className={`flex items-center gap-2 px-3 py-1 rounded-full text-sm font-bold ${puzzleTimer <= 10 ? 'bg-red-100 text-red-600 animate-pulse' : 'bg-white text-blue-600'
+                          }`}>
                           ⏱️ {puzzleTimer}s
                         </div>
                         {puzzleStreak > 0 && (
@@ -1065,9 +1168,9 @@ export default function KuralLearningClient({
                           <button
                             key={`slot-${index}`}
                             className={`min-w-[50px] min-h-[40px] flex items-center justify-center rounded-lg border-2 transition-all cursor-pointer text-sm relative
-                              ${piece 
-                                ? gameSolved 
-                                  ? 'bg-green-100 border-green-400 text-green-800' 
+                              ${piece
+                                ? gameSolved
+                                  ? 'bg-green-100 border-green-400 text-green-800'
                                   : lastPlacedCorrect === index
                                     ? 'bg-green-200 border-green-500 text-green-800 scale-110'
                                     : 'bg-yellow-100 border-yellow-400 text-yellow-800'
@@ -1131,40 +1234,37 @@ export default function KuralLearningClient({
                     <div className="bg-purple-50 p-3 rounded-lg mb-4">
                       <div className="flex items-center justify-between mb-2">
                         <p className="text-purple-800 text-sm">
-                          {currentLanguage === 'tamil' 
+                          {currentLanguage === 'tamil'
                             ? '🎯 பறக்கும் சொற்களை சரியான வரிசையில் கிளிக் செய்யுங்கள்!'
                             : '🎯 Click the flying words in the correct order!'}
                         </p>
                         <div className="flex items-center gap-1 bg-white rounded-full p-1 shadow-sm">
                           <button
                             onClick={() => setFlyingSpeed('slow')}
-                            className={`px-2 py-1 rounded-full text-xs font-medium transition-all ${
-                              flyingSpeed === 'slow' 
-                                ? 'bg-green-500 text-white' 
-                                : 'text-gray-500 hover:bg-gray-100'
-                            }`}
+                            className={`px-2 py-1 rounded-full text-xs font-medium transition-all ${flyingSpeed === 'slow'
+                              ? 'bg-green-500 text-white'
+                              : 'text-gray-500 hover:bg-gray-100'
+                              }`}
                             title={currentLanguage === 'tamil' ? 'மெதுவாக' : 'Slow'}
                           >
                             🐢
                           </button>
                           <button
                             onClick={() => setFlyingSpeed('medium')}
-                            className={`px-2 py-1 rounded-full text-xs font-medium transition-all ${
-                              flyingSpeed === 'medium' 
-                                ? 'bg-yellow-500 text-white' 
-                                : 'text-gray-500 hover:bg-gray-100'
-                            }`}
+                            className={`px-2 py-1 rounded-full text-xs font-medium transition-all ${flyingSpeed === 'medium'
+                              ? 'bg-yellow-500 text-white'
+                              : 'text-gray-500 hover:bg-gray-100'
+                              }`}
                             title={currentLanguage === 'tamil' ? 'நடுத்தரம்' : 'Medium'}
                           >
                             🐇
                           </button>
                           <button
                             onClick={() => setFlyingSpeed('fast')}
-                            className={`px-2 py-1 rounded-full text-xs font-medium transition-all ${
-                              flyingSpeed === 'fast' 
-                                ? 'bg-red-500 text-white' 
-                                : 'text-gray-500 hover:bg-gray-100'
-                            }`}
+                            className={`px-2 py-1 rounded-full text-xs font-medium transition-all ${flyingSpeed === 'fast'
+                              ? 'bg-red-500 text-white'
+                              : 'text-gray-500 hover:bg-gray-100'
+                              }`}
                             title={currentLanguage === 'tamil' ? 'வேகமாக' : 'Fast'}
                           >
                             🚀
@@ -1172,7 +1272,7 @@ export default function KuralLearningClient({
                         </div>
                       </div>
                       <p className="text-purple-600 text-xs">
-                        {currentLanguage === 'tamil' 
+                        {currentLanguage === 'tamil'
                           ? `அடுத்த சொல்: ${nextExpectedPosition + 1} / ${flyingWords.length}`
                           : `Click word #${nextExpectedPosition + 1}`}
                       </p>
@@ -1183,8 +1283,8 @@ export default function KuralLearningClient({
                           key={word.id}
                           onClick={() => handleFlyingWordClick(word)}
                           className={`absolute px-3 py-1.5 rounded-lg font-tamil text-sm font-medium cursor-pointer shadow-md transition-all duration-200
-                            ${word.isClicked 
-                              ? 'bg-green-400 text-white opacity-50 cursor-default scale-90' 
+                            ${word.isClicked
+                              ? 'bg-green-400 text-white opacity-50 cursor-default scale-90'
                               : 'bg-purple-500 text-white flying-word-glow hover:scale-105 hover:bg-purple-600'
                             }`}
                           style={{ left: `${word.x}%`, top: `${word.y}%` }}
@@ -1224,24 +1324,24 @@ export default function KuralLearningClient({
                           <div className="absolute top-4 left-8 text-lg opacity-60" style={{ animation: 'sparkle 2s ease-in-out infinite' }}>✨</div>
                           <div className="absolute top-12 right-12 text-sm opacity-50" style={{ animation: 'sparkle 2s ease-in-out infinite 0.5s' }}>⭐</div>
                           <div className="absolute bottom-8 left-1/4 text-lg opacity-40" style={{ animation: 'sparkle 2s ease-in-out infinite 1s' }}>✨</div>
-                          
+
                           {balloonWords.map((balloon) => !balloon.isPopped && (
                             <button
                               key={balloon.id}
                               onClick={() => handleBalloonPop(balloon)}
                               className="absolute cursor-pointer transition-all duration-300 balloon-hover active:scale-90 sparkle-effect"
-                              style={{ 
-                                left: `${balloon.x}%`, 
-                                top: `${balloon.y}%`, 
+                              style={{
+                                left: `${balloon.x}%`,
+                                top: `${balloon.y}%`,
                                 transform: 'translate(-50%, -50%)',
                                 animation: `bounce 2s ease-in-out infinite`,
                                 animationDelay: `${balloon.bobOffset * 200}ms`,
                               }}
                             >
                               <div className="relative pointer-events-none">
-                                <div 
+                                <div
                                   className="w-14 h-16 rounded-full shadow-lg flex items-center justify-center relative overflow-hidden"
-                                  style={{ 
+                                  style={{
                                     background: `radial-gradient(circle at 30% 30%, ${balloon.color}ff, ${balloon.color}dd, ${balloon.color}aa)`,
                                     boxShadow: `0 4px 20px ${balloon.color}88, 0 0 30px ${balloon.color}44`
                                   }}
@@ -1251,14 +1351,14 @@ export default function KuralLearningClient({
                                   {/* Shimmer overlay */}
                                   <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent" style={{ backgroundSize: '200% 100%', animation: 'shimmer 2s linear infinite' }} />
                                 </div>
-                                <div 
+                                <div
                                   className="w-3 h-2 mx-auto -mt-0.5"
-                                  style={{ 
+                                  style={{
                                     background: balloon.color,
                                     clipPath: 'polygon(50% 0%, 0% 100%, 100% 100%)'
                                   }}
                                 />
-                                <div className="w-0.5 h-8 mx-auto" style={{ 
+                                <div className="w-0.5 h-8 mx-auto" style={{
                                   background: 'linear-gradient(to bottom, #9ca3af, transparent)'
                                 }} />
                               </div>
@@ -1292,7 +1392,7 @@ export default function KuralLearningClient({
                             <button
                               key={`arrange-slot-${index}`}
                               className={`min-w-[50px] min-h-[40px] flex items-center justify-center rounded-lg border-2 transition-all cursor-pointer text-sm
-                                ${word 
+                                ${word
                                   ? gameSolved ? 'bg-green-100 border-green-400 text-green-800' : 'bg-pink-100 border-pink-400 text-pink-800'
                                   : 'bg-white border-gray-300 border-dashed'
                                 }`}
@@ -1336,39 +1436,36 @@ export default function KuralLearningClient({
                     <div className="bg-green-50 p-3 rounded-lg mb-4">
                       <div className="flex items-center justify-between mb-2">
                         <p className="text-green-800 text-sm">
-                          {currentLanguage === 'tamil' 
+                          {currentLanguage === 'tamil'
                             ? '🏁 ரோபோவை வெல்லுங்கள்! சொற்களை வரிசையாகத் தேர்ந்தெடுக்கவும்'
                             : '🏁 Beat the Robot! Select words in order'}
                         </p>
                         <div className="flex items-center gap-1 bg-white rounded-full p-1 shadow-sm">
                           <button
                             onClick={() => { setRaceDifficulty('easy'); initializeRaceGame(); }}
-                            className={`px-2 py-1 rounded-full text-xs font-medium transition-all ${
-                              raceDifficulty === 'easy' ? 'bg-green-500 text-white' : 'text-gray-500 hover:bg-gray-100'
-                            }`}
+                            className={`px-2 py-1 rounded-full text-xs font-medium transition-all ${raceDifficulty === 'easy' ? 'bg-green-500 text-white' : 'text-gray-500 hover:bg-gray-100'
+                              }`}
                           >
                             😊
                           </button>
                           <button
                             onClick={() => { setRaceDifficulty('medium'); initializeRaceGame(); }}
-                            className={`px-2 py-1 rounded-full text-xs font-medium transition-all ${
-                              raceDifficulty === 'medium' ? 'bg-yellow-500 text-white' : 'text-gray-500 hover:bg-gray-100'
-                            }`}
+                            className={`px-2 py-1 rounded-full text-xs font-medium transition-all ${raceDifficulty === 'medium' ? 'bg-yellow-500 text-white' : 'text-gray-500 hover:bg-gray-100'
+                              }`}
                           >
                             😎
                           </button>
                           <button
                             onClick={() => { setRaceDifficulty('hard'); initializeRaceGame(); }}
-                            className={`px-2 py-1 rounded-full text-xs font-medium transition-all ${
-                              raceDifficulty === 'hard' ? 'bg-red-500 text-white' : 'text-gray-500 hover:bg-gray-100'
-                            }`}
+                            className={`px-2 py-1 rounded-full text-xs font-medium transition-all ${raceDifficulty === 'hard' ? 'bg-red-500 text-white' : 'text-gray-500 hover:bg-gray-100'
+                              }`}
                           >
                             🤖
                           </button>
                         </div>
                       </div>
                     </div>
-                    
+
                     {/* Avatar Selection */}
                     <div className="flex items-center justify-end mb-2">
                       <button
@@ -1379,7 +1476,7 @@ export default function KuralLearningClient({
                         <span className="text-xs text-emerald-600">{currentLanguage === 'tamil' ? 'அவதாரம்' : 'Avatar'}</span>
                       </button>
                     </div>
-                    
+
                     {/* Visual Race Track */}
                     {/* Forest Race Track */}
                     <div className="relative h-80 rounded-xl overflow-hidden" style={{ background: 'linear-gradient(to bottom, #87CEEB 0%, #98D8C8 35%, #228B22 65%, #1a5c1a 100%)' }}>
@@ -1388,7 +1485,7 @@ export default function KuralLearningClient({
                       <div className="absolute top-6 left-1/3 text-2xl opacity-60">☁️</div>
                       <div className="absolute top-3 right-1/4 text-4xl opacity-70">☁️</div>
                       <div className="absolute top-5 right-5 text-4xl">🌞</div>
-                      
+
                       {/* Background trees */}
                       <div className="absolute bottom-28 left-1 text-4xl">🌲</div>
                       <div className="absolute bottom-32 left-12 text-5xl">🌳</div>
@@ -1396,29 +1493,29 @@ export default function KuralLearningClient({
                       <div className="absolute bottom-32 right-24 text-5xl">🌳</div>
                       <div className="absolute bottom-28 right-12 text-4xl">🌲</div>
                       <div className="absolute bottom-36 left-1/2 -translate-x-1/2 text-6xl">🌳</div>
-                      
+
                       {/* Flowers */}
                       <div className="absolute bottom-16 left-16 text-lg">🌸</div>
                       <div className="absolute bottom-14 right-1/3 text-lg">🌺</div>
                       <div className="absolute bottom-18 left-1/2 text-lg">🌼</div>
-                      
+
                       {/* Wide winding dirt path with two lanes - SVG */}
                       <svg className="absolute bottom-0 left-0 right-0 h-44 w-full" viewBox="0 0 400 130" preserveAspectRatio="none">
                         <path d="M -10 105 Q 50 65, 100 85 T 200 70 T 300 90 T 410 55" stroke="#4a3728" strokeWidth="55" fill="none" strokeLinecap="round" />
                         <path d="M -10 105 Q 50 65, 100 85 T 200 70 T 300 90 T 410 55" stroke="#8B7355" strokeWidth="48" fill="none" strokeLinecap="round" />
                         <path d="M -10 105 Q 50 65, 100 85 T 200 70 T 300 90 T 410 55" stroke="#a08060" strokeWidth="2" fill="none" strokeLinecap="round" strokeDasharray="12 8" />
                       </svg>
-                      
+
                       {/* Start flag */}
                       <div className="absolute bottom-24 left-3 text-2xl">🚩</div>
-                      
+
                       {/* Finish line */}
                       <div className="absolute bottom-16 right-5 text-2xl">🏁</div>
-                      
+
                       {/* Player running on upper lane */}
-                      <div 
+                      <div
                         className="absolute text-4xl transition-all duration-500 ease-out animate-run drop-shadow-lg"
-                        style={{ 
+                        style={{
                           left: `${Math.min(3 + (playerProgress / (raceWords.length + playerProgress || 1)) * 82, 85)}%`,
                           bottom: `${60 + Math.sin((playerProgress / (raceWords.length + playerProgress || 1)) * Math.PI * 2) * 10}px`,
                           transform: 'scaleX(-1)'
@@ -1426,34 +1523,34 @@ export default function KuralLearningClient({
                       >
                         {userAvatar}
                       </div>
-                      
+
                       {/* Robot running on lower lane */}
-                      <div 
+                      <div
                         className="absolute text-4xl transition-all duration-500 ease-out animate-run drop-shadow-lg"
-                        style={{ 
+                        style={{
                           left: `${Math.min(3 + (aiProgress / (raceWords.length + playerProgress || 1)) * 82, 85)}%`,
                           bottom: `${24 + Math.sin((aiProgress / (raceWords.length + playerProgress || 1)) * Math.PI * 2) * 10}px`
                         }}
                       >
                         🤖
                       </div>
-                      
+
                       {/* Player label */}
                       <div className="absolute top-2 left-2 bg-blue-500/90 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full shadow flex items-center gap-1">
                         <span style={{ transform: 'scaleX(-1)' }}>{userAvatar}</span> {playerProgress}
                       </div>
-                      
+
                       {/* Robot label */}
                       <div className="absolute top-2 right-2 bg-red-500/90 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full shadow">
                         🤖 {aiProgress}
                       </div>
                     </div>
-                    
+
                     {/* Word Pool */}
                     {raceResult === 'none' && (
                       <div className="mt-3">
                         <p className="text-green-700 text-xs mb-2 text-center">
-                          {currentLanguage === 'tamil' 
+                          {currentLanguage === 'tamil'
                             ? `சொல் #${playerProgress + 1} ஐத் தேர்ந்தெடுக்கவும்`
                             : `Select word #${playerProgress + 1}`}
                         </p>
@@ -1470,7 +1567,7 @@ export default function KuralLearningClient({
                         </div>
                       </div>
                     )}
-                    
+
                     {/* Win Result */}
                     {raceResult === 'win' && (
                       <div className="mt-3 text-center py-4 bg-gradient-to-br from-green-50 to-emerald-50 rounded-xl relative overflow-hidden">
@@ -1483,13 +1580,13 @@ export default function KuralLearningClient({
                           <span className="absolute text-lg animate-twinkle" style={{ bottom: '20%', left: '18%', animationDelay: '0.3s' }}>⭐</span>
                           <span className="absolute text-base animate-twinkle" style={{ bottom: '25%', right: '15%', animationDelay: '0.5s' }}>✨</span>
                         </div>
-                        
+
                         {/* Dancing avatar with trophy */}
                         <div className="relative inline-block">
                           <span className="text-5xl inline-block animate-dance">{userAvatar}</span>
                           <span className="text-3xl ml-1">🏆</span>
                         </div>
-                        
+
                         <p className="text-xl font-bold text-green-700 mt-2">{currentLanguage === 'tamil' ? 'வெற்றி!' : 'You Win!'}</p>
                         <p className="text-green-600 text-xs">+15 {currentLanguage === 'tamil' ? 'புள்ளிகள்' : 'points'}</p>
                         <button onClick={initializeRaceGame} className="mt-2 px-4 py-1.5 bg-green-600 text-white rounded-lg text-xs hover:bg-green-700 relative z-10">
@@ -1497,7 +1594,7 @@ export default function KuralLearningClient({
                         </button>
                       </div>
                     )}
-                    
+
                     {/* Lose Result */}
                     {raceResult === 'lose' && (
                       <div className="mt-3 text-center py-4 bg-gradient-to-br from-red-50 to-orange-50 rounded-xl">
@@ -1509,7 +1606,7 @@ export default function KuralLearningClient({
                         </button>
                       </div>
                     )}
-                    
+
                     {/* Avatar Selection Modal */}
                     {showAvatarModal && (
                       <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onClick={() => setShowAvatarModal(false)}>
@@ -1526,11 +1623,10 @@ export default function KuralLearningClient({
                                   localStorage.setItem('thirukural-race-avatar', avatar);
                                   setShowAvatarModal(false);
                                 }}
-                                className={`text-3xl p-2 rounded-xl transition-all hover:scale-110 ${
-                                  userAvatar === avatar 
-                                    ? 'bg-emerald-100 border-2 border-emerald-500' 
-                                    : 'bg-gray-50 border border-gray-200 hover:bg-gray-100'
-                                }`}
+                                className={`text-3xl p-2 rounded-xl transition-all hover:scale-110 ${userAvatar === avatar
+                                  ? 'bg-emerald-100 border-2 border-emerald-500'
+                                  : 'bg-gray-50 border border-gray-200 hover:bg-gray-100'
+                                  }`}
                               >
                                 {avatar}
                               </button>
@@ -1607,17 +1703,17 @@ export default function KuralLearningClient({
       </div>
 
       {/* New Gen Z Badge Modal */}
-      <BadgeModal 
+      <BadgeModal
         isOpen={showBadgeModal}
         onClose={closeBadgeModal}
         language={currentLanguage}
         celebrationType={celebrationType}
       />
-      
+
       {/* New Badge Earned Toast */}
       {newlyEarnedBadge && !showBadgeModal && (
         <div className="fixed bottom-20 left-1/2 -translate-x-1/2 z-50 animate-badge-entrance">
-          <div 
+          <div
             className="glass-card-dark px-6 py-4 rounded-2xl flex items-center gap-4 cursor-pointer hover:scale-105 transition-all neon-glow-purple"
             onClick={() => {
               setShowBadgeModal(true);
@@ -1649,6 +1745,17 @@ export default function KuralLearningClient({
         totalKurals={totalKurals}
       />
 
-      </article>
+      <PricingModal
+        isOpen={showPricingModal}
+        onClose={() => setShowPricingModal(false)}
+        isTamil={currentLanguage === 'tamil'}
+      />
+
+      <AuthModal
+        isOpen={showAuthModal}
+        onClose={() => setShowAuthModal(false)}
+        isTamil={currentLanguage === 'tamil'}
+      />
+    </article>
   );
 }

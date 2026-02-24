@@ -1,6 +1,6 @@
 export interface Badge {
   id: string;
-  type: 'mastery' | 'streak' | 'skill';
+  type: 'mastery' | 'streak' | 'skill' | 'tamil';
   category: string;
   name: string;
   nameTamil: string;
@@ -79,6 +79,50 @@ export const SKILL_BADGES = {
   raceLegend: { name: 'Race Legend', nameTamil: 'பந்தய புராணம்', icon: '🏎️', tier: 'diamond' as Badge['tier'], description: 'Win 25 races total', descriptionTamil: 'மொத்தம் 25 பந்தயங்களை வெல்லுங்கள்' }
 };
 
+// Tamil Script badges — keyed by letters completed count
+export const TAMIL_BADGES: Record<string, { name: string; nameTamil: string; icon: string; tier: Badge['tier']; lettersNeeded: number; description: string; descriptionTamil: string }> = {
+  'tamil-first': { name: 'First Letter!', nameTamil: 'முதல் எழுத்து', icon: '✍️', tier: 'bronze', lettersNeeded: 1, description: 'Learned your first Tamil letter', descriptionTamil: 'முதல் தமிழ் எழுத்து கற்றீர்கள்' },
+  'tamil-vowels': { name: 'Vowel Vibes', nameTamil: 'உயிர் வீரர்', icon: '🔤', tier: 'bronze', lettersNeeded: 12, description: 'Mastered all 12 uyir vowels', descriptionTamil: '12 உயிர் எழுத்துக்கள் கற்றீர்கள்' },
+  'tamil-consonants': { name: 'Consonant King', nameTamil: 'மெய் அரசன்', icon: '💪', tier: 'silver', lettersNeeded: 30, description: 'Mastered the mei consonants', descriptionTamil: 'மெய் எழுத்துக்கள் கற்றீர்கள்' },
+  'tamil-combo25': { name: 'Combo Starter', nameTamil: 'இணைவு ஆரம்பம்', icon: '⚡', tier: 'silver', lettersNeeded: 55, description: 'Learning uyirmei combinations', descriptionTamil: '55 உயிர்மெய் எழுத்துக்கள் கற்றீர்கள்' },
+  'tamil-halfway': { name: 'Halfway There', nameTamil: 'பாதி வழி', icon: '🎯', tier: 'gold', lettersNeeded: 130, description: 'Halfway through the Tamil alphabet', descriptionTamil: 'பாதி தமிழ் எழுத்துக்கள் கற்றீர்கள்' },
+  'tamil-scholar': { name: 'Tamil Scholar', nameTamil: 'தமிழ் அறிஞர்', icon: '🌟', tier: 'diamond', lettersNeeded: 247, description: 'Completed the full Tamil alphabet!', descriptionTamil: '247 எழுத்துக்கள் அனைத்தும் கற்றீர்கள்!' },
+};
+
+export function getTamilLettersCompleted(): number {
+  if (typeof window === 'undefined') return 0;
+  const saved = localStorage.getItem('learntamil-completed');
+  if (!saved) return 0;
+  try { return (JSON.parse(saved) as string[]).length; } catch { return 0; }
+}
+
+export function checkTamilBadges(): Badge[] {
+  if (typeof window === 'undefined') return [];
+  const completed = getTamilLettersCompleted();
+  const allBadges = getAllBadges();
+  const earned: Badge[] = [];
+  for (const [id, info] of Object.entries(TAMIL_BADGES)) {
+    if (completed >= info.lettersNeeded && !allBadges.some(b => b.id === `tamil-${id.replace('tamil-', '')}`)) {
+      const badge: Badge = {
+        id,
+        type: 'tamil',
+        category: 'tamil',
+        name: info.name,
+        nameTamil: info.nameTamil,
+        description: info.description,
+        descriptionTamil: info.descriptionTamil,
+        icon: info.icon,
+        tier: info.tier,
+        earnedAt: new Date().toISOString(),
+        viewed: false,
+      };
+      saveBadge(badge);
+      earned.push(badge);
+    }
+  }
+  return earned;
+}
+
 export function getKuralProgress(): KuralProgress[] {
   if (typeof window === 'undefined') return [];
   const saved = localStorage.getItem('thirukural-kural-progress');
@@ -93,7 +137,7 @@ export function saveKuralProgress(progress: KuralProgress[]): void {
 export function updateKuralActivity(kuralId: number, activity: keyof Omit<KuralProgress, 'kuralId' | 'mastered' | 'masteredAt'>): KuralProgress {
   const allProgress = getKuralProgress();
   let kuralProgress = allProgress.find(p => p.kuralId === kuralId);
-  
+
   if (!kuralProgress) {
     kuralProgress = {
       kuralId,
@@ -107,18 +151,18 @@ export function updateKuralActivity(kuralId: number, activity: keyof Omit<KuralP
     };
     allProgress.push(kuralProgress);
   }
-  
+
   kuralProgress[activity] = true;
-  
-  const isMastered = kuralProgress.audio && kuralProgress.video && 
-                     kuralProgress.puzzle && kuralProgress.flying && 
-                     kuralProgress.balloon && kuralProgress.race;
-  
+
+  const isMastered = kuralProgress.audio && kuralProgress.video &&
+    kuralProgress.puzzle && kuralProgress.flying &&
+    kuralProgress.balloon && kuralProgress.race;
+
   if (isMastered && !kuralProgress.mastered) {
     kuralProgress.mastered = true;
     kuralProgress.masteredAt = new Date().toISOString();
   }
-  
+
   saveKuralProgress(allProgress);
   return kuralProgress;
 }
@@ -144,32 +188,32 @@ export function saveStreakData(data: StreakData): void {
 export function recordDailyVisit(): void {
   const today = new Date().toISOString().split('T')[0];
   const data = getStreakData();
-  
+
   if (data.lastActiveDate === today) return;
-  
+
   const yesterday = new Date();
   yesterday.setDate(yesterday.getDate() - 1);
   const yesterdayStr = yesterday.toISOString().split('T')[0];
-  
+
   if (data.lastActiveDate === yesterdayStr) {
     data.currentStreak += 1;
   } else if (data.lastActiveDate !== today) {
     data.currentStreak = 1;
   }
-  
+
   data.lastActiveDate = today;
   data.totalDays += 1;
-  
+
   if (data.currentStreak > data.longestStreak) {
     data.longestStreak = data.currentStreak;
   }
-  
+
   saveStreakData(data);
 }
 
 export function checkStreakBadge(currentStreak: number): Badge | null {
   const data = getStreakData();
-  
+
   for (const milestone of STREAK_MILESTONES) {
     if (currentStreak >= milestone && !data.streakBadgesEarned.includes(`streak-${milestone}`)) {
       const badgeInfo = STREAK_BADGES[milestone];
@@ -197,28 +241,28 @@ export function checkStreakBadge(currentStreak: number): Badge | null {
 export function updateStreak(): { streakData: StreakData; newBadge: Badge | null } {
   const today = new Date().toISOString().split('T')[0];
   const data = getStreakData();
-  
+
   if (data.lastActiveDate === today) {
     return { streakData: data, newBadge: null };
   }
-  
+
   const yesterday = new Date();
   yesterday.setDate(yesterday.getDate() - 1);
   const yesterdayStr = yesterday.toISOString().split('T')[0];
-  
+
   if (data.lastActiveDate === yesterdayStr) {
     data.currentStreak += 1;
   } else if (data.lastActiveDate !== today) {
     data.currentStreak = 1;
   }
-  
+
   data.lastActiveDate = today;
   data.totalDays += 1;
-  
+
   if (data.currentStreak > data.longestStreak) {
     data.longestStreak = data.currentStreak;
   }
-  
+
   let newBadge: Badge | null = null;
   for (const milestone of STREAK_MILESTONES) {
     if (data.currentStreak >= milestone && !data.streakBadgesEarned.includes(`streak-${milestone}`)) {
@@ -240,7 +284,7 @@ export function updateStreak(): { streakData: StreakData; newBadge: Badge | null
       break;
     }
   }
-  
+
   saveStreakData(data);
   return { streakData: data, newBadge };
 }
@@ -261,12 +305,12 @@ export function saveSkillStats(stats: SkillStats): void {
 
 export function checkSkillBadge(skillId: string, stats: SkillStats): Badge | null {
   if (stats.skillBadgesEarned.includes(skillId)) return null;
-  
+
   const skillInfo = SKILL_BADGES[skillId as keyof typeof SKILL_BADGES];
   if (!skillInfo) return null;
-  
+
   let earned = false;
-  
+
   switch (skillId) {
     case 'speedDemon':
       earned = stats.puzzleFastestTime !== null && stats.puzzleFastestTime < 30;
@@ -287,11 +331,11 @@ export function checkSkillBadge(skillId: string, stats: SkillStats): Badge | nul
       earned = stats.puzzleFastestTime !== null;
       break;
   }
-  
+
   if (earned) {
     stats.skillBadgesEarned.push(skillId);
     saveSkillStats(stats);
-    
+
     return {
       id: `skill-${skillId}`,
       type: 'skill',
@@ -306,13 +350,13 @@ export function checkSkillBadge(skillId: string, stats: SkillStats): Badge | nul
       viewed: false
     };
   }
-  
+
   return null;
 }
 
 export function checkMasteryBadge(masteredCount: number): Badge | null {
   const allBadges = getAllBadges();
-  
+
   for (const milestone of MASTERY_MILESTONES) {
     if (masteredCount >= milestone) {
       const badgeId = `mastery-${milestone}`;
@@ -334,7 +378,7 @@ export function checkMasteryBadge(masteredCount: number): Badge | null {
       }
     }
   }
-  
+
   return null;
 }
 
@@ -364,11 +408,12 @@ export function getUnviewedBadgeCount(): number {
   return getAllBadges().filter(b => !b.viewed).length;
 }
 
-export function getBadgesByCategory(): { mastery: Badge[]; streak: Badge[]; skill: Badge[] } {
+export function getBadgesByCategory(): { mastery: Badge[]; streak: Badge[]; skill: Badge[]; tamil: Badge[] } {
   const allBadges = getAllBadges();
   return {
     mastery: allBadges.filter(b => b.type === 'mastery'),
     streak: allBadges.filter(b => b.type === 'streak'),
-    skill: allBadges.filter(b => b.type === 'skill')
+    skill: allBadges.filter(b => b.type === 'skill'),
+    tamil: allBadges.filter(b => b.type === 'tamil'),
   };
 }

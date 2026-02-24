@@ -2,6 +2,8 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
+import AuthModal from '@/components/auth-modal';
+import { useAuth } from '@/lib/use-auth';
 
 interface Balloon {
   id: number;
@@ -35,6 +37,10 @@ export default function BalloonGameClient() {
   const [isGameOver, setIsGameOver] = useState(false);
   const [showCelebration, setShowCelebration] = useState(false);
   const [balloonId, setBalloonId] = useState(0);
+  const [showAuthModal, setShowAuthModal] = useState(false);
+  const [showUserMenu, setShowUserMenu] = useState(false);
+  const { user, logout } = useAuth();
+  const isPaidUser = user?.tier === 'paid';
 
   useEffect(() => {
     const savedLang = localStorage.getItem('thirukural-language');
@@ -99,10 +105,10 @@ export default function BalloonGameClient() {
 
     if (balloon.letter === targetLetter) {
       setScore(prev => prev + 10);
-      setBalloons(prev => prev.map(b => 
+      setBalloons(prev => prev.map(b =>
         b.id === balloon.id ? { ...b, isPopped: true } : b
       ));
-      
+
       if (score + 10 >= 100) {
         setIsGameOver(true);
         setShowCelebration(true);
@@ -163,15 +169,77 @@ export default function BalloonGameClient() {
                 </p>
               </div>
             </div>
-            <button
-              onClick={toggleLanguage}
-              className="p-2 bg-white/20 hover:bg-white/30 rounded-lg transition"
-            >
-              <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <circle cx="12" cy="12" r="10"/>
-                <path d="M2 12h20"/>
-              </svg>
-            </button>
+            <div className="flex items-center gap-2">
+              <div className="flex items-center gap-1.5">
+                {user ? (
+                  <div className="relative">
+                    <button
+                      onClick={() => setShowUserMenu(!showUserMenu)}
+                      className="flex items-center gap-2 hover:opacity-80 transition-opacity"
+                    >
+                      {user.picture ? (
+                        <img
+                          src={user.picture}
+                          alt={user.name}
+                          className="h-8 w-8 rounded-full border-2 border-white/60 shadow-lg"
+                        />
+                      ) : (
+                        <div className="h-8 w-8 rounded-full bg-blue-500 border-2 border-white/60 shadow-lg flex items-center justify-center text-white font-bold text-xs">
+                          {user.name.charAt(0).toUpperCase()}
+                        </div>
+                      )}
+                    </button>
+                    {showUserMenu && (
+                      <div className="absolute right-0 mt-2 w-52 bg-white rounded-xl shadow-xl border border-gray-100 py-1 z-50">
+                        <div className="px-3 py-2 border-b border-gray-100 text-gray-800">
+                          <p className="text-xs font-semibold truncate text-left">{user.name}</p>
+                          <p className="text-xs text-gray-500 truncate text-left">{user.email}</p>
+                        </div>
+                        <div className="px-3 py-2.5 border-b border-gray-100">
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-1.5">
+                              <span className="text-base">{isPaidUser ? '✨' : '🆓'}</span>
+                              <span className="text-xs font-semibold text-gray-700">
+                                {isPaidUser
+                                  ? (isTamil ? 'பிரீமியம்' : 'Premium Plan')
+                                  : (isTamil ? 'இலவச திட்டம்' : 'Free Plan')}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                        <button
+                          onClick={async () => { await logout(); setShowUserMenu(false); }}
+                          className="w-full text-left px-3 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors"
+                        >
+                          {isTamil ? 'வெளியேறு' : 'Logout'}
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <button
+                    onClick={() => setShowAuthModal(true)}
+                    className="flex items-center gap-1 bg-white/20 hover:bg-white/30 border border-white/40 text-white p-1.5 rounded-lg transition-all"
+                    title={isTamil ? 'உள்நுழைவு / பதிவு' : 'Login / Sign Up'}
+                    aria-label={isTamil ? 'உள்நுழைவு' : 'Login'}
+                  >
+                    <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                      <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+                      <circle cx="12" cy="7" r="4" />
+                    </svg>
+                  </button>
+                )}
+              </div>
+              <button
+                onClick={toggleLanguage}
+                className="p-2 bg-white/20 hover:bg-white/30 rounded-lg transition"
+              >
+                <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <circle cx="12" cy="12" r="10" />
+                  <path d="M2 12h20" />
+                </svg>
+              </button>
+            </div>
           </div>
         </div>
       </header>
@@ -220,7 +288,7 @@ export default function BalloonGameClient() {
                   {score >= 100 ? '🏆' : '💪'}
                 </div>
                 <h2 className="text-2xl font-bold text-gray-800 mb-2">
-                  {score >= 100 
+                  {score >= 100
                     ? (isTamil ? 'வெற்றி!' : 'You Win!')
                     : (isTamil ? 'விளையாட்டு முடிந்தது' : 'Game Over')}
                 </h2>
@@ -238,6 +306,11 @@ export default function BalloonGameClient() {
           )}
         </div>
       </main>
+      <AuthModal
+        isOpen={showAuthModal}
+        onClose={() => setShowAuthModal(false)}
+        isTamil={isTamil}
+      />
     </>
   );
 }

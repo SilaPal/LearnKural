@@ -4,6 +4,8 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { TamilLetter, LetterCategory, meiBaseLetters, uyirMarkers } from '@/lib/tamil-letters';
+import AuthModal from '@/components/auth-modal';
+import { useAuth } from '@/lib/use-auth';
 
 interface Props {
   letter: TamilLetter;
@@ -35,7 +37,11 @@ export default function LetterTracingClient({
   const [showCelebration, setShowCelebration] = useState(false);
   const [attempts, setAttempts] = useState(0);
   const [accuracy, setAccuracy] = useState(0);
-  
+  const [showAuthModal, setShowAuthModal] = useState(false);
+  const [showUserMenu, setShowUserMenu] = useState(false);
+  const { user, logout } = useAuth();
+  const isPaidUser = user?.tier === 'paid';
+
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const router = useRouter();
@@ -53,7 +59,7 @@ export default function LetterTracingClient({
         if (completed.includes(letter.id)) {
           setIsCompleted(true);
         }
-      } catch {}
+      } catch { }
     }
   }, [letter.id]);
 
@@ -64,7 +70,7 @@ export default function LetterTracingClient({
   const drawCanvas = useCallback(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
-    
+
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
@@ -95,11 +101,11 @@ export default function LetterTracingClient({
   const getEventPosition = (e: React.MouseEvent | React.TouchEvent): Point => {
     const canvas = canvasRef.current;
     if (!canvas) return { x: 0, y: 0 };
-    
+
     const rect = canvas.getBoundingClientRect();
     const scaleX = canvas.width / rect.width;
     const scaleY = canvas.height / rect.height;
-    
+
     if ('touches' in e) {
       return {
         x: (e.touches[0].clientX - rect.left) * scaleX,
@@ -144,7 +150,7 @@ export default function LetterTracingClient({
   const checkAccuracy = () => {
     const canvas = canvasRef.current;
     if (!canvas) return;
-    
+
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
@@ -165,7 +171,7 @@ export default function LetterTracingClient({
     tempCtx.textBaseline = 'middle';
     tempCtx.fillStyle = 'black';
     tempCtx.fillText(letter.letter, tempCanvas.width / 2, tempCanvas.height / 2);
-    
+
     const templateData = tempCtx.getImageData(0, 0, tempCanvas.width, tempCanvas.height).data;
 
     let pointsOnTemplate = 0;
@@ -175,7 +181,7 @@ export default function LetterTracingClient({
     for (const point of allPoints) {
       const centerX = Math.round(point.x);
       const centerY = Math.round(point.y);
-      
+
       let foundOnTemplate = false;
       for (let dy = -checkRadius; dy <= checkRadius && !foundOnTemplate; dy += 3) {
         for (let dx = -checkRadius; dx <= checkRadius && !foundOnTemplate; dx += 3) {
@@ -189,7 +195,7 @@ export default function LetterTracingClient({
           }
         }
       }
-      
+
       if (foundOnTemplate) pointsOnTemplate++;
       totalCheckedPoints++;
     }
@@ -200,11 +206,11 @@ export default function LetterTracingClient({
     }
 
     const tracingAccuracy = totalCheckedPoints > 0 ? (pointsOnTemplate / totalCheckedPoints) * 100 : 0;
-    
+
     const coverage = Math.min(100, allPoints.length / (templatePixelCount / 50) * 100);
-    
+
     const finalScore = Math.round((tracingAccuracy * 0.7) + (Math.min(coverage, 100) * 0.3));
-    
+
     setAccuracy(finalScore);
     setAttempts(prev => prev + 1);
 
@@ -222,9 +228,9 @@ export default function LetterTracingClient({
     if (savedCompleted) {
       try {
         completed = JSON.parse(savedCompleted);
-      } catch {}
+      } catch { }
     }
-    
+
     if (!completed.includes(letter.id)) {
       completed.push(letter.id);
       localStorage.setItem('learntamil-completed', JSON.stringify(completed));
@@ -233,16 +239,16 @@ export default function LetterTracingClient({
     if (category) {
       const categoryLetterIds = category.letters.map(l => l.id);
       const allCategoryCompleted = categoryLetterIds.every(id => completed.includes(id));
-      
+
       if (allCategoryCompleted) {
         const savedBadges = localStorage.getItem('learntamil-badges');
         let badges: { categoryId: string; earnedAt: number }[] = [];
         if (savedBadges) {
           try {
             badges = JSON.parse(savedBadges);
-          } catch {}
+          } catch { }
         }
-        
+
         if (!badges.some(b => b.categoryId === category.id)) {
           badges.push({ categoryId: category.id, earnedAt: Date.now() });
           localStorage.setItem('learntamil-badges', JSON.stringify(badges));
@@ -330,13 +336,73 @@ export default function LetterTracingClient({
               <span className="text-sm bg-white/20 px-2 py-1 rounded-full">
                 {letterIndex + 1} / {totalLetters}
               </span>
+              <div className="flex items-center gap-1.5 ml-1">
+                {user ? (
+                  <div className="relative">
+                    <button
+                      onClick={() => setShowUserMenu(!showUserMenu)}
+                      className="flex items-center gap-2 hover:opacity-80 transition-opacity"
+                    >
+                      {user.picture ? (
+                        <img
+                          src={user.picture}
+                          alt={user.name}
+                          className="h-8 w-8 rounded-full border-2 border-white/60 shadow-lg"
+                        />
+                      ) : (
+                        <div className="h-8 w-8 rounded-full bg-blue-500 border-2 border-white/60 shadow-lg flex items-center justify-center text-white font-bold text-xs">
+                          {user.name.charAt(0).toUpperCase()}
+                        </div>
+                      )}
+                    </button>
+                    {showUserMenu && (
+                      <div className="absolute right-0 mt-2 w-52 bg-white rounded-xl shadow-xl border border-gray-100 py-1 z-50">
+                        <div className="px-3 py-2 border-b border-gray-100 text-gray-800">
+                          <p className="text-xs font-semibold truncate">{user.name}</p>
+                          <p className="text-xs text-gray-500 truncate">{user.email}</p>
+                        </div>
+                        <div className="px-3 py-2.5 border-b border-gray-100">
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-1.5">
+                              <span className="text-base">{isPaidUser ? '✨' : '🆓'}</span>
+                              <span className="text-xs font-semibold text-gray-700">
+                                {isPaidUser
+                                  ? (isTamil ? 'பிரீமியம்' : 'Premium Plan')
+                                  : (isTamil ? 'இலவச திட்டம்' : 'Free Plan')}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                        <button
+                          onClick={async () => { await logout(); setShowUserMenu(false); }}
+                          className="w-full text-left px-3 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors"
+                        >
+                          {isTamil ? 'வெளியேறு' : 'Logout'}
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <button
+                    onClick={() => setShowAuthModal(true)}
+                    className="flex items-center gap-1 bg-white/20 hover:bg-white/30 border border-white/40 text-white p-1.5 rounded-lg transition-all"
+                    title={isTamil ? 'உள்நுழைவு / பதிவு' : 'Login / Sign Up'}
+                    aria-label={isTamil ? 'உள்நுழைவு' : 'Login'}
+                  >
+                    <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                      <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+                      <circle cx="12" cy="7" r="4" />
+                    </svg>
+                  </button>
+                )}
+              </div>
               <button
                 onClick={toggleLanguage}
                 className="p-2 bg-white/20 hover:bg-white/30 rounded-lg transition"
               >
                 <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <circle cx="12" cy="12" r="10"/>
-                  <path d="M2 12h20"/>
+                  <circle cx="12" cy="12" r="10" />
+                  <path d="M2 12h20" />
                 </svg>
               </button>
             </div>
@@ -346,7 +412,7 @@ export default function LetterTracingClient({
 
       <main className="max-w-4xl mx-auto px-4 py-6">
         <div className="bg-white rounded-2xl shadow-lg overflow-hidden">
-          <div 
+          <div
             ref={containerRef}
             className="relative aspect-square max-w-md mx-auto bg-gradient-to-br from-amber-50 to-orange-50 border-4 border-orange-200 rounded-xl m-4"
           >
@@ -363,7 +429,7 @@ export default function LetterTracingClient({
               onTouchMove={draw}
               onTouchEnd={stopDrawing}
             />
-            
+
             {isCompleted && (
               <div className="absolute top-2 right-2 bg-green-500 text-white px-3 py-1 rounded-full text-sm font-medium flex items-center gap-1">
                 <span>✓</span>
@@ -379,18 +445,18 @@ export default function LetterTracingClient({
                 className="flex items-center gap-2 px-4 py-2 bg-gray-100 text-gray-700 rounded-full hover:bg-gray-200 transition"
               >
                 <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/>
+                  <path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6" />
                 </svg>
                 {isTamil ? 'அழி' : 'Clear'}
               </button>
-              
+
               <button
                 onClick={checkAccuracy}
                 className="flex items-center gap-2 px-4 py-2 bg-orange-500 text-white rounded-full hover:bg-orange-600 transition"
               >
                 <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <path d="M9 12l2 2 4-4"/>
-                  <circle cx="12" cy="12" r="10"/>
+                  <path d="M9 12l2 2 4-4" />
+                  <circle cx="12" cy="12" r="10" />
                 </svg>
                 {isTamil ? 'சரிபார்' : 'Check'}
               </button>
@@ -418,7 +484,7 @@ export default function LetterTracingClient({
                 </svg>
                 {isTamil ? 'முந்தைய' : 'Previous'}
               </button>
-              
+
               <button
                 onClick={() => nextLetterId && router.push(`/learntamil/letter/${nextLetterId}`)}
                 disabled={!nextLetterId}
@@ -454,6 +520,11 @@ export default function LetterTracingClient({
           </div>
         </div>
       </main>
+      <AuthModal
+        isOpen={showAuthModal}
+        onClose={() => setShowAuthModal(false)}
+        isTamil={isTamil}
+      />
     </>
   );
 }
