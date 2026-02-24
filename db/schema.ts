@@ -9,6 +9,7 @@ export const users = pgTable('users', {
     tier: varchar('tier', { enum: ['free', 'paid'] }).default('free').notNull(),
     coins: integer('coins').default(0).notNull(),
     activeAvatarId: varchar('active_avatar_id').default('default').notNull(),
+    region: varchar('region').default('Global').notNull(),
     createdAt: timestamp('created_at').defaultNow().notNull(),
 });
 

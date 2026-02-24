@@ -414,6 +414,16 @@ export default function HomeClient({ totalKurals, kuralOfDay, firstKuralSlug, al
               </span>
             )}
           </Link>
+          <Link
+            href="/leaderboard"
+            className="relative hover:scale-110 transition-transform"
+            title={isTamil ? 'தலைமுறைப் பட்டியல்' : 'Leaderboard'}
+          >
+            <div className="h-12 w-12 bg-gradient-to-br from-indigo-400 to-purple-500 rounded-full flex items-center justify-center shadow-lg">
+              <span className="text-2xl">🏆</span>
+            </div>
+          </Link>
+
           <button
             onClick={toggleLanguage}
             className="flex items-center gap-2 px-3 py-1.5 bg-purple-600 hover:bg-purple-700 text-white rounded-lg transition-colors text-sm"
@@ -856,12 +866,13 @@ export default function HomeClient({ totalKurals, kuralOfDay, firstKuralSlug, al
             </div>
           </div>
         </div>
-      </main>
+      </main >
 
       {/* Navigation Modal */}
-      <NavigationModal
+      < NavigationModal
         isOpen={showNavModal}
-        onClose={() => setShowNavModal(false)}
+        onClose={() => setShowNavModal(false)
+        }
         allKuralSlugs={allKuralSlugs as NavKuralSlugMap[]}
         language={isTamil ? 'tamil' : 'english'}
         visitedKurals={visitedKurals}
@@ -871,7 +882,7 @@ export default function HomeClient({ totalKurals, kuralOfDay, firstKuralSlug, al
       />
 
       {/* Badge Modal */}
-      <BadgeModal
+      < BadgeModal
         isOpen={showBadgeModal}
         onClose={() => {
           setShowBadgeModal(false);
@@ -882,14 +893,14 @@ export default function HomeClient({ totalKurals, kuralOfDay, firstKuralSlug, al
       />
 
       {/* Auth Modal */}
-      <AuthModal
+      < AuthModal
         isOpen={showAuthModal}
         onClose={() => setShowAuthModal(false)}
         isTamil={isTamil}
       />
 
       {/* Pricing Modal */}
-      <PricingModal
+      < PricingModal
         isOpen={showPricingModal}
         onClose={() => setShowPricingModal(false)}
         isTamil={isTamil}

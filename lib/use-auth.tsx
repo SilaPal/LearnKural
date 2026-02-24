@@ -8,6 +8,7 @@ export interface AuthUser {
     name: string;
     picture: string | null;
     tier: 'free' | 'paid';
+    activeAvatarId: string;
     createdAt: string;
 }
 
