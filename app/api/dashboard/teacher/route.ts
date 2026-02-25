@@ -42,7 +42,7 @@ export async function GET(request: NextRequest) {
 
         const studentIds = studentMappings.map(m => m.studentId);
 
-        let studentsWithProgress = [];
+        let studentsWithProgress: any[] = [];
         if (studentIds.length > 0) {
             // 3. Get student details and progress
             const studentDetails = await db.select({

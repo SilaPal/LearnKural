@@ -43,7 +43,7 @@ export async function GET(request: NextRequest) {
 
         // 3. Get school info for children
         const schoolIds = children.map(c => c.schoolId).filter(Boolean) as string[];
-        let schoolsList = [];
+        let schoolsList: any[] = [];
         if (schoolIds.length > 0) {
             schoolsList = await db.select().from(schools).where(inArray(schools.id, schoolIds));
         }
