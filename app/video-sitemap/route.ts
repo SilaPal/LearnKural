@@ -37,7 +37,7 @@ export async function GET() {
 `;
 
   for (const kural of kuralsWithVideos) {
-    const pageUrl = `${baseUrl}/kural-learning/${kural.slug}`;
+    const pageUrl = `${baseUrl}/kural-learning/${kural.slug}/`;
     const tamilVideoId = extractYouTubeId(kural.youtube_tamil_url);
     const englishVideoId = extractYouTubeId(kural.youtube_english_url);
 

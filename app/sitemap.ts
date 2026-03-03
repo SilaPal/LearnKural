@@ -7,31 +7,31 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
 
   const staticPages: MetadataRoute.Sitemap = [
     {
-      url: baseUrl,
+      url: `${baseUrl}/`,
       lastModified: new Date(),
       changeFrequency: 'daily',
       priority: 1,
     },
     {
-      url: `${baseUrl}/kural-playing`,
+      url: `${baseUrl}/kural-playing/`,
       lastModified: new Date(),
       changeFrequency: 'weekly',
       priority: 0.8,
     },
     {
-      url: `${baseUrl}/learntamil`,
+      url: `${baseUrl}/learntamil/`,
       lastModified: new Date(),
       changeFrequency: 'monthly',
       priority: 0.8,
     },
     {
-      url: `${baseUrl}/leaderboard`,
+      url: `${baseUrl}/leaderboard/`,
       lastModified: new Date(),
       changeFrequency: 'daily',
       priority: 0.6,
     },
     {
-      url: `${baseUrl}/quest`,
+      url: `${baseUrl}/quest/`,
       lastModified: new Date(),
       changeFrequency: 'weekly',
       priority: 0.7,
@@ -39,7 +39,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   ];
 
   const kuralPages: MetadataRoute.Sitemap = kurals.map((kural) => ({
-    url: `${baseUrl}/kural-learning/${kural.slug}`,
+    url: `${baseUrl}/kural-learning/${kural.slug}/`,
     lastModified: new Date(),
     changeFrequency: 'monthly' as const,
     priority: 0.9,
