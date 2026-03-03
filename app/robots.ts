@@ -10,10 +10,13 @@ export default function robots(): MetadataRoute.Robots {
       },
       {
         userAgent: 'Googlebot',
-        allow: ['/', '/api/kurals', '/api/seo/'],
+        allow: ['/', '/api/kurals', '/api/seo/', '/video-sitemap'],
         disallow: ['/admin', '/login', '/api/admin/', '/api/auth/'],
       },
     ],
-    sitemap: 'https://learnthirukkural.com/sitemap.xml',
+    sitemap: [
+      'https://learnthirukkural.com/sitemap.xml',
+      'https://learnthirukkural.com/video-sitemap',
+    ],
   };
 }

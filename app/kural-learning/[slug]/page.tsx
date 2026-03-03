@@ -182,6 +182,9 @@ export default async function KuralLearningPage({ params }: Props) {
     audioLdEnglish
   ].filter(Boolean);
 
+  const prevKural = kuralIndex > 0 ? kurals[kuralIndex - 1] : null;
+  const nextKural = kuralIndex < kurals.length - 1 ? kurals[kuralIndex + 1] : null;
+
   return (
     <>
       {jsonLdArray.map((jsonLd, index) => (
@@ -196,8 +199,8 @@ export default async function KuralLearningPage({ params }: Props) {
         kural={kural} 
         kuralIndex={kuralIndex}
         totalKurals={kurals.length}
-        prevKuralSlug={kuralIndex > 0 ? kurals[kuralIndex - 1].slug : null}
-        nextKuralSlug={kuralIndex < kurals.length - 1 ? kurals[kuralIndex + 1].slug : null}
+        prevKuralSlug={prevKural?.slug || null}
+        nextKuralSlug={nextKural?.slug || null}
         allKuralSlugs={kurals.map(k => ({ 
           id: k.id, 
           slug: k.slug,
@@ -211,6 +214,50 @@ export default async function KuralLearningPage({ params }: Props) {
           audio_english_url: k.audio_english_url,
         }))}
       />
+
+      <article className="sr-only" aria-label={`Thirukkural ${kural.id} - குறள் ${kural.id}`}>
+        <h1>Thirukkural {kural.id} - குறள் {kural.id}</h1>
+        {kural.section_english && (
+          <p>Section: {kural.section_english} - {kural.section_tamil}</p>
+        )}
+        {kural.subsection_english && (
+          <p>Chapter: {kural.subsection_english} - {kural.subsection_tamil}</p>
+        )}
+
+        <h2>Kural in Tamil - குறள் தமிழில்</h2>
+        <p lang="ta">{kural.kural_tamil.replace(/\\n/g, '\n')}</p>
+
+        <h2>Kural in English</h2>
+        <p>{kural.kural_english}</p>
+
+        <h2>Meaning in Tamil - பொருள் தமிழில்</h2>
+        <p lang="ta">{kural.meaning_tamil}</p>
+
+        <h2>Meaning in English</h2>
+        <p>{kural.meaning_english}</p>
+
+        <h2>About This Kural</h2>
+        <p>
+          Thirukkural {kural.id} is part of {kural.section_english || 'the Thirukkural'} ({kural.section_tamil || 'திருக்குறள்'}),
+          under the chapter {kural.subsection_english || ''} ({kural.subsection_tamil || ''}).
+          Written by the ancient Tamil poet Thiruvalluvar (திருவள்ளுவர்), this verse teaches timeless wisdom
+          about {kural.section_english?.toLowerCase() || 'life and ethics'}.
+        </p>
+
+        <nav aria-label="Kural navigation">
+          {prevKural && (
+            <a href={`/kural-learning/${prevKural.slug}`}>
+              Previous: Thirukkural {prevKural.id} - குறள் {prevKural.id}
+            </a>
+          )}
+          {nextKural && (
+            <a href={`/kural-learning/${nextKural.slug}`}>
+              Next: Thirukkural {nextKural.id} - குறள் {nextKural.id}
+            </a>
+          )}
+          <a href="/">Back to Home - முகப்புக்கு திரும்பு</a>
+        </nav>
+      </article>
     </>
   );
 }

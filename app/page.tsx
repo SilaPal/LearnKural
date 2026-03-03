@@ -86,6 +86,19 @@ export default async function HomePage() {
     },
   };
 
+  const sections = new Map<string, { english: string; tamil: string; kurals: { id: number; slug: string }[] }>();
+  for (const k of kurals) {
+    const key = k.section_english || 'Other';
+    if (!sections.has(key)) {
+      sections.set(key, { english: key, tamil: k.section_tamil || 'மற்றவை', kurals: [] });
+    }
+    if (sections.get(key)!.kurals.length < 3) {
+      sections.get(key)!.kurals.push({ id: k.id, slug: k.slug });
+    }
+  }
+
+  const featuredKurals = kurals.slice(0, 5);
+
   return (
     <>
       <script
@@ -94,6 +107,71 @@ export default async function HomePage() {
       />
       <div className="min-h-screen bg-gradient-to-br from-purple-50 to-purple-100">
         <HomeClient totalKurals={totalKurals} kuralOfDay={kuralOfDay} firstKuralSlug={firstKuralSlug} allKuralSlugs={allKuralSlugs} />
+
+        <section className="sr-only" aria-label="Thirukkural content for search engines">
+          <h1>Learn Thirukkural Online - திருக்குறள் கற்க</h1>
+          <p>
+            Thirukkural (திருக்குறள்) is an ancient Tamil classic written by the poet-saint Thiruvalluvar (திருவள்ளுவர்) over 2000 years ago.
+            It contains 1330 couplets (kurals) organized into 133 chapters, covering three main themes: Aram (Virtue/அறத்துப்பால்),
+            Porul (Wealth/பொருட்பால்), and Inbam (Love/காமத்துப்பால்). Each kural is a two-line verse that conveys profound wisdom
+            about ethics, governance, love, and daily life. This platform helps children aged 6-14 learn Thirukkural through
+            interactive audio pronunciation, video lessons, speech recognition practice, and educational games.
+          </p>
+
+          <h2>Kural of the Day - இன்றைய குறள் #{kuralOfDay.id}</h2>
+          <div>
+            <h3>Tamil - தமிழ்</h3>
+            <p lang="ta">{kuralOfDay.kural_tamil.replace(/\\n/g, '\n')}</p>
+            <p lang="ta">{kuralOfDay.meaning_tamil}</p>
+            <h3>English</h3>
+            <p>{kuralOfDay.kural_english}</p>
+            <p>{kuralOfDay.meaning_english}</p>
+            <a href={`/kural-learning/${kuralOfDay.slug}`}>Learn Thirukkural {kuralOfDay.id} - குறள் {kuralOfDay.id} கற்க</a>
+          </div>
+
+          <h2>Featured Thirukkural Verses - சிறப்பு திருக்குறள்கள்</h2>
+          {featuredKurals.map(k => (
+            <article key={k.id}>
+              <h3>
+                <a href={`/kural-learning/${k.slug}`}>Thirukkural {k.id} - குறள் {k.id}</a>
+              </h3>
+              <p lang="ta">{k.kural_tamil.replace(/\\n/g, '\n')}</p>
+              <p>{k.kural_english}</p>
+              <p lang="ta">{k.meaning_tamil}</p>
+              <p>{k.meaning_english}</p>
+            </article>
+          ))}
+
+          <h2>Thirukkural Chapters - திருக்குறள் அதிகாரங்கள்</h2>
+          <p>Explore all {totalKurals} Thirukkural verses organized by section and chapter:</p>
+          <nav aria-label="Thirukkural chapters">
+            <ul>
+              {Array.from(sections.entries()).map(([key, section]) => (
+                <li key={key}>
+                  <strong>{section.english} - {section.tamil}</strong>
+                  <ul>
+                    {section.kurals.map(k => (
+                      <li key={k.id}>
+                        <a href={`/kural-learning/${k.slug}`}>Kural {k.id} - குறள் {k.id}</a>
+                      </li>
+                    ))}
+                  </ul>
+                </li>
+              ))}
+            </ul>
+          </nav>
+
+          <h2>Learning Features - கற்றல் அம்சங்கள்</h2>
+          <ul>
+            <li>Audio pronunciation for all 1330 Thirukkural verses in Tamil and English - அனைத்து 1330 குறள்களுக்கும் தமிழ் மற்றும் ஆங்கில ஒலி உச்சரிப்பு</li>
+            <li>Speech recognition practice for Tamil pronunciation - தமிழ் உச்சரிப்பு பயிற்சி</li>
+            <li>Video lessons explaining each Thirukkural - ஒவ்வொரு திருக்குறளையும் விளக்கும் வீடியோ பாடங்கள்</li>
+            <li>Interactive word puzzle games - ஊடாடும் சொல் புதிர் விளையாட்டுகள்</li>
+            <li>Tamil letter learning with tracing and quizzes - தமிழ் எழுத்துக்கள் கற்க</li>
+            <li>Achievement badges and progress tracking - சாதனை பேட்ஜ்கள் மற்றும் முன்னேற்ற கண்காணிப்பு</li>
+            <li>Leaderboard and weekly challenges - தரவரிசை பட்டியல் மற்றும் வாராந்திர சவால்கள்</li>
+          </ul>
+        </section>
       </div>
     </>
   );
