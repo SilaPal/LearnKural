@@ -4,6 +4,8 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/use-auth';
 import Link from 'next/link';
+import PageHeader from '@/components/page-header';
+import PricingModal from '@/components/pricing-modal';
 
 export default function RegisterClient() {
     const { user, isLoading } = useAuth();
@@ -15,6 +17,7 @@ export default function RegisterClient() {
     const [schoolName, setSchoolName] = useState('');
     const [submitting, setSubmitting] = useState(false);
     const [error, setError] = useState('');
+    const [showPricingModal, setShowPricingModal] = useState(false);
 
     useEffect(() => {
         const savedLang = localStorage.getItem('thirukural-language');
@@ -81,9 +84,67 @@ export default function RegisterClient() {
         }
     };
 
+    const isPaid = user?.tier === 'paid';
+
     return (
-        <div className="min-h-screen bg-gradient-to-br from-indigo-50 to-slate-100 flex flex-col items-center py-12 px-4 shadow-inner">
-            <div className="max-w-2xl w-full">
+        <div className="min-h-screen bg-gradient-to-br from-indigo-50 to-slate-100 flex flex-col items-center py-0 px-4 shadow-inner relative">
+            <PageHeader gradientClass="bg-gradient-to-r from-indigo-700 to-slate-800" />
+
+            {/* Premium Requirement & Coming Soon Overlay */}
+            <div className="fixed inset-0 z-40 flex items-center justify-center p-4 bg-slate-900/10 backdrop-blur-md pt-20">
+                <div className="bg-white p-8 sm:p-12 rounded-[2.5rem] shadow-2xl border border-white max-w-lg w-full text-center relative overflow-hidden group">
+                    <div className="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 bg-[length:200%_auto] animate-gradient"></div>
+
+                    <div className="text-6xl mb-6 transform group-hover:scale-110 transition-transform duration-500">
+                        {isPaid ? '🚀' : '💎'}
+                    </div>
+
+                    <h2 className="text-3xl sm:text-4xl font-black text-gray-900 mb-4 tracking-tight">
+                        {isPaid
+                            ? (isTamil ? 'விரைவில் வருகிறது!' : 'Coming Soon!')
+                            : (isTamil ? 'பிரீமியம் அனுமதி தேவை' : 'Premium Access Required')}
+                    </h2>
+
+                    <p className="text-gray-600 mb-10 leading-relaxed font-medium text-sm sm:text-base">
+                        {isPaid
+                            ? (isTamil
+                                ? 'பள்ளி மேடை தற்போது உருவாக்கப்பட்டு வருகிறது. விரைவில் பயன்பாட்டுக்கு வரும்!'
+                                : 'The School Portal is currently under construction. Stay tuned for the official launch!')
+                            : (isTamil
+                                ? 'பள்ளி மேடையைப் பயன்படுத்த பிரீமியம் சந்தா தேவை. உங்கள் திட்டத்தை மேம்படுத்தவும்.'
+                                : 'The School Portal is a premium feature. Please upgrade your plan to access these features.')}
+                    </p>
+
+                    {!isPaid ? (
+                        <button
+                            onClick={() => setShowPricingModal(true)}
+                            className="w-full bg-gradient-to-r from-indigo-600 to-indigo-700 text-white py-4 rounded-2xl font-black shadow-xl shadow-indigo-200 transition-all hover:scale-[1.02] active:scale-95 text-lg"
+                        >
+                            {isTamil ? 'பிரீமியத்திற்கு மாறவும்' : 'Upgrade to Premium'}
+                        </button>
+                    ) : (
+                        <Link
+                            href="/"
+                            className="w-full inline-block bg-slate-900 text-white py-4 rounded-2xl font-black shadow-xl transition-all hover:scale-[1.02] active:scale-95 text-lg"
+                        >
+                            {isTamil ? 'முகப்புக்குச் செல்க' : 'Back to Home'}
+                        </Link>
+                    )}
+
+                    {!isPaid && (
+                        <Link href="/" className="mt-6 inline-block text-slate-400 hover:text-slate-600 font-bold text-sm underline underline-offset-4 decoration-2">
+                            {isTamil ? 'பிறகு பார்க்கலாம்' : 'Maybe Later'}
+                        </Link>
+                    )}
+                </div>
+            </div>
+
+            <PricingModal
+                isOpen={showPricingModal}
+                onClose={() => setShowPricingModal(false)}
+                isTamil={isTamil}
+            />
+            <div className="max-w-2xl w-full pt-10">
                 <div className="text-center mb-10">
                     <h1 className="text-4xl font-black text-indigo-900 mb-2">
                         {isTamil ? 'தமிழ் பள்ளிக் கூடம்' : 'Tamil School Portal'} 🏫

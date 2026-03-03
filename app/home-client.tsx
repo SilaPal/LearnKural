@@ -6,9 +6,11 @@ import BadgeModal from '@/components/badge-modal';
 import AuthModal from '@/components/auth-modal';
 import PricingModal from '@/components/pricing-modal';
 import { NavigationModal, KuralSlugMap as NavKuralSlugMap } from '@/components/navigation-modal';
+import { SharedUserMenu } from '@/components/shared-user-menu';
 import { getAllBadges, getMasteredCount, getStreakData, recordDailyVisit, checkStreakBadge, saveBadge, Badge } from '@/lib/badge-system';
 import { useAuth } from '@/lib/use-auth';
 import { syncFavoritesToDB } from '@/lib/db-sync';
+import { detectRegionFromTimezone } from '@/lib/detect-region';
 
 type CelebrationType = 'confetti' | 'fireworks' | 'stars' | 'balloons' | 'sparkles' | 'snow' | 'golden' | null;
 
@@ -163,6 +165,20 @@ export default function HomeClient({ totalKurals, kuralOfDay, firstKuralSlug, al
   }, []);
 
   useEffect(() => {
+    // If the user logs in and their region is still 'Global', try to auto-detect and update it silently
+    if (user && user.region === 'Global') {
+      const detected = detectRegionFromTimezone();
+      if (detected !== 'Global') {
+        fetch('/api/user/region', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ region: detected }),
+        }).catch(err => console.error('Failed to auto-update region', err));
+      }
+    }
+  }, [user]);
+
+  useEffect(() => {
     if (user) {
       // Fetch Favorites
       fetch('/api/user/favorites')
@@ -246,46 +262,21 @@ export default function HomeClient({ totalKurals, kuralOfDay, firstKuralSlug, al
                 )}
               </button>
               {showUserMenu && (
-                <div className="absolute right-0 mt-2 w-52 bg-white rounded-xl shadow-xl border border-gray-100 py-1 z-50">
-                  <div className="px-3 py-2 border-b border-gray-100">
-                    <p className="text-xs font-semibold text-gray-800 truncate">{user.name}</p>
-                    <p className="text-xs text-gray-500 truncate">{user.email}</p>
-                  </div>
-                  {/* Plan Badge */}
-                  <div className="px-3 py-2.5 border-b border-gray-100">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-1.5">
-                        <span className="text-base">{isPaidUser ? '✨' : '🆓'}</span>
-                        <span className="text-xs font-semibold text-gray-700">
-                          {isPaidUser
-                            ? (isTamil ? 'பிரீமியம்' : 'Premium Plan')
-                            : (isTamil ? 'இலவச திட்டம்' : 'Free Plan')}
-                        </span>
-                      </div>
-                      {!isPaidUser && (
-                        <button
-                          onClick={() => { setShowUserMenu(false); setShowPricingModal(true); }}
-                          className="text-xs bg-gradient-to-r from-purple-600 to-violet-600 text-white font-semibold px-2.5 py-1 rounded-full hover:opacity-90 transition"
-                        >
-                          {isTamil ? 'மேம்படுத்து' : 'Upgrade'}
-                        </button>
-                      )}
-                    </div>
-                    {!isPaidUser && (
-                      <p className="text-xs text-gray-400 mt-1">
-                        {isTamil
-                          ? `${bookmarks.length}/10 பிடித்தவை`
-                          : `${bookmarks.length}/10 favorites used`}
-                      </p>
-                    )}
-                  </div>
-                  <button
-                    onClick={async () => { await logout(); setShowUserMenu(false); }}
-                    className="w-full text-left px-3 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors"
-                  >
-                    {isTamil ? 'வெளியேறு' : 'Logout'}
-                  </button>
-                </div>
+                <SharedUserMenu
+                  user={{
+                    id: user.id || '',
+                    name: user.name,
+                    email: user.email,
+                    picture: user.picture || undefined,
+                    tier: user.tier || 'free',
+                    role: user.role || 'user'
+                  }}
+                  isTamil={isTamil}
+                  isPaidUser={isPaidUser}
+                  onClose={() => setShowUserMenu(false)}
+                  onUpgradeClick={() => setShowPricingModal(true)}
+                  onLogout={logout}
+                />
               )}
             </>
           ) : (
@@ -306,7 +297,7 @@ export default function HomeClient({ totalKurals, kuralOfDay, firstKuralSlug, al
         </div>
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
           <div className="flex items-center justify-center gap-3 mb-3">
-            <img src="/logo.png" alt="Tamili Logo" className="h-12 w-12 rounded-full" />
+            <img src="/logo.png" alt="Tamili Logo" className="h-12 w-12 rounded-full" width={48} height={48} />
             <h1 className="text-2xl sm:text-3xl font-bold">திருக்குறள்</h1>
           </div>
           <p className="text-sm sm:text-base mb-4 opacity-90">
@@ -405,7 +396,7 @@ export default function HomeClient({ totalKurals, kuralOfDay, firstKuralSlug, al
             className="relative hover:scale-110 transition-transform"
             title={isTamil ? 'பிடித்த குறள்கள்' : 'My Favorites'}
           >
-            <svg className="h-12 w-12 text-red-500 hover:text-red-600 transition-colors drop-shadow-md" viewBox="0 0 24 24" fill="currentColor">
+            <svg className="h-12 w-12 text-red-500 hover:text-red-600 transition-colors drop-shadow-md" viewBox="0 0 24 24" fill="currentColor" width="48" height="48">
               <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z" />
             </svg>
             {bookmarks.length > 0 && (
@@ -414,35 +405,9 @@ export default function HomeClient({ totalKurals, kuralOfDay, firstKuralSlug, al
               </span>
             )}
           </Link>
-          <Link
-            href="/leaderboard"
-            className="relative hover:scale-110 transition-transform"
-            title={isTamil ? 'தலைமுறைப் பட்டியல்' : 'Leaderboard'}
-          >
-            <div className="h-12 w-12 bg-gradient-to-br from-indigo-400 to-purple-500 rounded-full flex items-center justify-center shadow-lg">
-              <span className="text-2xl">🏆</span>
-            </div>
-          </Link>
 
-          {user && (
-            <Link
-              href={
-                user.role === 'school_admin' ? '/dashboard/school' :
-                  user.role === 'teacher' ? '/dashboard/teacher' :
-                    user.role === 'parent' ? '/dashboard/parent' :
-                      '/schools/register'
-              }
-              className="relative hover:scale-110 transition-transform"
-              title={
-                user.role === 'student' ? (isTamil ? 'பள்ளியில் சேர' : 'Join a School') :
-                  (isTamil ? 'நிர்வாக மேடை' : 'Dashboard')
-              }
-            >
-              <div className="h-12 w-12 bg-gradient-to-br from-slate-700 to-slate-900 rounded-full flex items-center justify-center shadow-lg">
-                <span className="text-2xl">{user.role === 'student' ? '🏫' : '📊'}</span>
-              </div>
-            </Link>
-          )}
+
+
 
           <button
             onClick={toggleLanguage}
@@ -456,25 +421,6 @@ export default function HomeClient({ totalKurals, kuralOfDay, firstKuralSlug, al
             {isTamil ? 'English' : 'தமிழ்'}
           </button>
         </div>
-
-        {/* Kural Quest Map Banner */}
-        <Link href="/quest" className="group block mb-8 relative overflow-hidden rounded-3xl bg-gradient-to-br from-teal-500 to-indigo-700 p-8 shadow-2xl transition-all hover:scale-[1.01] active:scale-95">
-          <div className="absolute inset-0 opacity-20 group-hover:opacity-40 transition-opacity bg-cover bg-center" style={{ backgroundImage: 'url("/quest-map-bg.png")' }}></div>
-          <div className="relative z-10 flex flex-col sm:flex-row items-center justify-between gap-6">
-            <div className="text-white">
-              <h2 className="text-3xl font-black mb-2 flex items-center gap-3">
-                <span className="text-4xl">🗺️</span>
-                {isTamil ? 'குறள் பயணம்' : 'Kural Quest'}
-              </h2>
-              <p className="text-teal-50 text-lg font-medium opacity-90">
-                {isTamil ? 'அத்தியாயங்களை விளையாடி 133 நிலைகளை கடந்து வெற்றி பெறுங்கள்!' : 'Embark on a journey through 133 chapters. Play games to unlock the kingdoms!'}
-              </p>
-            </div>
-            <div className="bg-white text-indigo-700 px-8 py-4 rounded-2xl font-black shadow-xl group-hover:bg-indigo-50 transition-colors uppercase tracking-widest text-sm">
-              {isTamil ? 'தொடங்கு' : 'Start Journey'}
-            </div>
-          </div>
-        </Link>
 
         {/* Kural of the Day Section */}
         <div className="mb-6 bg-gradient-to-br from-purple-100 to-violet-100 rounded-lg shadow-md overflow-hidden border border-purple-200">

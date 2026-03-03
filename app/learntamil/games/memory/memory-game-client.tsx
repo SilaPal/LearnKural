@@ -3,6 +3,8 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import AuthModal from '@/components/auth-modal';
 import { useAuth } from '@/lib/use-auth';
+import { useUserTier } from '@/lib/use-tier';
+import LearnTamilTeaser from '@/components/learn-tamil-teaser';
 
 interface Card {
   id: number;
@@ -48,8 +50,10 @@ export default function MemoryGameClient() {
   const [showCelebration, setShowCelebration] = useState(false);
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [showUserMenu, setShowUserMenu] = useState(false);
-  const { user, logout } = useAuth();
-  const isPaidUser = user?.tier === 'paid';
+  const { user, logout, isLoading: isAuthLoading } = useAuth();
+  const { isPaid, isLoading: isTierLoading, trialDaysLeft, isTrialExpired } = useUserTier();
+  const hasAccess = isPaid || (!isPaid && !isTrialExpired);
+  const isLoading = isAuthLoading || isTierLoading;
 
   useEffect(() => {
     const savedLang = localStorage.getItem('thirukural-language');
@@ -181,9 +185,9 @@ export default function MemoryGameClient() {
                         <div className="px-3 py-2.5 border-b border-gray-100">
                           <div className="flex items-center justify-between">
                             <div className="flex items-center gap-1.5">
-                              <span className="text-base">{isPaidUser ? '✨' : '🆓'}</span>
+                              <span className="text-base">{isPaid ? '✨' : '🆓'}</span>
                               <span className="text-xs font-semibold text-gray-700">
-                                {isPaidUser
+                                {isPaid
                                   ? (isTamil ? 'பிரீமியம்' : 'Premium Plan')
                                   : (isTamil ? 'இலவச திட்டம்' : 'Free Plan')}
                               </span>
@@ -227,54 +231,58 @@ export default function MemoryGameClient() {
         </div>
       </header>
 
-      <main className="max-w-4xl mx-auto px-4 py-8">
-        <div className="bg-white rounded-2xl shadow-lg p-6">
-          <div className="flex justify-between items-center mb-6">
-            <span className="bg-green-100 text-green-700 px-3 py-1 rounded-full text-sm font-medium">
-              {isTamil ? `நகர்வுகள்: ${moves}` : `Moves: ${moves}`}
-            </span>
-            <span className="bg-teal-100 text-teal-700 px-3 py-1 rounded-full text-sm font-medium">
-              {isTamil ? `பொருத்தம்: ${matches}/6` : `Matches: ${matches}/6`}
-            </span>
-          </div>
-
-          <div className="grid grid-cols-3 sm:grid-cols-4 gap-3">
-            {cards.map(card => (
-              <button
-                key={card.id}
-                onClick={() => handleCardClick(card.id)}
-                disabled={card.isFlipped || card.isMatched}
-                className={`aspect-square rounded-xl text-4xl sm:text-5xl font-bold transition-all duration-300 transform ${card.isMatched
-                  ? 'bg-green-100 border-2 border-green-500 text-green-600 scale-95'
-                  : card.isFlipped
-                    ? 'bg-teal-500 text-white rotate-y-180'
-                    : 'bg-gradient-to-br from-green-400 to-teal-500 text-white hover:scale-105 cursor-pointer'
-                  }`}
-              >
-                {card.isFlipped || card.isMatched ? card.letter : '?'}
-              </button>
-            ))}
-          </div>
-
-          {isComplete && (
-            <div className="mt-6 text-center">
-              <p className="text-xl font-bold text-green-600 mb-4">
-                {moves <= 10
-                  ? (isTamil ? 'அருமை! நினைவாற்றல் சிறப்பு!' : 'Amazing memory!')
-                  : moves <= 15
-                    ? (isTamil ? 'நன்றாக செய்தீர்கள்!' : 'Well done!')
-                    : (isTamil ? 'முடித்துவிட்டீர்கள்!' : 'Completed!')}
-              </p>
-              <button
-                onClick={restartGame}
-                className="px-6 py-3 bg-green-600 text-white rounded-full font-semibold hover:bg-green-700 transition"
-              >
-                {isTamil ? 'மீண்டும் விளையாடு' : 'Play Again'}
-              </button>
+      {!hasAccess ? (
+        <LearnTamilTeaser isTamil={isTamil} isExpired={isTrialExpired} />
+      ) : (
+        <main className="max-w-4xl mx-auto px-4 py-8">
+          <div className="bg-white rounded-2xl shadow-lg p-6">
+            <div className="flex justify-between items-center mb-6">
+              <span className="bg-green-100 text-green-700 px-3 py-1 rounded-full text-sm font-medium">
+                {isTamil ? `நகர்வுகள்: ${moves}` : `Moves: ${moves}`}
+              </span>
+              <span className="bg-teal-100 text-teal-700 px-3 py-1 rounded-full text-sm font-medium">
+                {isTamil ? `பொருத்தம்: ${matches}/6` : `Matches: ${matches}/6`}
+              </span>
             </div>
-          )}
-        </div>
-      </main>
+
+            <div className="grid grid-cols-3 sm:grid-cols-4 gap-3">
+              {cards.map(card => (
+                <button
+                  key={card.id}
+                  onClick={() => handleCardClick(card.id)}
+                  disabled={card.isFlipped || card.isMatched}
+                  className={`aspect-square rounded-xl text-4xl sm:text-5xl font-bold transition-all duration-300 transform ${card.isMatched
+                    ? 'bg-green-100 border-2 border-green-500 text-green-600 scale-95'
+                    : card.isFlipped
+                      ? 'bg-teal-500 text-white rotate-y-180'
+                      : 'bg-gradient-to-br from-green-400 to-teal-500 text-white hover:scale-105 cursor-pointer'
+                    }`}
+                >
+                  {card.isFlipped || card.isMatched ? card.letter : '?'}
+                </button>
+              ))}
+            </div>
+
+            {isComplete && (
+              <div className="mt-6 text-center">
+                <p className="text-xl font-bold text-green-600 mb-4">
+                  {moves <= 10
+                    ? (isTamil ? 'அருமை! நினைவாற்றல் சிறப்பு!' : 'Amazing memory!')
+                    : moves <= 15
+                      ? (isTamil ? 'நன்றாக செய்தீர்கள்!' : 'Well done!')
+                      : (isTamil ? 'முடித்துவிட்டீர்கள்!' : 'Completed!')}
+                </p>
+                <button
+                  onClick={restartGame}
+                  className="px-6 py-3 bg-green-600 text-white rounded-full font-semibold hover:bg-green-700 transition"
+                >
+                  {isTamil ? 'மீண்டும் விளையாடு' : 'Play Again'}
+                </button>
+              </div>
+            )}
+          </div>
+        </main>
+      )}
       <AuthModal
         isOpen={showAuthModal}
         onClose={() => setShowAuthModal(false)}

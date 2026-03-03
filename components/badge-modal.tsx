@@ -1,6 +1,5 @@
-'use client';
-
 import { useState, useEffect } from 'react';
+import { useAuth } from '@/lib/use-auth';
 import {
   Badge,
   getAllBadges,
@@ -61,6 +60,9 @@ export default function BadgeModal({ isOpen, onClose, language, celebrationType 
   const [skillStats, setSkillStats] = useState({ puzzleFastestTime: null as number | null, maxRaceWinStreak: 0 });
   const [tamilCompleted, setTamilCompleted] = useState(0);
 
+  const { user } = useAuth();
+  const [userStats, setUserStats] = useState<{ coins: number; weeklyXP: number; streak: number } | null>(null);
+
   useEffect(() => {
     if (isOpen) {
       // Check for newly earned Tamil badges when modal opens
@@ -74,8 +76,15 @@ export default function BadgeModal({ isOpen, onClose, language, celebrationType 
       setSkillStats({ puzzleFastestTime: skills.puzzleFastestTime, maxRaceWinStreak: skills.maxRaceWinStreak });
       setTamilCompleted(getTamilLettersCompleted());
       markBadgesViewed();
+
+      if (user) {
+        fetch('/api/user/coins')
+          .then(res => res.json())
+          .then(data => setUserStats({ coins: data.coins ?? 0, weeklyXP: data.weeklyXP ?? 0, streak: data.streak ?? 0 }))
+          .catch(console.error);
+      }
     }
-  }, [isOpen]);
+  }, [isOpen, user]);
 
   if (!isOpen) return null;
 
@@ -202,8 +211,32 @@ export default function BadgeModal({ isOpen, onClose, language, celebrationType 
           </div>
         </div>
 
+        {/* ── Stats Strip ── */}
+        {userStats && (
+          <div className="flex bg-white shadow-[0_4px_10px_-4px_rgba(0,0,0,0.05)] z-10 px-4 py-3 items-center justify-between border-b border-gray-100 shrink-0">
+            <div className="text-center flex-1">
+              <div className="text-xl leading-none mb-1">🪙</div>
+              <div className="font-extrabold text-amber-500 text-lg">{userStats.coins}</div>
+              <div className="text-[9px] sm:text-[10px] font-bold text-gray-400 uppercase tracking-widest leading-none mt-0.5">{language === 'tamil' ? 'மொத்த நாணயம்' : 'All Coins'}</div>
+            </div>
+            <div className="w-px h-10 bg-gray-100"></div>
+            <div className="text-center flex-1">
+              <div className="text-xl leading-none mb-1">⚡</div>
+              <div className="font-extrabold text-purple-500 text-lg">{userStats.weeklyXP}</div>
+              <div className="text-[9px] sm:text-[10px] font-bold text-gray-400 uppercase tracking-widest leading-none mt-0.5">{language === 'tamil' ? 'வார நாணயம்' : 'Weekly Coins'}</div>
+            </div>
+            <div className="w-px h-10 bg-gray-100"></div>
+            <div className="text-center flex-1">
+              <div className="text-xl leading-none mb-1">🔥</div>
+              <div className="font-extrabold text-orange-500 text-lg">{userStats.streak}d</div>
+              <div className="text-[9px] sm:text-[10px] font-bold text-gray-400 uppercase tracking-widest leading-none mt-0.5">{language === 'tamil' ? 'தொடர்ச்சி' : 'Streak'}</div>
+            </div>
+          </div>
+        )}
+
         {/* ── Tabs ── */}
-        <div className="flex border-b border-gray-100 bg-gray-50/80 shrink-0 px-2 pt-1.5 gap-1">
+        <div className="flex border-b border-gray-100 bg-gray-50/80 shrink-0 px-2 pt-1.5 gap-1 shadow-inner">
+
           {tabs.map(tab => (
             <button
               key={tab.id}

@@ -14,6 +14,7 @@ export interface AuthUser {
     classroomId: string | null;
     parentId: string | null;
     createdAt: string;
+    region: string;
 }
 
 interface UseAuthReturn {

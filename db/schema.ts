@@ -1,4 +1,4 @@
-import { pgTable, varchar, timestamp, jsonb, integer, boolean, primaryKey, foreignKey } from 'drizzle-orm/pg-core';
+import { pgTable, varchar, timestamp, jsonb, integer, boolean, primaryKey, foreignKey, index } from 'drizzle-orm/pg-core';
 
 export const schools = pgTable('schools', {
     id: varchar('id').primaryKey(),
@@ -17,6 +17,10 @@ export const users = pgTable('users', {
     picture: varchar('picture'),
     tier: varchar('tier', { enum: ['free', 'paid'] }).default('free').notNull(),
     coins: integer('coins').default(0).notNull(),
+    weeklyXP: integer('weekly_xp').default(0).notNull(),
+    streak: integer('streak').default(0).notNull(),
+    longestStreak: integer('longest_streak').default(0).notNull(),
+    lastActiveDate: varchar('last_active_date'), // YYYY-MM-DD string
     activeAvatarId: varchar('active_avatar_id').default('default').notNull(),
     region: varchar('region').default('Global').notNull(),
     role: varchar('role', { enum: ['student', 'parent', 'teacher', 'school_admin', 'super_admin'] }).default('student').notNull(),
@@ -32,7 +36,13 @@ export const users = pgTable('users', {
         parentReference: foreignKey({
             columns: [table.parentId],
             foreignColumns: [table.id]
-        })
+        }),
+        weeklyXpIdx: index('weekly_xp_idx').on(table.weeklyXP),
+        coinsIdx: index('coins_idx').on(table.coins),
+        streakIdx: index('streak_idx').on(table.streak),
+        regionIdx: index('region_idx').on(table.region),
+        schoolIdIdx: index('user_school_id_idx').on(table.schoolId),
+        createdAtIdx: index('created_at_idx').on(table.createdAt),
     }
 });
 
@@ -51,7 +61,8 @@ export const classrooms = pgTable('classrooms', {
         teacherRef: foreignKey({
             columns: [table.teacherId],
             foreignColumns: [users.id]
-        })
+        }),
+        classroomSchoolIdx: index('classroom_school_idx').on(table.schoolId),
     }
 });
 

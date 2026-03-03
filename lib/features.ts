@@ -55,7 +55,7 @@ export const FEATURES: Record<string, Feature> = {
         name: 'Learn Tamil Letters',
         nameTamil: 'தமிழ் எழுத்து கற்க',
         description: 'Tamil alphabet and letter learning',
-        tier: 'all',
+        tier: 'paid',
     },
     BADGE_SYSTEM: {
         id: 'BADGE_SYSTEM',

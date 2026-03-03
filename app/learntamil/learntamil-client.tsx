@@ -8,6 +8,8 @@ import { useAuth } from '@/lib/use-auth';
 import BadgeModal from '@/components/badge-modal';
 import { getAllBadges } from '@/lib/badge-system';
 import { syncProgressToDB } from '@/lib/db-sync';
+import { useUserTier } from '@/lib/use-tier';
+import LearnTamilTeaser from '@/components/learn-tamil-teaser';
 
 // Group uyirmei letters by their mei consonant series
 const groupUyirmeiByMei = (letters: TamilLetter[]) => {
@@ -44,8 +46,10 @@ export default function LearnTamilClient() {
   const [showBadgeModal, setShowBadgeModal] = useState(false);
   const [celebrationType, setCelebrationType] = useState<'sparkles' | 'fireworks' | 'golden' | 'snow' | null>(null);
 
-  const { user, logout, isLoading } = useAuth();
-  const isPaidUser = user?.tier === 'paid';
+  const { user, logout, isLoading: isAuthLoading } = useAuth();
+  const { isPaid, isLoading: isTierLoading, trialDaysLeft, isTrialExpired } = useUserTier();
+  const hasAccess = isPaid || (!isPaid && !isTrialExpired);
+  const isLoading = isAuthLoading || isTierLoading;
 
   useEffect(() => {
     const savedLang = localStorage.getItem('thirukural-language');
@@ -154,7 +158,7 @@ export default function LearnTamilClient() {
                     <div>
                       <span className="text-xs font-bold text-gray-500 uppercase tracking-wider">Plan</span>
                       <div className="mt-1 flex items-center gap-1">
-                        {isPaidUser ? (
+                        {isPaid ? (
                           <span className="bg-gradient-to-r from-yellow-400 to-yellow-600 text-white text-[10px] font-bold px-2 py-0.5 rounded shadow-sm">PREMIUM</span>
                         ) : (
                           <span className="bg-gray-100 text-gray-600 border border-gray-200 text-[10px] font-bold px-2 py-0.5 rounded">FREE</span>
@@ -258,269 +262,273 @@ export default function LearnTamilClient() {
         </div>
       </header>
 
-      <main className="max-w-4xl mx-auto px-4 py-6">
-        {/* Tabs - Modern Toggle Style */}
-        <div className="flex justify-center mb-8">
-          <div className="bg-gray-100 p-1.5 rounded-full inline-flex w-full max-w-xs">
-            <button
-              onClick={() => setActiveTab('practice')}
-              className={`flex-1 py-3 px-4 rounded-full font-bold text-sm transition-all duration-300 flex items-center justify-center gap-2 ${activeTab === 'practice'
-                ? 'bg-gradient-to-r from-orange-500 to-red-500 text-white shadow-lg'
-                : 'text-gray-500 hover:text-gray-700'
-                }`}
-            >
-              <span>✏️</span>
-              {isTamil ? 'எழுது' : 'Write'}
-            </button>
-            <button
-              onClick={() => setActiveTab('games')}
-              className={`flex-1 py-3 px-4 rounded-full font-bold text-sm transition-all duration-300 flex items-center justify-center gap-2 ${activeTab === 'games'
-                ? 'bg-gradient-to-r from-purple-500 to-fuchsia-500 text-white shadow-lg'
-                : 'text-gray-500 hover:text-gray-700'
-                }`}
-            >
-              <span>🎮</span>
-              {isTamil ? 'விளையாடு' : 'Play'}
-            </button>
-          </div>
-        </div>
-
-        {/* Games Tab Content - Gaming Aesthetic */}
-        {activeTab === 'games' && (
-          <div className="space-y-4">
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
-              <Link
-                href="/learntamil/quiz"
-                className="group relative p-6 bg-gradient-to-br from-violet-600 via-purple-600 to-indigo-700 rounded-3xl text-white overflow-hidden hover:scale-105 transition-all duration-300 shadow-xl shadow-purple-500/20"
+      {!hasAccess ? (
+        <LearnTamilTeaser isTamil={isTamil} isExpired={isTrialExpired} />
+      ) : (
+        <main className="max-w-4xl mx-auto px-4 py-6">
+          {/* Tabs - Modern Toggle Style */}
+          <div className="flex justify-center mb-8">
+            <div className="bg-gray-100 p-1.5 rounded-full inline-flex w-full max-w-xs">
+              <button
+                onClick={() => setActiveTab('practice')}
+                className={`flex-1 py-3 px-4 rounded-full font-bold text-sm transition-all duration-300 flex items-center justify-center gap-2 ${activeTab === 'practice'
+                  ? 'bg-gradient-to-r from-orange-500 to-red-500 text-white shadow-lg'
+                  : 'text-gray-500 hover:text-gray-700'
+                  }`}
               >
-                <div className="absolute top-0 right-0 w-24 h-24 bg-white/10 rounded-full -translate-y-1/2 translate-x-1/2"></div>
-                <div className="absolute bottom-0 left-0 w-16 h-16 bg-white/5 rounded-full translate-y-1/2 -translate-x-1/2"></div>
-                <div className="relative">
-                  <div className="text-5xl mb-3 group-hover:animate-bounce">🧩</div>
-                  <h3 className="font-extrabold text-xl mb-1">{isTamil ? 'உயிர்மெய் Quiz' : 'Uyirmei Quiz'}</h3>
-                  <p className="text-sm text-white/80">
-                    {isTamil ? 'எழுத்து combo கண்டுபிடி!' : 'Find the letter combo!'}
-                  </p>
-                  <div className="mt-3 inline-flex items-center gap-1 text-xs bg-white/20 px-3 py-1 rounded-full">
-                    <span>🏆</span> {isTamil ? 'சவால்' : 'Challenge'}
-                  </div>
-                </div>
-              </Link>
-              <Link
-                href="/learntamil/games/memory"
-                className="group relative p-6 bg-gradient-to-br from-emerald-500 via-teal-500 to-cyan-600 rounded-3xl text-white overflow-hidden hover:scale-105 transition-all duration-300 shadow-xl shadow-teal-500/20"
+                <span>✏️</span>
+                {isTamil ? 'எழுது' : 'Write'}
+              </button>
+              <button
+                onClick={() => setActiveTab('games')}
+                className={`flex-1 py-3 px-4 rounded-full font-bold text-sm transition-all duration-300 flex items-center justify-center gap-2 ${activeTab === 'games'
+                  ? 'bg-gradient-to-r from-purple-500 to-fuchsia-500 text-white shadow-lg'
+                  : 'text-gray-500 hover:text-gray-700'
+                  }`}
               >
-                <div className="absolute top-0 right-0 w-24 h-24 bg-white/10 rounded-full -translate-y-1/2 translate-x-1/2"></div>
-                <div className="absolute bottom-0 left-0 w-16 h-16 bg-white/5 rounded-full translate-y-1/2 -translate-x-1/2"></div>
-                <div className="relative">
-                  <div className="text-5xl mb-3 group-hover:animate-bounce">🃏</div>
-                  <h3 className="font-extrabold text-xl mb-1">{isTamil ? 'Memory Match' : 'Memory Match'}</h3>
-                  <p className="text-sm text-white/80">
-                    {isTamil ? 'ஜோடி கண்டுபிடி!' : 'Find the pairs!'}
-                  </p>
-                  <div className="mt-3 inline-flex items-center gap-1 text-xs bg-white/20 px-3 py-1 rounded-full">
-                    <span>🧠</span> {isTamil ? 'நினைவாற்றல்' : 'Brain Power'}
-                  </div>
-                </div>
-              </Link>
-              <Link
-                href="/learntamil/games/balloon"
-                className="group relative p-6 bg-gradient-to-br from-rose-500 via-pink-500 to-fuchsia-600 rounded-3xl text-white overflow-hidden hover:scale-105 transition-all duration-300 shadow-xl shadow-pink-500/20"
-              >
-                <div className="absolute top-0 right-0 w-24 h-24 bg-white/10 rounded-full -translate-y-1/2 translate-x-1/2"></div>
-                <div className="absolute bottom-0 left-0 w-16 h-16 bg-white/5 rounded-full translate-y-1/2 -translate-x-1/2"></div>
-                <div className="relative">
-                  <div className="text-5xl mb-3 group-hover:animate-bounce">🎈</div>
-                  <h3 className="font-extrabold text-xl mb-1">{isTamil ? 'Letter Pop' : 'Letter Pop'}</h3>
-                  <p className="text-sm text-white/80">
-                    {isTamil ? 'சரியான எழுத்தை உடை!' : 'Pop the right one!'}
-                  </p>
-                  <div className="mt-3 inline-flex items-center gap-1 text-xs bg-white/20 px-3 py-1 rounded-full">
-                    <span>⚡</span> {isTamil ? 'வேகம்' : 'Speed'}
-                  </div>
-                </div>
-              </Link>
+                <span>🎮</span>
+                {isTamil ? 'விளையாடு' : 'Play'}
+              </button>
             </div>
           </div>
-        )}
 
-        {/* Practice Tab Content */}
-        {activeTab === 'practice' && (
-          <div className="space-y-6">
-            {/* Category Selection - Circle Icons */}
-            <div className="flex justify-center gap-6 mb-4">
-              {letterCategories.map(category => {
-                const progress = getCategoryProgress(category);
-                const isSelected = expandedCategory === category.id;
-                const progressPercent = (progress.completed / progress.total) * 100;
+          {/* Games Tab Content - Gaming Aesthetic */}
+          {activeTab === 'games' && (
+            <div className="space-y-4">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
+                <Link
+                  href="/learntamil/quiz"
+                  className="group relative p-6 bg-gradient-to-br from-violet-600 via-purple-600 to-indigo-700 rounded-3xl text-white overflow-hidden hover:scale-105 transition-all duration-300 shadow-xl shadow-purple-500/20"
+                >
+                  <div className="absolute top-0 right-0 w-24 h-24 bg-white/10 rounded-full -translate-y-1/2 translate-x-1/2"></div>
+                  <div className="absolute bottom-0 left-0 w-16 h-16 bg-white/5 rounded-full translate-y-1/2 -translate-x-1/2"></div>
+                  <div className="relative">
+                    <div className="text-5xl mb-3 group-hover:animate-bounce">🧩</div>
+                    <h3 className="font-extrabold text-xl mb-1">{isTamil ? 'உயிர்மெய் Quiz' : 'Uyirmei Quiz'}</h3>
+                    <p className="text-sm text-white/80">
+                      {isTamil ? 'எழுத்து combo கண்டுபிடி!' : 'Find the letter combo!'}
+                    </p>
+                    <div className="mt-3 inline-flex items-center gap-1 text-xs bg-white/20 px-3 py-1 rounded-full">
+                      <span>🏆</span> {isTamil ? 'சவால்' : 'Challenge'}
+                    </div>
+                  </div>
+                </Link>
+                <Link
+                  href="/learntamil/games/memory"
+                  className="group relative p-6 bg-gradient-to-br from-emerald-500 via-teal-500 to-cyan-600 rounded-3xl text-white overflow-hidden hover:scale-105 transition-all duration-300 shadow-xl shadow-teal-500/20"
+                >
+                  <div className="absolute top-0 right-0 w-24 h-24 bg-white/10 rounded-full -translate-y-1/2 translate-x-1/2"></div>
+                  <div className="absolute bottom-0 left-0 w-16 h-16 bg-white/5 rounded-full translate-y-1/2 -translate-x-1/2"></div>
+                  <div className="relative">
+                    <div className="text-5xl mb-3 group-hover:animate-bounce">🃏</div>
+                    <h3 className="font-extrabold text-xl mb-1">{isTamil ? 'Memory Match' : 'Memory Match'}</h3>
+                    <p className="text-sm text-white/80">
+                      {isTamil ? 'ஜோடி கண்டுபிடி!' : 'Find the pairs!'}
+                    </p>
+                    <div className="mt-3 inline-flex items-center gap-1 text-xs bg-white/20 px-3 py-1 rounded-full">
+                      <span>🧠</span> {isTamil ? 'நினைவாற்றல்' : 'Brain Power'}
+                    </div>
+                  </div>
+                </Link>
+                <Link
+                  href="/learntamil/games/balloon"
+                  className="group relative p-6 bg-gradient-to-br from-rose-500 via-pink-500 to-fuchsia-600 rounded-3xl text-white overflow-hidden hover:scale-105 transition-all duration-300 shadow-xl shadow-pink-500/20"
+                >
+                  <div className="absolute top-0 right-0 w-24 h-24 bg-white/10 rounded-full -translate-y-1/2 translate-x-1/2"></div>
+                  <div className="absolute bottom-0 left-0 w-16 h-16 bg-white/5 rounded-full translate-y-1/2 -translate-x-1/2"></div>
+                  <div className="relative">
+                    <div className="text-5xl mb-3 group-hover:animate-bounce">🎈</div>
+                    <h3 className="font-extrabold text-xl mb-1">{isTamil ? 'Letter Pop' : 'Letter Pop'}</h3>
+                    <p className="text-sm text-white/80">
+                      {isTamil ? 'சரியான எழுத்தை உடை!' : 'Pop the right one!'}
+                    </p>
+                    <div className="mt-3 inline-flex items-center gap-1 text-xs bg-white/20 px-3 py-1 rounded-full">
+                      <span>⚡</span> {isTamil ? 'வேகம்' : 'Speed'}
+                    </div>
+                  </div>
+                </Link>
+              </div>
+            </div>
+          )}
 
-                return (
-                  <button
-                    key={category.id}
-                    onClick={() => setExpandedCategory(isSelected ? null : category.id)}
-                    className="flex flex-col items-center gap-2 group"
-                  >
-                    <div className={`relative w-20 h-20 sm:w-24 sm:h-24 rounded-full flex items-center justify-center transition-all duration-300 ${isSelected
-                      ? `bg-gradient-to-br ${category.color} shadow-xl scale-110 ring-4 ring-white ring-offset-2`
-                      : 'bg-white shadow-lg hover:scale-105 hover:shadow-xl'
-                      }`}>
-                      {/* Progress ring */}
-                      <svg className="absolute inset-0 w-full h-full -rotate-90">
-                        <circle
-                          cx="50%"
-                          cy="50%"
-                          r="45%"
-                          fill="none"
-                          stroke={isSelected ? 'rgba(255,255,255,0.3)' : '#e5e7eb'}
-                          strokeWidth="4"
-                        />
-                        <circle
-                          cx="50%"
-                          cy="50%"
-                          r="45%"
-                          fill="none"
-                          stroke={isSelected ? 'white' : '#f97316'}
-                          strokeWidth="4"
-                          strokeDasharray={`${progressPercent * 2.83} 283`}
-                          strokeLinecap="round"
-                        />
-                      </svg>
-                      <span className={`text-4xl sm:text-5xl z-10 ${isSelected ? '' : 'group-hover:scale-110 transition-transform'}`}>
-                        {category.icon}
+          {/* Practice Tab Content */}
+          {activeTab === 'practice' && (
+            <div className="space-y-6">
+              {/* Category Selection - Circle Icons */}
+              <div className="flex justify-center gap-6 mb-4">
+                {letterCategories.map(category => {
+                  const progress = getCategoryProgress(category);
+                  const isSelected = expandedCategory === category.id;
+                  const progressPercent = (progress.completed / progress.total) * 100;
+
+                  return (
+                    <button
+                      key={category.id}
+                      onClick={() => setExpandedCategory(isSelected ? null : category.id)}
+                      className="flex flex-col items-center gap-2 group"
+                    >
+                      <div className={`relative w-20 h-20 sm:w-24 sm:h-24 rounded-full flex items-center justify-center transition-all duration-300 ${isSelected
+                        ? `bg-gradient-to-br ${category.color} shadow-xl scale-110 ring-4 ring-white ring-offset-2`
+                        : 'bg-white shadow-lg hover:scale-105 hover:shadow-xl'
+                        }`}>
+                        {/* Progress ring */}
+                        <svg className="absolute inset-0 w-full h-full -rotate-90">
+                          <circle
+                            cx="50%"
+                            cy="50%"
+                            r="45%"
+                            fill="none"
+                            stroke={isSelected ? 'rgba(255,255,255,0.3)' : '#e5e7eb'}
+                            strokeWidth="4"
+                          />
+                          <circle
+                            cx="50%"
+                            cy="50%"
+                            r="45%"
+                            fill="none"
+                            stroke={isSelected ? 'white' : '#f97316'}
+                            strokeWidth="4"
+                            strokeDasharray={`${progressPercent * 2.83} 283`}
+                            strokeLinecap="round"
+                          />
+                        </svg>
+                        <span className={`text-4xl sm:text-5xl z-10 ${isSelected ? '' : 'group-hover:scale-110 transition-transform'}`}>
+                          {category.icon}
+                        </span>
+                        {hasBadge(category.id) && (
+                          <div className="absolute -top-1 -right-1 w-6 h-6 bg-amber-400 rounded-full flex items-center justify-center text-xs shadow-md">
+                            🎖️
+                          </div>
+                        )}
+                      </div>
+                      <span className={`text-sm font-bold text-center transition-colors ${isSelected ? 'text-orange-600' : 'text-gray-600'
+                        }`}>
+                        {isTamil ? category.nameTamil.split(' ')[0] : category.name.split(' ')[0]}
                       </span>
-                      {hasBadge(category.id) && (
-                        <div className="absolute -top-1 -right-1 w-6 h-6 bg-amber-400 rounded-full flex items-center justify-center text-xs shadow-md">
-                          🎖️
+                      <span className="text-xs text-gray-400">
+                        {progress.completed}/{progress.total}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+
+              {/* Selected Category Letters */}
+              {expandedCategory && (
+                <div className="bg-white rounded-3xl shadow-xl p-6 animate-in fade-in slide-in-from-bottom-4 duration-300">
+                  {letterCategories.filter(c => c.id === expandedCategory).map(category => (
+                    <div key={category.id}>
+                      <div className="text-center mb-4">
+                        <h3 className="text-xl font-bold text-gray-800">
+                          {isTamil ? category.nameTamil : category.name}
+                        </h3>
+                        <p className="text-sm text-gray-500">
+                          {isTamil ? 'எழுத்தை தேர்ந்தெடுக்கவும்' : 'Select a letter to practice'}
+                        </p>
+                      </div>
+                      {category.id === 'uyirmei' ? (
+                        <div className="space-y-6">
+                          {groupUyirmeiByMei(category.letters).map((group, groupIndex) => {
+                            const seriesCompleted = group.letters.filter(l => completedLetters.includes(l.id)).length;
+                            const seriesTotal = group.letters.length;
+                            return (
+                              <div key={group.mei.name}>
+                                <div className="flex items-center gap-3 mb-3">
+                                  <div className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-teal-500 to-emerald-500 rounded-full shadow-md">
+                                    <span className="text-white text-xl font-bold">{group.mei.base}</span>
+                                    <span className="text-white/80 text-sm">
+                                      {isTamil ? `${group.mei.base} வரிசை` : `${group.mei.name.toUpperCase()} Series`}
+                                    </span>
+                                  </div>
+                                  <span className="text-xs text-gray-400">{seriesCompleted}/{seriesTotal}</span>
+                                  <div className="flex-1 h-px bg-gradient-to-r from-teal-200 to-transparent"></div>
+                                </div>
+                                <div className="grid gap-3 grid-cols-3 sm:grid-cols-4 md:grid-cols-6">
+                                  {group.letters.map(letter => {
+                                    const isCompleted = completedLetters.includes(letter.id);
+                                    const formula = getUyirmeiFormula(letter.id);
+                                    return (
+                                      <Link
+                                        key={letter.id}
+                                        href={`/learntamil/letter/${letter.id}`}
+                                        className={`p-3 rounded-2xl flex flex-col items-center justify-center transition-all duration-200 hover:scale-105 shadow-md ${isCompleted
+                                          ? 'bg-gradient-to-br from-green-400 to-emerald-500 text-white shadow-green-200'
+                                          : 'bg-gradient-to-br from-gray-50 to-gray-100 text-gray-700 hover:from-teal-50 hover:to-emerald-100 hover:shadow-teal-200'
+                                          }`}
+                                      >
+                                        <span className="text-2xl sm:text-3xl font-bold">{letter.letter}</span>
+                                        {formula && (
+                                          <div className={`text-xs flex items-center gap-1 ${isCompleted ? 'text-white/80' : 'text-gray-500'}`}>
+                                            <span>{formula.mei}</span>
+                                            <span>+</span>
+                                            <span>{formula.uyir}</span>
+                                            <span>=</span>
+                                            <span className="font-bold">{letter.letter}</span>
+                                          </div>
+                                        )}
+                                        {isCompleted && (
+                                          <span className="text-xs mt-1">✓</span>
+                                        )}
+                                      </Link>
+                                    );
+                                  })}
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      ) : (
+                        <div className="grid gap-3 grid-cols-4 sm:grid-cols-6 md:grid-cols-8">
+                          {category.letters.map(letter => {
+                            const isCompleted = completedLetters.includes(letter.id);
+                            return (
+                              <Link
+                                key={letter.id}
+                                href={`/learntamil/letter/${letter.id}`}
+                                className={`aspect-square rounded-full flex flex-col items-center justify-center transition-all duration-200 hover:scale-110 shadow-md ${isCompleted
+                                  ? 'bg-gradient-to-br from-green-400 to-emerald-500 text-white shadow-green-200'
+                                  : 'bg-gradient-to-br from-gray-50 to-gray-100 text-gray-700 hover:from-orange-100 hover:to-red-100 hover:shadow-orange-200'
+                                  }`}
+                              >
+                                <span className="text-2xl sm:text-3xl font-bold">{letter.letter}</span>
+                                {isCompleted && (
+                                  <span className="text-xs">✓</span>
+                                )}
+                              </Link>
+                            );
+                          })}
                         </div>
                       )}
                     </div>
-                    <span className={`text-sm font-bold text-center transition-colors ${isSelected ? 'text-orange-600' : 'text-gray-600'
-                      }`}>
-                      {isTamil ? category.nameTamil.split(' ')[0] : category.name.split(' ')[0]}
-                    </span>
-                    <span className="text-xs text-gray-400">
-                      {progress.completed}/{progress.total}
-                    </span>
-                  </button>
-                );
-              })}
+                  ))}
+                </div>
+              )}
+
+              {/* Prompt when no category selected */}
+              {!expandedCategory && (
+                <div className="text-center py-8 text-gray-400">
+                  <div className="text-4xl mb-2">👆</div>
+                  <p>{isTamil ? 'மேலே உள்ள வட்டத்தை தட்டவும்' : 'Tap a circle above to start'}</p>
+                </div>
+              )}
             </div>
+          )}
 
-            {/* Selected Category Letters */}
-            {expandedCategory && (
-              <div className="bg-white rounded-3xl shadow-xl p-6 animate-in fade-in slide-in-from-bottom-4 duration-300">
-                {letterCategories.filter(c => c.id === expandedCategory).map(category => (
-                  <div key={category.id}>
-                    <div className="text-center mb-4">
-                      <h3 className="text-xl font-bold text-gray-800">
-                        {isTamil ? category.nameTamil : category.name}
-                      </h3>
-                      <p className="text-sm text-gray-500">
-                        {isTamil ? 'எழுத்தை தேர்ந்தெடுக்கவும்' : 'Select a letter to practice'}
-                      </p>
-                    </div>
-                    {category.id === 'uyirmei' ? (
-                      <div className="space-y-6">
-                        {groupUyirmeiByMei(category.letters).map((group, groupIndex) => {
-                          const seriesCompleted = group.letters.filter(l => completedLetters.includes(l.id)).length;
-                          const seriesTotal = group.letters.length;
-                          return (
-                            <div key={group.mei.name}>
-                              <div className="flex items-center gap-3 mb-3">
-                                <div className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-teal-500 to-emerald-500 rounded-full shadow-md">
-                                  <span className="text-white text-xl font-bold">{group.mei.base}</span>
-                                  <span className="text-white/80 text-sm">
-                                    {isTamil ? `${group.mei.base} வரிசை` : `${group.mei.name.toUpperCase()} Series`}
-                                  </span>
-                                </div>
-                                <span className="text-xs text-gray-400">{seriesCompleted}/{seriesTotal}</span>
-                                <div className="flex-1 h-px bg-gradient-to-r from-teal-200 to-transparent"></div>
-                              </div>
-                              <div className="grid gap-3 grid-cols-3 sm:grid-cols-4 md:grid-cols-6">
-                                {group.letters.map(letter => {
-                                  const isCompleted = completedLetters.includes(letter.id);
-                                  const formula = getUyirmeiFormula(letter.id);
-                                  return (
-                                    <Link
-                                      key={letter.id}
-                                      href={`/learntamil/letter/${letter.id}`}
-                                      className={`p-3 rounded-2xl flex flex-col items-center justify-center transition-all duration-200 hover:scale-105 shadow-md ${isCompleted
-                                        ? 'bg-gradient-to-br from-green-400 to-emerald-500 text-white shadow-green-200'
-                                        : 'bg-gradient-to-br from-gray-50 to-gray-100 text-gray-700 hover:from-teal-50 hover:to-emerald-100 hover:shadow-teal-200'
-                                        }`}
-                                    >
-                                      <span className="text-2xl sm:text-3xl font-bold">{letter.letter}</span>
-                                      {formula && (
-                                        <div className={`text-xs flex items-center gap-1 ${isCompleted ? 'text-white/80' : 'text-gray-500'}`}>
-                                          <span>{formula.mei}</span>
-                                          <span>+</span>
-                                          <span>{formula.uyir}</span>
-                                          <span>=</span>
-                                          <span className="font-bold">{letter.letter}</span>
-                                        </div>
-                                      )}
-                                      {isCompleted && (
-                                        <span className="text-xs mt-1">✓</span>
-                                      )}
-                                    </Link>
-                                  );
-                                })}
-                              </div>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    ) : (
-                      <div className="grid gap-3 grid-cols-4 sm:grid-cols-6 md:grid-cols-8">
-                        {category.letters.map(letter => {
-                          const isCompleted = completedLetters.includes(letter.id);
-                          return (
-                            <Link
-                              key={letter.id}
-                              href={`/learntamil/letter/${letter.id}`}
-                              className={`aspect-square rounded-full flex flex-col items-center justify-center transition-all duration-200 hover:scale-110 shadow-md ${isCompleted
-                                ? 'bg-gradient-to-br from-green-400 to-emerald-500 text-white shadow-green-200'
-                                : 'bg-gradient-to-br from-gray-50 to-gray-100 text-gray-700 hover:from-orange-100 hover:to-red-100 hover:shadow-orange-200'
-                                }`}
-                            >
-                              <span className="text-2xl sm:text-3xl font-bold">{letter.letter}</span>
-                              {isCompleted && (
-                                <span className="text-xs">✓</span>
-                              )}
-                            </Link>
-                          );
-                        })}
-                      </div>
-                    )}
-                  </div>
-                ))}
-              </div>
-            )}
-
-            {/* Prompt when no category selected */}
-            {!expandedCategory && (
-              <div className="text-center py-8 text-gray-400">
-                <div className="text-4xl mb-2">👆</div>
-                <p>{isTamil ? 'மேலே உள்ள வட்டத்தை தட்டவும்' : 'Tap a circle above to start'}</p>
-              </div>
-            )}
+          {/* Navigation / Back to Home Button */}
+          <div className="mt-12 flex justify-center">
+            <Link
+              href="/"
+              className="flex items-center gap-2 px-6 py-3 bg-white hover:bg-orange-50 text-orange-600 rounded-xl font-semibold transition-all border-2 border-orange-100 hover:border-orange-300 shadow-sm hover:shadow"
+            >
+              <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
+                <polyline points="9 22 9 12 15 12 15 22" />
+              </svg>
+              {isTamil ? 'முகப்புக்குச் செல்' : 'Back to Home'}
+            </Link>
           </div>
-        )}
-
-        {/* Navigation / Back to Home Button */}
-        <div className="mt-12 flex justify-center">
-          <Link
-            href="/"
-            className="flex items-center gap-2 px-6 py-3 bg-white hover:bg-orange-50 text-orange-600 rounded-xl font-semibold transition-all border-2 border-orange-100 hover:border-orange-300 shadow-sm hover:shadow"
-          >
-            <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-              <path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
-              <polyline points="9 22 9 12 15 12 15 22" />
-            </svg>
-            {isTamil ? 'முகப்புக்குச் செல்' : 'Back to Home'}
-          </Link>
-        </div>
-      </main>
+        </main>
+      )}
 
       <AuthModal
         isOpen={showAuthModal}

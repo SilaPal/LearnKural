@@ -7,6 +7,8 @@ import { TamilLetter, LetterCategory, meiBaseLetters, uyirMarkers } from '@/lib/
 import AuthModal from '@/components/auth-modal';
 import { useAuth } from '@/lib/use-auth';
 import ReactingAvatar from '@/components/reacting-avatar';
+import { useUserTier } from '@/lib/use-tier';
+import LearnTamilTeaser from '@/components/learn-tamil-teaser';
 
 interface Props {
   letter: TamilLetter;
@@ -40,8 +42,10 @@ export default function LetterTracingClient({
   const [accuracy, setAccuracy] = useState(0);
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [showUserMenu, setShowUserMenu] = useState(false);
-  const { user, logout } = useAuth();
-  const isPaidUser = user?.tier === 'paid';
+  const { user, logout, isLoading: isAuthLoading } = useAuth();
+  const { isPaid, isLoading: isTierLoading, trialDaysLeft, isTrialExpired } = useUserTier();
+  const hasAccess = isPaid || (!isPaid && !isTrialExpired);
+  const isLoading = isAuthLoading || isTierLoading;
   const [totalCoins, setTotalCoins] = useState(0);
   const [avatarEmotion, setAvatarEmotion] = useState<'idle' | 'happy' | 'sad' | 'excited' | 'thinking'>('idle');
 
@@ -393,9 +397,9 @@ export default function LetterTracingClient({
                         <div className="px-3 py-2.5 border-b border-gray-100">
                           <div className="flex items-center justify-between">
                             <div className="flex items-center gap-1.5">
-                              <span className="text-base">{isPaidUser ? '✨' : '🆓'}</span>
+                              <span className="text-base">{isPaid ? '✨' : '🆓'}</span>
                               <span className="text-xs font-semibold text-gray-700">
-                                {isPaidUser
+                                {isPaid
                                   ? (isTamil ? 'பிரீமியம்' : 'Premium Plan')
                                   : (isTamil ? 'இலவச திட்டம்' : 'Free Plan')}
                               </span>
@@ -439,116 +443,120 @@ export default function LetterTracingClient({
         </div>
       </header>
 
-      <main className="max-w-4xl mx-auto px-4 py-6">
-        <div className="bg-white rounded-2xl shadow-lg overflow-hidden">
-          <div
-            ref={containerRef}
-            className="relative aspect-square max-w-md mx-auto bg-gradient-to-br from-amber-50 to-orange-50 border-4 border-orange-200 rounded-xl m-4"
-          >
-            <canvas
-              ref={canvasRef}
-              width={400}
-              height={400}
-              className="w-full h-full cursor-crosshair touch-none"
-              onMouseDown={startDrawing}
-              onMouseMove={draw}
-              onMouseUp={stopDrawing}
-              onMouseLeave={stopDrawing}
-              onTouchStart={startDrawing}
-              onTouchMove={draw}
-              onTouchEnd={stopDrawing}
-            />
+      {!hasAccess ? (
+        <LearnTamilTeaser isTamil={isTamil} isExpired={isTrialExpired} />
+      ) : (
+        <main className="max-w-4xl mx-auto px-4 py-6">
+          <div className="bg-white rounded-2xl shadow-lg overflow-hidden">
+            <div
+              ref={containerRef}
+              className="relative aspect-square max-w-md mx-auto bg-gradient-to-br from-amber-50 to-orange-50 border-4 border-orange-200 rounded-xl m-4"
+            >
+              <canvas
+                ref={canvasRef}
+                width={400}
+                height={400}
+                className="w-full h-full cursor-crosshair touch-none"
+                onMouseDown={startDrawing}
+                onMouseMove={draw}
+                onMouseUp={stopDrawing}
+                onMouseLeave={stopDrawing}
+                onTouchStart={startDrawing}
+                onTouchMove={draw}
+                onTouchEnd={stopDrawing}
+              />
 
-            {isCompleted && (
-              <div className="absolute top-2 right-2 bg-green-500 text-white px-3 py-1 rounded-full text-sm font-medium flex items-center gap-1">
-                <span>✓</span>
-                {isTamil ? 'முடிந்தது' : 'Completed'}
-              </div>
-            )}
-          </div>
-
-          <div className="p-4 border-t border-gray-100">
-            <div className="flex flex-wrap gap-3 justify-center mb-4">
-              <button
-                onClick={clearCanvas}
-                className="flex items-center gap-2 px-4 py-2 bg-gray-100 text-gray-700 rounded-full hover:bg-gray-200 transition"
-              >
-                <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6" />
-                </svg>
-                {isTamil ? 'அழி' : 'Clear'}
-              </button>
-
-              <button
-                onClick={checkAccuracy}
-                className="flex items-center gap-2 px-4 py-2 bg-orange-500 text-white rounded-full hover:bg-orange-600 transition"
-              >
-                <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <path d="M9 12l2 2 4-4" />
-                  <circle cx="12" cy="12" r="10" />
-                </svg>
-                {isTamil ? 'சரிபார்' : 'Check'}
-              </button>
-            </div>
-
-            {accuracy > 0 && (
-              <div className="text-center mb-4">
-                <div className="inline-flex items-center gap-2 bg-orange-100 text-orange-700 px-4 py-2 rounded-full">
-                  <span className="font-bold">{accuracy}%</span>
-                  <span className="text-sm">
-                    {accuracy >= 80 ? '🌟 Excellent!' : accuracy >= 60 ? '👍 Good!' : '💪 Keep trying!'}
-                  </span>
+              {isCompleted && (
+                <div className="absolute top-2 right-2 bg-green-500 text-white px-3 py-1 rounded-full text-sm font-medium flex items-center gap-1">
+                  <span>✓</span>
+                  {isTamil ? 'முடிந்தது' : 'Completed'}
                 </div>
+              )}
+            </div>
+
+            <div className="p-4 border-t border-gray-100">
+              <div className="flex flex-wrap gap-3 justify-center mb-4">
+                <button
+                  onClick={clearCanvas}
+                  className="flex items-center gap-2 px-4 py-2 bg-gray-100 text-gray-700 rounded-full hover:bg-gray-200 transition"
+                >
+                  <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6" />
+                  </svg>
+                  {isTamil ? 'அழி' : 'Clear'}
+                </button>
+
+                <button
+                  onClick={checkAccuracy}
+                  className="flex items-center gap-2 px-4 py-2 bg-orange-500 text-white rounded-full hover:bg-orange-600 transition"
+                >
+                  <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M9 12l2 2 4-4" />
+                    <circle cx="12" cy="12" r="10" />
+                  </svg>
+                  {isTamil ? 'சரிபார்' : 'Check'}
+                </button>
               </div>
-            )}
 
-            <div className="flex justify-between items-center">
-              <button
-                onClick={() => prevLetterId && router.push(`/learntamil/letter/${prevLetterId}`)}
-                disabled={!prevLetterId}
-                className="flex items-center gap-2 px-4 py-2 bg-purple-500 text-white rounded-full disabled:opacity-50 disabled:cursor-not-allowed hover:bg-purple-600 transition"
-              >
-                <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <polyline points="15 18 9 12 15 6" />
-                </svg>
-                {isTamil ? 'முந்தைய' : 'Previous'}
-              </button>
+              {accuracy > 0 && (
+                <div className="text-center mb-4">
+                  <div className="inline-flex items-center gap-2 bg-orange-100 text-orange-700 px-4 py-2 rounded-full">
+                    <span className="font-bold">{accuracy}%</span>
+                    <span className="text-sm">
+                      {accuracy >= 80 ? '🌟 Excellent!' : accuracy >= 60 ? '👍 Good!' : '💪 Keep trying!'}
+                    </span>
+                  </div>
+                </div>
+              )}
 
-              <button
-                onClick={() => nextLetterId && router.push(`/learntamil/letter/${nextLetterId}`)}
-                disabled={!nextLetterId}
-                className="flex items-center gap-2 px-4 py-2 bg-purple-500 text-white rounded-full disabled:opacity-50 disabled:cursor-not-allowed hover:bg-purple-600 transition"
-              >
-                {isTamil ? 'அடுத்த' : 'Next'}
-                <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <polyline points="9 18 15 12 9 6" />
-                </svg>
-              </button>
+              <div className="flex justify-between items-center">
+                <button
+                  onClick={() => prevLetterId && router.push(`/learntamil/letter/${prevLetterId}`)}
+                  disabled={!prevLetterId}
+                  className="flex items-center gap-2 px-4 py-2 bg-purple-500 text-white rounded-full disabled:opacity-50 disabled:cursor-not-allowed hover:bg-purple-600 transition"
+                >
+                  <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <polyline points="15 18 9 12 15 6" />
+                  </svg>
+                  {isTamil ? 'முந்தைய' : 'Previous'}
+                </button>
+
+                <button
+                  onClick={() => nextLetterId && router.push(`/learntamil/letter/${nextLetterId}`)}
+                  disabled={!nextLetterId}
+                  className="flex items-center gap-2 px-4 py-2 bg-purple-500 text-white rounded-full disabled:opacity-50 disabled:cursor-not-allowed hover:bg-purple-600 transition"
+                >
+                  {isTamil ? 'அடுத்த' : 'Next'}
+                  <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <polyline points="9 18 15 12 9 6" />
+                  </svg>
+                </button>
+              </div>
             </div>
           </div>
-        </div>
 
-        <div className="mt-6 bg-white rounded-2xl shadow-md p-4">
-          <h3 className="font-bold text-gray-800 mb-2 flex items-center gap-2">
-            <span>📖</span>
-            {isTamil ? 'எழுத்து பற்றி' : 'About this letter'}
-          </h3>
-          <div className="space-y-2 text-gray-600">
-            <p>
-              <span className="font-medium">{isTamil ? 'எழுத்து:' : 'Letter:'}</span>{' '}
-              <span className="text-2xl">{letter.letter}</span>
-            </p>
-            <p>
-              <span className="font-medium">{isTamil ? 'உச்சரிப்பு:' : 'Pronunciation:'}</span>{' '}
-              {letter.pronunciation}
-            </p>
-            <p>
-              <span className="font-medium">{isTamil ? 'வகை:' : 'Category:'}</span>{' '}
-              {category ? (isTamil ? category.nameTamil : category.name) : '-'}
-            </p>
+          <div className="mt-6 bg-white rounded-2xl shadow-md p-4">
+            <h3 className="font-bold text-gray-800 mb-2 flex items-center gap-2">
+              <span>📖</span>
+              {isTamil ? 'எழுத்து பற்றி' : 'About this letter'}
+            </h3>
+            <div className="space-y-2 text-gray-600">
+              <p>
+                <span className="font-medium">{isTamil ? 'எழுத்து:' : 'Letter:'}</span>{' '}
+                <span className="text-2xl">{letter.letter}</span>
+              </p>
+              <p>
+                <span className="font-medium">{isTamil ? 'உச்சரிப்பு:' : 'Pronunciation:'}</span>{' '}
+                {letter.pronunciation}
+              </p>
+              <p>
+                <span className="font-medium">{isTamil ? 'வகை:' : 'Category:'}</span>{' '}
+                {category ? (isTamil ? category.nameTamil : category.name) : '-'}
+              </p>
+            </div>
           </div>
-        </div>
-      </main>
+        </main>
+      )}
 
       {user && (
         <div className="fixed bottom-4 left-4 z-40 hidden md:block">

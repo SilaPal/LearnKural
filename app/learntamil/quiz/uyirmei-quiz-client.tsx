@@ -5,6 +5,8 @@ import Link from 'next/link';
 import { meiBaseLetters, uyirMarkers } from '@/lib/tamil-letters';
 import AuthModal from '@/components/auth-modal';
 import { useAuth } from '@/lib/use-auth';
+import { useUserTier } from '@/lib/use-tier';
+import LearnTamilTeaser from '@/components/learn-tamil-teaser';
 
 interface QuizQuestion {
   letter: string;
@@ -63,8 +65,10 @@ export default function UyirmeiQuizClient() {
   const [showCelebration, setShowCelebration] = useState(false);
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [showUserMenu, setShowUserMenu] = useState(false);
-  const { user, logout } = useAuth();
-  const isPaidUser = user?.tier === 'paid';
+  const { user, logout, isLoading: isAuthLoading } = useAuth();
+  const { isPaid, isLoading: isTierLoading, trialDaysLeft, isTrialExpired } = useUserTier();
+  const hasAccess = isPaid || (!isPaid && !isTrialExpired);
+  const isLoading = isAuthLoading || isTierLoading;
 
   useEffect(() => {
     const savedLang = localStorage.getItem('thirukural-language');
@@ -181,9 +185,9 @@ export default function UyirmeiQuizClient() {
                         <div className="px-3 py-2.5 border-b border-gray-100">
                           <div className="flex items-center justify-between">
                             <div className="flex items-center gap-1.5">
-                              <span className="text-base">{isPaidUser ? '✨' : '🆓'}</span>
+                              <span className="text-base">{isPaid ? '✨' : '🆓'}</span>
                               <span className="text-xs font-semibold text-gray-700">
-                                {isPaidUser
+                                {isPaid
                                   ? (isTamil ? 'பிரீமியம்' : 'Premium Plan')
                                   : (isTamil ? 'இலவச திட்டம்' : 'Free Plan')}
                               </span>
@@ -227,100 +231,105 @@ export default function UyirmeiQuizClient() {
         </div>
       </header>
 
-      <main className="max-w-4xl mx-auto px-4 py-8">
-        {!isComplete ? (
-          <div className="bg-white rounded-2xl shadow-lg p-6">
-            <div className="flex justify-between items-center mb-6">
-              <span className="text-sm text-gray-500">
-                {isTamil ? `கேள்வி ${currentIndex + 1} / ${questions.length}` : `Question ${currentIndex + 1} / ${questions.length}`}
-              </span>
-              <span className="bg-purple-100 text-purple-700 px-3 py-1 rounded-full text-sm font-medium">
-                {isTamil ? `மதிப்பெண்: ${score}` : `Score: ${score}`}
-              </span>
-            </div>
+      {!hasAccess ? (
+        <LearnTamilTeaser isTamil={isTamil} isExpired={isTrialExpired} />
+      ) : (
+        <main className="max-w-4xl mx-auto px-4 py-8">
+          {!isComplete ? (
+            <div className="bg-white rounded-2xl shadow-lg p-6">
+              <div className="flex justify-between items-center mb-6">
+                <span className="text-sm text-gray-500">
+                  {isTamil ? `கேள்வி ${currentIndex + 1} / ${questions.length}` : `Question ${currentIndex + 1} / ${questions.length}`}
+                </span>
+                <span className="bg-purple-100 text-purple-700 px-3 py-1 rounded-full text-sm font-medium">
+                  {isTamil ? `மதிப்பெண்: ${score}` : `Score: ${score}`}
+                </span>
+              </div>
 
-            <div className="text-center mb-8">
-              <p className="text-gray-600 mb-4">
-                {isTamil
-                  ? 'இந்த எழுத்தை உருவாக்க எந்த மெய் + உயிர் சேர்க்கவேண்டும்?'
-                  : 'Which consonant + vowel makes this letter?'}
-              </p>
-              <div className="text-9xl font-bold text-purple-600 py-8">
-                {currentQuestion.letter}
+              <div className="text-center mb-8">
+                <p className="text-gray-600 mb-4">
+                  {isTamil
+                    ? 'இந்த எழுத்தை உருவாக்க எந்த மெய் + உயிர் சேர்க்கவேண்டும்?'
+                    : 'Which consonant + vowel makes this letter?'}
+                </p>
+                <div className="text-9xl font-bold text-purple-600 py-8">
+                  {currentQuestion.letter}
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                {currentQuestion.options.map((option, idx) => {
+                  const isCorrect = idx === currentQuestion.correctIndex;
+                  const isSelected = answered === idx;
+
+                  let bgColor = 'bg-gray-50 hover:bg-purple-50 border-gray-200';
+                  if (answered !== null) {
+                    if (isCorrect) {
+                      bgColor = 'bg-green-100 border-green-500';
+                    } else if (isSelected) {
+                      bgColor = 'bg-red-100 border-red-500';
+                    }
+                  }
+
+                  return (
+                    <button
+                      key={idx}
+                      onClick={() => handleAnswer(idx)}
+                      disabled={answered !== null}
+                      className={`p-6 rounded-xl border-2 transition ${bgColor} ${answered !== null ? 'cursor-not-allowed' : 'cursor-pointer'}`}
+                    >
+                      <div className="text-center">
+                        <span className="text-4xl font-bold text-gray-800">{option.mei}</span>
+                        <span className="text-2xl text-gray-500 mx-2">+</span>
+                        <span className="text-4xl font-bold text-gray-800">{option.uyir}</span>
+                      </div>
+                      {answered !== null && isCorrect && (
+                        <div className="text-green-600 text-sm mt-2 font-medium">
+                          ✓ {isTamil ? 'சரி!' : 'Correct!'}
+                        </div>
+                      )}
+                    </button>
+                  );
+                })}
               </div>
             </div>
-
-            <div className="grid grid-cols-2 gap-4">
-              {currentQuestion.options.map((option, idx) => {
-                const isCorrect = idx === currentQuestion.correctIndex;
-                const isSelected = answered === idx;
-
-                let bgColor = 'bg-gray-50 hover:bg-purple-50 border-gray-200';
-                if (answered !== null) {
-                  if (isCorrect) {
-                    bgColor = 'bg-green-100 border-green-500';
-                  } else if (isSelected) {
-                    bgColor = 'bg-red-100 border-red-500';
-                  }
-                }
-
-                return (
-                  <button
-                    key={idx}
-                    onClick={() => handleAnswer(idx)}
-                    disabled={answered !== null}
-                    className={`p-6 rounded-xl border-2 transition ${bgColor} ${answered !== null ? 'cursor-not-allowed' : 'cursor-pointer'}`}
-                  >
-                    <div className="text-center">
-                      <span className="text-4xl font-bold text-gray-800">{option.mei}</span>
-                      <span className="text-2xl text-gray-500 mx-2">+</span>
-                      <span className="text-4xl font-bold text-gray-800">{option.uyir}</span>
-                    </div>
-                    {answered !== null && isCorrect && (
-                      <div className="text-green-600 text-sm mt-2 font-medium">
-                        ✓ {isTamil ? 'சரி!' : 'Correct!'}
-                      </div>
-                    )}
-                  </button>
-                );
-              })}
+          ) : (
+            <div className="bg-white rounded-2xl shadow-lg p-8 text-center">
+              <div className="text-6xl mb-6">
+                {score >= 8 ? '🏆' : score >= 5 ? '👍' : '💪'}
+              </div>
+              <h2 className="text-2xl font-bold text-gray-800 mb-2">
+                {isTamil ? 'வினாடி வினா முடிந்தது!' : 'Quiz Complete!'}
+              </h2>
+              <p className="text-4xl font-bold text-purple-600 mb-4">
+                {score} / {questions.length}
+              </p>
+              <p className="text-gray-600 mb-6">
+                {score >= 8
+                  ? (isTamil ? 'அற்புதம்! நீங்கள் உயிர்மெய் நிபுணர்!' : 'Amazing! You are an Uyirmei expert!')
+                  : score >= 5
+                    ? (isTamil ? 'நன்றாக செய்தீர்கள்! தொடர்ந்து பயிற்சி செய்யுங்கள்!' : 'Good job! Keep practicing!')
+                    : (isTamil ? 'மீண்டும் முயற்சிக்கவும்!' : 'Try again!')}
+              </p>
+              <div className="flex gap-4 justify-center">
+                <button
+                  onClick={restartQuiz}
+                  className="px-6 py-3 bg-purple-600 text-white rounded-full font-semibold hover:bg-purple-700 transition"
+                >
+                  {isTamil ? 'மீண்டும் விளையாடு' : 'Play Again'}
+                </button>
+                <Link
+                  href="/learntamil"
+                  className="px-6 py-3 bg-gray-200 text-gray-700 rounded-full font-semibold hover:bg-gray-300 transition"
+                >
+                  {isTamil ? 'திரும்பு' : 'Back'}
+                </Link>
+              </div>
             </div>
-          </div>
-        ) : (
-          <div className="bg-white rounded-2xl shadow-lg p-8 text-center">
-            <div className="text-6xl mb-6">
-              {score >= 8 ? '🏆' : score >= 5 ? '👍' : '💪'}
-            </div>
-            <h2 className="text-2xl font-bold text-gray-800 mb-2">
-              {isTamil ? 'வினாடி வினா முடிந்தது!' : 'Quiz Complete!'}
-            </h2>
-            <p className="text-4xl font-bold text-purple-600 mb-4">
-              {score} / {questions.length}
-            </p>
-            <p className="text-gray-600 mb-6">
-              {score >= 8
-                ? (isTamil ? 'அற்புதம்! நீங்கள் உயிர்மெய் நிபுணர்!' : 'Amazing! You are an Uyirmei expert!')
-                : score >= 5
-                  ? (isTamil ? 'நன்றாக செய்தீர்கள்! தொடர்ந்து பயிற்சி செய்யுங்கள்!' : 'Good job! Keep practicing!')
-                  : (isTamil ? 'மீண்டும் முயற்சிக்கவும்!' : 'Try again!')}
-            </p>
-            <div className="flex gap-4 justify-center">
-              <button
-                onClick={restartQuiz}
-                className="px-6 py-3 bg-purple-600 text-white rounded-full font-semibold hover:bg-purple-700 transition"
-              >
-                {isTamil ? 'மீண்டும் விளையாடு' : 'Play Again'}
-              </button>
-              <Link
-                href="/learntamil"
-                className="px-6 py-3 bg-gray-200 text-gray-700 rounded-full font-semibold hover:bg-gray-300 transition"
-              >
-                {isTamil ? 'திரும்பு' : 'Back'}
-              </Link>
-            </div>
-          </div>
-        )}
-      </main>
+          )}
+        </main>
+      )
+      }
       <AuthModal
         isOpen={showAuthModal}
         onClose={() => setShowAuthModal(false)}

@@ -4,6 +4,8 @@ import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import AuthModal from '@/components/auth-modal';
 import { useAuth } from '@/lib/use-auth';
+import { useUserTier } from '@/lib/use-tier';
+import LearnTamilTeaser from '@/components/learn-tamil-teaser';
 
 interface Balloon {
   id: number;
@@ -39,8 +41,10 @@ export default function BalloonGameClient() {
   const [balloonId, setBalloonId] = useState(0);
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [showUserMenu, setShowUserMenu] = useState(false);
-  const { user, logout } = useAuth();
-  const isPaidUser = user?.tier === 'paid';
+  const { user, logout, isLoading: isAuthLoading } = useAuth();
+  const { isPaid, isLoading: isTierLoading, trialDaysLeft, isTrialExpired } = useUserTier();
+  const hasAccess = isPaid || (!isPaid && !isTrialExpired);
+  const isLoading = isAuthLoading || isTierLoading;
 
   useEffect(() => {
     const savedLang = localStorage.getItem('thirukural-language');
@@ -198,9 +202,9 @@ export default function BalloonGameClient() {
                         <div className="px-3 py-2.5 border-b border-gray-100">
                           <div className="flex items-center justify-between">
                             <div className="flex items-center gap-1.5">
-                              <span className="text-base">{isPaidUser ? '✨' : '🆓'}</span>
+                              <span className="text-base">{isPaid ? '✨' : '🆓'}</span>
                               <span className="text-xs font-semibold text-gray-700">
-                                {isPaidUser
+                                {isPaid
                                   ? (isTamil ? 'பிரீமியம்' : 'Premium Plan')
                                   : (isTamil ? 'இலவச திட்டம்' : 'Free Plan')}
                               </span>
@@ -244,68 +248,72 @@ export default function BalloonGameClient() {
         </div>
       </header>
 
-      <main className="max-w-4xl mx-auto px-4 py-4">
-        <div className="bg-white rounded-2xl shadow-lg overflow-hidden">
-          <div className="flex justify-between items-center p-4 border-b">
-            <div className="flex items-center gap-4">
-              <span className="bg-blue-100 text-blue-700 px-3 py-1 rounded-full text-sm font-medium">
-                {isTamil ? `மதிப்பெண்: ${score}` : `Score: ${score}`}
-              </span>
-              <span className="text-2xl">
-                {'❤️'.repeat(lives)}{'🖤'.repeat(3 - lives)}
-              </span>
-            </div>
-            <div className="text-center">
-              <p className="text-sm text-gray-500">{isTamil ? 'கண்டுபிடி:' : 'Find:'}</p>
-              <span className="text-4xl font-bold text-blue-600">{targetLetter}</span>
-            </div>
-          </div>
-
-          <div className="relative h-[400px] bg-gradient-to-b from-sky-200 to-sky-100 overflow-hidden">
-            {balloons.filter(b => !b.isPopped).map(balloon => (
-              <button
-                key={balloon.id}
-                onClick={() => popBalloon(balloon)}
-                className={`absolute transition-all duration-100 cursor-pointer hover:scale-110`}
-                style={{
-                  left: `${balloon.x}%`,
-                  top: `${balloon.y}%`,
-                  transform: 'translate(-50%, -50%)',
-                }}
-              >
-                <div className={`w-16 h-20 rounded-full bg-gradient-to-b ${balloon.color} flex items-center justify-center text-white text-2xl font-bold shadow-lg relative`}>
-                  {balloon.letter}
-                  <div className="absolute -bottom-3 left-1/2 w-1 h-6 bg-gray-400 -translate-x-1/2"></div>
-                </div>
-              </button>
-            ))}
-          </div>
-
-          {isGameOver && (
-            <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
-              <div className="bg-white rounded-2xl p-8 text-center mx-4">
-                <div className="text-6xl mb-4">
-                  {score >= 100 ? '🏆' : '💪'}
-                </div>
-                <h2 className="text-2xl font-bold text-gray-800 mb-2">
-                  {score >= 100
-                    ? (isTamil ? 'வெற்றி!' : 'You Win!')
-                    : (isTamil ? 'விளையாட்டு முடிந்தது' : 'Game Over')}
-                </h2>
-                <p className="text-3xl font-bold text-blue-600 mb-4">
+      {!hasAccess ? (
+        <LearnTamilTeaser isTamil={isTamil} isExpired={isTrialExpired} />
+      ) : (
+        <main className="max-w-4xl mx-auto px-4 py-4">
+          <div className="bg-white rounded-2xl shadow-lg overflow-hidden">
+            <div className="flex justify-between items-center p-4 border-b">
+              <div className="flex items-center gap-4">
+                <span className="bg-blue-100 text-blue-700 px-3 py-1 rounded-full text-sm font-medium">
                   {isTamil ? `மதிப்பெண்: ${score}` : `Score: ${score}`}
-                </p>
-                <button
-                  onClick={startGame}
-                  className="px-6 py-3 bg-blue-600 text-white rounded-full font-semibold hover:bg-blue-700 transition"
-                >
-                  {isTamil ? 'மீண்டும் விளையாடு' : 'Play Again'}
-                </button>
+                </span>
+                <span className="text-2xl">
+                  {'❤️'.repeat(lives)}{'🖤'.repeat(3 - lives)}
+                </span>
+              </div>
+              <div className="text-center">
+                <p className="text-sm text-gray-500">{isTamil ? 'கண்டுபிடி:' : 'Find:'}</p>
+                <span className="text-4xl font-bold text-blue-600">{targetLetter}</span>
               </div>
             </div>
-          )}
-        </div>
-      </main>
+
+            <div className="relative h-[400px] bg-gradient-to-b from-sky-200 to-sky-100 overflow-hidden">
+              {balloons.filter(b => !b.isPopped).map(balloon => (
+                <button
+                  key={balloon.id}
+                  onClick={() => popBalloon(balloon)}
+                  className={`absolute transition-all duration-100 cursor-pointer hover:scale-110`}
+                  style={{
+                    left: `${balloon.x}%`,
+                    top: `${balloon.y}%`,
+                    transform: 'translate(-50%, -50%)',
+                  }}
+                >
+                  <div className={`w-16 h-20 rounded-full bg-gradient-to-b ${balloon.color} flex items-center justify-center text-white text-2xl font-bold shadow-lg relative`}>
+                    {balloon.letter}
+                    <div className="absolute -bottom-3 left-1/2 w-1 h-6 bg-gray-400 -translate-x-1/2"></div>
+                  </div>
+                </button>
+              ))}
+            </div>
+
+            {isGameOver && (
+              <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
+                <div className="bg-white rounded-2xl p-8 text-center mx-4">
+                  <div className="text-6xl mb-4">
+                    {score >= 100 ? '🏆' : '💪'}
+                  </div>
+                  <h2 className="text-2xl font-bold text-gray-800 mb-2">
+                    {score >= 100
+                      ? (isTamil ? 'வெற்றி!' : 'You Win!')
+                      : (isTamil ? 'விளையாட்டு முடிந்தது' : 'Game Over')}
+                  </h2>
+                  <p className="text-3xl font-bold text-blue-600 mb-4">
+                    {isTamil ? `மதிப்பெண்: ${score}` : `Score: ${score}`}
+                  </p>
+                  <button
+                    onClick={startGame}
+                    className="px-6 py-3 bg-blue-600 text-white rounded-full font-semibold hover:bg-blue-700 transition"
+                  >
+                    {isTamil ? 'மீண்டும் விளையாடு' : 'Play Again'}
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        </main>
+      )}
       <AuthModal
         isOpen={showAuthModal}
         onClose={() => setShowAuthModal(false)}

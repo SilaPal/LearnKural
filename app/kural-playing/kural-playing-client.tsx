@@ -497,6 +497,8 @@ export default function KuralPlayingClient({ initialKurals, initialGame, initial
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ completedChapters: updatedChapters })
       }).catch(err => console.error('Failed to sync quest completion', err));
+      // Award +5 XP bonus for first completion of this chapter
+      awardCoins(5);
     }
 
     const stats = getSkillStats();
