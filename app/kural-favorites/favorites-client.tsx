@@ -37,6 +37,13 @@ export default function FavoritesClient({ allKuralSlugs }: Props) {
 
   const [showBadgeModal, setShowBadgeModal] = useState(false);
   const [showAuthModal, setShowAuthModal] = useState(false);
+  const [streakCount, setStreakCount] = useState(0);
+
+  useEffect(() => {
+    try {
+      setStreakCount(JSON.parse(localStorage.getItem('thirukural-visited') || '[]').length);
+    } catch {}
+  }, []);
 
   useEffect(() => {
     const savedLang = localStorage.getItem('thirukural-language');
@@ -123,7 +130,7 @@ export default function FavoritesClient({ allKuralSlugs }: Props) {
         isTamil={isTamil}
         toggleLanguage={toggleLanguage}
         onCoinClick={() => setShowBadgeModal(true)}
-        streakCount={JSON.parse(localStorage.getItem('thirukural-visited') || '[]').length}
+        streakCount={streakCount}
       >
         <div className="flex flex-col items-center">
           <p className="text-sm opacity-90 text-center">
