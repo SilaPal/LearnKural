@@ -1,13 +1,50 @@
+modules = ["nodejs-20", "web", "postgresql-16"]
 run = "npm run dev"
-
-[modules]
-node = "20"
+hidden = [".config", ".git", "generated-icon.png", "node_modules", "dist"]
 
 [nix]
 channel = "stable-24_05"
+packages = ["imagemagick"]
 
-[ports]
-"5000" = { externalPort = 80 }
+[deployment]
+deploymentTarget = "autoscale"
+build = ["npm", "run", "build"]
+run = ["npm", "run", "start"]
 
 [env]
 PORT = "5000"
+
+[workflows]
+runButton = "Project"
+
+[[workflows.workflow]]
+name = "Project"
+mode = "parallel"
+author = "agent"
+
+[[workflows.workflow.tasks]]
+task = "workflow.run"
+args = "Start application"
+
+[[workflows.workflow]]
+name = "Start application"
+author = "agent"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "npm run dev"
+waitForPort = 5000
+
+[[ports]]
+localPort = 5000
+externalPort = 80
+
+[agent]
+integrations = ["javascript_database:1.0.0", "javascript_openai:1.0.0", "javascript_log_in_with_replit:1.0.0", "github:1.0.0"]
+
+[userenv]
+
+[userenv.shared]
+CRON_SECRET = "24f776ecc667c43e5e6263d157065d92316504c21189e384fd7e62e782026bfa"
+GOOGLE_CALLBACK_URL = "https://learnthirukkural.com/api/auth/google/callback"
+NEXT_PUBLIC_URL = "https://learnthirukkural.com"

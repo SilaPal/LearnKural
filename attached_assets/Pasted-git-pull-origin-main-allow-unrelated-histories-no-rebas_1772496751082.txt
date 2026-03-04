@@ -1,0 +1,38 @@
+git pull origin main --allow-unrelated-histories --no-rebase
+From https://github.com/SilaPal/LearnKural
+ * branch            main       -> FETCH_HEAD
+Auto-merging .gitignore
+CONFLICT (add/add): Merge conflict in .gitignore
+Auto-merging .replit
+CONFLICT (add/add): Merge conflict in .replit
+Auto-merging app/home-client.tsx
+CONFLICT (add/add): Merge conflict in app/home-client.tsx
+Auto-merging app/kural-favorites/favorites-client.tsx
+CONFLICT (add/add): Merge conflict in app/kural-favorites/favorites-client.tsx
+Auto-merging app/kural-learning/[slug]/kural-learning-client.tsx
+CONFLICT (add/add): Merge conflict in app/kural-learning/[slug]/kural-learning-client.tsx
+Auto-merging app/kural-playing/kural-playing-client.tsx
+CONFLICT (add/add): Merge conflict in app/kural-playing/kural-playing-client.tsx
+Auto-merging app/kural-playing/page.tsx
+CONFLICT (add/add): Merge conflict in app/kural-playing/page.tsx
+Auto-merging app/learntamil/games/balloon/balloon-game-client.tsx
+CONFLICT (add/add): Merge conflict in app/learntamil/games/balloon/balloon-game-client.tsx
+Auto-merging app/learntamil/games/memory/memory-game-client.tsx
+CONFLICT (add/add): Merge conflict in app/learntamil/games/memory/memory-game-client.tsx
+Auto-merging app/learntamil/learntamil-client.tsx
+CONFLICT (add/add): Merge conflict in app/learntamil/learntamil-client.tsx
+Auto-merging app/learntamil/letter/[id]/letter-tracing-client.tsx
+CONFLICT (add/add): Merge conflict in app/learntamil/letter/[id]/letter-tracing-client.tsx
+Auto-merging app/learntamil/quiz/uyirmei-quiz-client.tsx
+CONFLICT (add/add): Merge conflict in app/learntamil/quiz/uyirmei-quiz-client.tsx
+Auto-merging components/badge-modal.tsx
+CONFLICT (add/add): Merge conflict in components/badge-modal.tsx
+Auto-merging lib/badge-system.ts
+CONFLICT (add/add): Merge conflict in lib/badge-system.ts
+Auto-merging next.config.mjs
+CONFLICT (add/add): Merge conflict in next.config.mjs
+Auto-merging package.json
+CONFLICT (add/add): Merge conflict in package.json
+Auto-merging tailwind.config.ts
+CONFLICT (add/add): Merge conflict in tailwind.config.ts
+Automatic merge failed; fix conflicts and then commit the result.

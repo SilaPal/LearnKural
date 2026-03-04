@@ -14,7 +14,9 @@ export async function GET(request: NextRequest) {
 
     const callbackUrl = process.env.GOOGLE_CALLBACK_URL ||
         `${request.nextUrl.origin}/api/auth/google/callback`;
-    const origin = request.nextUrl.origin;
+    const forwardedHost = request.headers.get('x-forwarded-host');
+    const origin = process.env.NEXT_PUBLIC_URL || 
+        (forwardedHost ? `https://${forwardedHost}` : request.nextUrl.origin);
 
     if (error || !code) {
         return NextResponse.redirect(`${origin}/?auth_error=cancelled`);

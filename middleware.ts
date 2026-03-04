@@ -5,7 +5,9 @@ export function middleware(request: NextRequest) {
   const host = request.headers.get('x-forwarded-host') || request.headers.get('host') || '';
   
   if (host.includes('thirukural.replit.app')) {
-    return NextResponse.redirect('https://learnthirukkural.com/', { status: 301 });
+    const pathname = request.nextUrl.pathname;
+    const search = request.nextUrl.search;
+    return NextResponse.redirect(`https://learnthirukkural.com${pathname}${search}`, { status: 301 });
   }
   
   return NextResponse.next();

@@ -4,6 +4,9 @@ import Script from 'next/script';
 
 export const metadata: Metadata = {
   metadataBase: new URL('https://learnthirukkural.com'),
+  verification: {
+    google: 'anvJiXjxmcwbKnhMNeSnR15_y0R_iVnJR8FEhENuoOQ',
+  },
   icons: {
     icon: '/logo.png',
     shortcut: '/logo.png',
@@ -65,9 +68,6 @@ export const metadata: Metadata = {
       'ta': 'https://learnthirukkural.com',
       'x-default': 'https://learnthirukkural.com',
     },
-  },
-  verification: {
-    google: 'your-google-verification-code',
   },
 };
 
