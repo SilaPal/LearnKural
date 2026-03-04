@@ -45,7 +45,7 @@ export default function LearnTamilClient() {
   const [badgeCount, setBadgeCount] = useState(0);
   const [newBadgeCount, setNewBadgeCount] = useState(0);
   const [showBadgeModal, setShowBadgeModal] = useState(false);
-  const [celebrationType, setCelebrationType] = useState<'sparkles' | 'fireworks' | 'golden' | 'snow' | null>(null);
+  const [celebrationType, setCelebrationType] = useState<'confetti' | 'fireworks' | 'stars' | 'balloons' | 'snow' | 'golden' | null>(null);
 
   const { user, logout, isLoading: isAuthLoading } = useAuth();
   const { isPaid, isLoading: isTierLoading, trialDaysLeft, isTrialExpired } = useUserTier();
