@@ -6,6 +6,8 @@ import { useAuth } from '@/lib/use-auth';
 import Link from 'next/link';
 import PageHeader from '@/components/page-header';
 import PricingModal from '@/components/pricing-modal';
+import BadgeModal from '@/components/badge-modal';
+import AuthModal from '@/components/auth-modal';
 
 export default function RegisterClient() {
     const { user, isLoading } = useAuth();
@@ -18,11 +20,20 @@ export default function RegisterClient() {
     const [submitting, setSubmitting] = useState(false);
     const [error, setError] = useState('');
     const [showPricingModal, setShowPricingModal] = useState(false);
+    const [showAuthModal, setShowAuthModal] = useState(false);
+    const [showBadgeModal, setShowBadgeModal] = useState(false);
 
     useEffect(() => {
         const savedLang = localStorage.getItem('thirukural-language');
         if (savedLang === 'tamil') setIsTamil(true);
     }, []);
+
+    const toggleLanguage = () => {
+        const next = !isTamil;
+        setIsTamil(next);
+        localStorage.setItem('thirukural-language', next ? 'tamil' : 'english');
+        window.dispatchEvent(new CustomEvent('tamillanguagechange', { detail: { isTamil: next } }));
+    };
 
     if (!isLoading && !user) {
         return (
@@ -88,7 +99,14 @@ export default function RegisterClient() {
 
     return (
         <div className="min-h-screen bg-gradient-to-br from-indigo-50 to-slate-100 flex flex-col items-center py-0 px-4 shadow-inner relative">
-            <PageHeader gradientClass="bg-gradient-to-r from-indigo-700 to-slate-800" />
+            <PageHeader
+                gradientClass="bg-gradient-to-r from-indigo-700 to-slate-800"
+                onLoginClick={() => setShowAuthModal(true)}
+                onUpgradeClick={() => setShowPricingModal(true)}
+                onBadgesClick={() => setShowBadgeModal(true)}
+                isTamil={isTamil}
+                toggleLanguage={toggleLanguage}
+            />
 
             {/* Premium Requirement & Coming Soon Overlay */}
             <div className="fixed inset-0 z-40 flex items-center justify-center p-4 bg-slate-900/10 backdrop-blur-md pt-20">
@@ -143,6 +161,19 @@ export default function RegisterClient() {
                 isOpen={showPricingModal}
                 onClose={() => setShowPricingModal(false)}
                 isTamil={isTamil}
+            />
+
+            <AuthModal
+                isOpen={showAuthModal}
+                onClose={() => setShowAuthModal(false)}
+                isTamil={isTamil}
+            />
+
+            <BadgeModal
+                isOpen={showBadgeModal}
+                onClose={() => setShowBadgeModal(false)}
+                language={isTamil ? 'tamil' : 'english'}
+                celebrationType={null}
             />
             <div className="max-w-2xl w-full pt-10">
                 <div className="text-center mb-10">

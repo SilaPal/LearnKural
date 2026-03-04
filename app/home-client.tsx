@@ -12,7 +12,7 @@ import { useAuth } from '@/lib/use-auth';
 import { syncFavoritesToDB } from '@/lib/db-sync';
 import { detectRegionFromTimezone } from '@/lib/detect-region';
 
-type CelebrationType = 'confetti' | 'fireworks' | 'stars' | 'balloons' | 'sparkles' | 'snow' | 'golden' | null;
+type CelebrationType = 'confetti' | 'fireworks' | 'stars' | 'balloons' | 'snow' | 'golden' | null;
 
 interface ExpandableSectionProps {
   title: string;
@@ -207,6 +207,7 @@ export default function HomeClient({ totalKurals, kuralOfDay, firstKuralSlug, al
     const newLang = !isTamil;
     setIsTamil(newLang);
     localStorage.setItem('thirukural-language', newLang ? 'tamil' : 'english');
+    window.dispatchEvent(new CustomEvent('tamillanguagechange', { detail: { isTamil: newLang } }));
   };
 
   // Close user dropdown when clicking outside
@@ -275,6 +276,7 @@ export default function HomeClient({ totalKurals, kuralOfDay, firstKuralSlug, al
                   isPaidUser={isPaidUser}
                   onClose={() => setShowUserMenu(false)}
                   onUpgradeClick={() => setShowPricingModal(true)}
+                  onBadgesClick={() => setShowBadgeModal(true)}
                   onLogout={logout}
                 />
               )}
@@ -358,39 +360,7 @@ export default function HomeClient({ totalKurals, kuralOfDay, firstKuralSlug, al
               <span className="text-2xl">🔥</span>
             </div>
           </button>
-          <button
-            onClick={() => {
-              const allBadges = getAllBadges();
-              const unviewedBadges = allBadges.filter(b => !b.viewed);
-              if (unviewedBadges.length > 0) {
-                const lastBadge = unviewedBadges[unviewedBadges.length - 1];
-                if (lastBadge.tier === 'diamond') setCelebrationType('golden');
-                else if (lastBadge.tier === 'gold') setCelebrationType('fireworks');
-                else if (lastBadge.tier === 'silver') setCelebrationType('snow');
-                else setCelebrationType('sparkles');
-              } else if (allBadges.length > 0) {
-                setCelebrationType('sparkles');
-              }
-              setShowBadgeModal(true);
-              setNewBadgeCount(0);
-            }}
-            className="relative hover:scale-110 transition-transform"
-            title={isTamil ? 'சாதனை பேட்ஜ்கள்' : 'Achievement Badges'}
-          >
-            <div className="h-12 w-12 bg-gradient-to-br from-yellow-400 to-orange-500 rounded-full flex items-center justify-center shadow-lg">
-              <span className="text-2xl">🏅</span>
-            </div>
-            {newBadgeCount > 0 && (
-              <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs w-5 h-5 rounded-full flex items-center justify-center animate-bounce font-bold">
-                {newBadgeCount}
-              </span>
-            )}
-            {badgeCount > 0 && newBadgeCount === 0 && (
-              <span className="absolute -bottom-1 -right-1 bg-purple-600 text-white text-xs px-1.5 py-0.5 rounded-full font-bold">
-                {badgeCount}
-              </span>
-            )}
-          </button>
+
           <Link
             href="/kural-favorites"
             className="relative hover:scale-110 transition-transform"

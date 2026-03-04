@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/lib/use-auth';
 import PageHeader from '@/components/page-header';
+import BadgeModal from '@/components/badge-modal';
 import Link from 'next/link';
 import WorldMap from '@/components/world-map';
 import AuthModal from '@/components/auth-modal';
@@ -31,8 +32,8 @@ interface LeaderboardEntry {
 const MEDAL = ['🥇', '🥈', '🥉'];
 
 const TAB_CONFIG: Record<Tab, { label: string; labelTamil: string; emoji: string; valueKey: keyof LeaderboardEntry; unit: string; unitTamil: string }> = {
-    weekly: { label: 'This Week', labelTamil: 'இந்த வாரம்', emoji: '🔥', valueKey: 'weeklyXP', unit: 'coins', unitTamil: 'நாணயம்' },
-    alltime: { label: 'All Time', labelTamil: 'எல்லா நேரமும்', emoji: '🏅', valueKey: 'coins', unit: 'coins', unitTamil: 'நாணயம்' },
+    weekly: { label: 'This Week', labelTamil: 'இந்த வாரம்', emoji: '✨', valueKey: 'coins', unit: 'coins', unitTamil: 'நாணயம்' },
+    alltime: { label: 'All Time', labelTamil: 'எல்லா நேரமும்', emoji: '🪙', valueKey: 'coins', unit: 'coins', unitTamil: 'நாணயம்' },
     streak: { label: 'Streaks', labelTamil: 'தொடர்ச்சி', emoji: '⚡', valueKey: 'streak', unit: 'days', unitTamil: 'நாள்' },
 };
 
@@ -161,6 +162,13 @@ export default function LeaderboardClient() {
     const [selectedRegion, setSelectedRegion] = useState('Global');
     const [loading, setLoading] = useState(true);
     const [isTamil, setIsTamil] = useState(false);
+
+    const toggleLanguage = () => {
+        const next = !isTamil;
+        setIsTamil(next);
+        localStorage.setItem('thirukural-language', next ? 'tamil' : 'english');
+        window.dispatchEvent(new CustomEvent('tamillanguagechange', { detail: { isTamil: next } }));
+    };
     const [myStats, setMyStats] = useState<{ coins: number; weeklyXP: number; streak: number } | null>(null);
     const [regionalLeaders, setRegionalLeaders] = useState<Record<string, {
         name: string,
@@ -172,6 +180,7 @@ export default function LeaderboardClient() {
 
     const [showAuthModal, setShowAuthModal] = useState(false);
     const [showPricingModal, setShowPricingModal] = useState(false);
+    const [showBadgeModal, setShowBadgeModal] = useState(false);
     const [showUserMenu, setShowUserMenu] = useState(false);
     const userMenuRef = useRef<HTMLDivElement>(null);
 
@@ -254,96 +263,20 @@ export default function LeaderboardClient() {
 
     return (
         <div className="min-h-screen bg-gray-50 font-sans">
-            <header className="relative bg-gradient-to-r from-purple-700 to-indigo-700 text-white py-6">
-                <div className="absolute top-4 right-4 sm:top-6 sm:right-6 z-50" ref={userMenuRef}>
-                    {isAuthLoading ? (
-                        <div className="h-9 w-9 rounded-full bg-white/20 animate-pulse border-2 border-white/40 shadow-lg"></div>
-                    ) : user ? (
-                        <div className="relative">
-                            <button
-                                onClick={() => setShowUserMenu(!showUserMenu)}
-                                className="flex items-center gap-2 hover:opacity-80 transition-opacity"
-                            >
-                                {user.picture ? (
-                                    <img
-                                        src={user.picture}
-                                        alt={user.name}
-                                        className="h-9 w-9 rounded-full border-2 border-white/60 shadow-lg object-cover"
-                                    />
-                                ) : (
-                                    <div className="h-9 w-9 rounded-full bg-orange-400 border-2 border-white/60 shadow-lg flex items-center justify-center text-white font-bold text-sm">
-                                        {user.name?.charAt(0).toUpperCase() || '?'}
-                                    </div>
-                                )}
-                            </button>
-                            {showUserMenu && (
-                                <SharedUserMenu
-                                    user={{
-                                        id: user.id || '',
-                                        name: user.name,
-                                        email: user.email,
-                                        picture: user.picture || undefined,
-                                        tier: user.tier || 'free',
-                                        role: user.role || 'user'
-                                    }}
-                                    isTamil={isTamil}
-                                    isPaidUser={isPaid}
-                                    onClose={() => setShowUserMenu(false)}
-                                    onUpgradeClick={() => setShowPricingModal(true)}
-                                    onLogout={logout}
-                                />
-                            )}
-                        </div>
-                    ) : (
-                        <button
-                            onClick={() => setShowAuthModal(true)}
-                            className="flex items-center gap-1.5 px-3 py-1.5 bg-white/20 hover:bg-white/30 border border-white/40 text-white rounded-lg transition-all text-sm font-semibold backdrop-blur-sm shadow"
-                            title={isTamil ? 'உள்நுழைவு / பதிவு' : 'Login / Sign Up'}
-                            aria-label={isTamil ? 'உள்நுழைவு' : 'Login'}
-                        >
-                            <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
-                                <circle cx="12" cy="7" r="4" />
-                            </svg>
-                            <span className="hidden sm:inline">{isTamil ? 'உள்நுழைவு' : 'Login'}</span>
-                        </button>
-                    )}
-                </div>
-
-                <div className="max-w-4xl mx-auto px-4 mt-8 sm:mt-0 flex flex-col items-center">
-                    <div className="flex items-center justify-center gap-3 mb-3">
-                        <Link href="/" className="shrink-0">
-                            <img src="/logo.png" alt="Tamili Logo" className="h-10 w-10 sm:h-12 sm:w-12 rounded-full shadow-md border-2 border-white/30 hover:scale-105 transition-transform" />
-                        </Link>
-                        <h1 className="text-2xl sm:text-3xl font-black flex items-center gap-2 drop-shadow">
-                            {isTamil ? 'திருக்குறள் மேடை' : 'Thirukkural Stage'}
-                        </h1>
-                    </div>
-
-                    <p className="text-sm opacity-90 text-center mb-4 max-w-sm">
+            <PageHeader
+                gradientClass="bg-gradient-to-r from-blue-700 to-indigo-800"
+                onLoginClick={() => setShowAuthModal(true)}
+                onUpgradeClick={() => setShowPricingModal(true)}
+                onBadgesClick={() => setShowBadgeModal(true)}
+                isTamil={isTamil}
+                toggleLanguage={toggleLanguage}
+            >
+                <div className="flex flex-col items-center">
+                    <p className="text-sm opacity-90 text-center mb-1 max-w-sm">
                         {isTamil ? 'உலகெங்கிலும் உள்ள சிறந்தவர்கள்' : 'Top players from all around the world'}
                     </p>
-
-                    <div className="flex items-center justify-center gap-3">
-                        <button
-                            onClick={() => {
-                                const next = !isTamil;
-                                setIsTamil(next);
-                                localStorage.setItem('thirukural-language', next ? 'tamil' : 'english');
-                                window.dispatchEvent(new CustomEvent('tamillanguagechange', { detail: { isTamil: next } }));
-                            }}
-                            className="flex items-center gap-2 px-3 py-1.5 bg-white/20 hover:bg-white/30 border border-white/30 rounded-lg transition text-sm font-medium backdrop-blur-sm"
-                        >
-                            <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                                <circle cx="12" cy="12" r="10" />
-                                <path d="M2 12h20" />
-                                <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" />
-                            </svg>
-                            {isTamil ? 'English' : 'தமிழ்'}
-                        </button>
-                    </div>
                 </div>
-            </header>
+            </PageHeader>
 
             <div className="max-w-2xl mx-auto px-4 py-6">
 
@@ -542,6 +475,13 @@ export default function LeaderboardClient() {
                 isOpen={showPricingModal}
                 onClose={() => setShowPricingModal(false)}
                 isTamil={isTamil}
+            />
+
+            <BadgeModal
+                isOpen={showBadgeModal}
+                onClose={() => setShowBadgeModal(false)}
+                language={isTamil ? 'tamil' : 'english'}
+                celebrationType={null}
             />
         </div>
     );

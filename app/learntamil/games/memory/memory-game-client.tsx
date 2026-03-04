@@ -1,5 +1,7 @@
 'use client';
+import { useAvatarEmotion } from '@/lib/use-avatar-emotion';
 import { useState, useEffect } from 'react';
+import ReactingAvatar from '@/components/reacting-avatar';
 import Link from 'next/link';
 import AuthModal from '@/components/auth-modal';
 import { useAuth } from '@/lib/use-auth';
@@ -48,6 +50,7 @@ export default function MemoryGameClient() {
   const [matches, setMatches] = useState(0);
   const [isComplete, setIsComplete] = useState(false);
   const [showCelebration, setShowCelebration] = useState(false);
+  const { emotion: avatarEmotion, react: reactAvatar } = useAvatarEmotion();
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [showUserMenu, setShowUserMenu] = useState(false);
   const { user, logout, isLoading: isAuthLoading } = useAuth();
@@ -91,9 +94,11 @@ export default function MemoryGameClient() {
           ));
           setMatches(prev => {
             const newMatches = prev + 1;
+            reactAvatar('happy');
             if (newMatches === 6) {
               setIsComplete(true);
               setShowCelebration(true);
+              reactAvatar('excited');
               setTimeout(() => setShowCelebration(false), 3000);
             }
             return newMatches;
@@ -102,6 +107,7 @@ export default function MemoryGameClient() {
         }, 500);
       } else {
         setTimeout(() => {
+          reactAvatar('sad');
           setCards(prev => prev.map(c =>
             newFlipped.includes(c.id) ? { ...c, isFlipped: false } : c
           ));
@@ -129,9 +135,9 @@ export default function MemoryGameClient() {
     <>
       {showCelebration && (
         <div className="fixed inset-0 z-50 pointer-events-none flex items-center justify-center">
-          <div className="text-center animate-bounce">
-            <div className="text-8xl mb-4">🎉</div>
-            <div className="text-4xl font-bold text-green-600">
+          <div className="text-center">
+            <ReactingAvatar emotion="excited" className="scale-150 mb-8" />
+            <div className="text-4xl font-bold text-green-600 animate-bounce">
               {isTamil ? 'வெற்றி!' : 'You Win!'}
             </div>
           </div>
@@ -288,6 +294,9 @@ export default function MemoryGameClient() {
         onClose={() => setShowAuthModal(false)}
         isTamil={isTamil}
       />
+
+      {/* Floating Avatar */}
+      {user && <ReactingAvatar emotion={avatarEmotion} />}
     </>
   );
 }

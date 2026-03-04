@@ -2,18 +2,24 @@ import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/db/db';
 import { users, avatars, userAvatars } from '@/db/schema';
 import { eq, and } from 'drizzle-orm';
+import { verifySession } from '@/lib/session';
 
 export const dynamic = 'force-dynamic';
 
 async function getUserId(request: NextRequest) {
-    const session = request.cookies.get('thirukural-session')?.value;
-    if (!session) return null;
+    const sessionToken = request.cookies.get('thirukural-session')?.value;
+    if (!sessionToken) return null;
+    
+    // Fallback block if old unassigned session cookie exists (temp backwards compatibility)
     try {
-        const { userId } = JSON.parse(Buffer.from(session, 'base64').toString('utf-8'));
-        return userId;
-    } catch {
-        return null;
-    }
+        if (!sessionToken.includes('.')) {
+             const dec = JSON.parse(Buffer.from(sessionToken, 'base64').toString('utf-8'));
+             return dec.userId || null;
+        }
+    } catch {}
+
+    const sessionData = verifySession(sessionToken);
+    return sessionData?.userId || null;
 }
 
 export async function POST(request: NextRequest) {
@@ -35,10 +41,10 @@ export async function POST(request: NextRequest) {
         const [avatar] = await db.select().from(avatars).where(eq(avatars.id, avatarId));
         if (!avatar) return NextResponse.json({ error: 'Avatar not found' }, { status: 404 });
 
-        // Check if premium and user is free
-        if (avatar.isPremiumOnly && user.tier === 'free') {
-            return NextResponse.json({ error: 'Premium subscription required' }, { status: 403 });
-        }
+        // Check if premium and user is free - REMOVED: Free users can now buy with coins as an alternative to upgrading
+        // if (avatar.isPremiumOnly && user.tier === 'free') {
+        //     return NextResponse.json({ error: 'Premium subscription required' }, { status: 403 });
+        // }
 
         // Check if already unlocked
         const existingUnlock = await db.select().from(userAvatars)

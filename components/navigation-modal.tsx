@@ -51,16 +51,16 @@ export function NavigationModal({
   const playFavoriteAudio = (kuralInfo: KuralSlugMap) => {
     const audioUrl = isTamil ? kuralInfo.audio_tamil_url : kuralInfo.audio_english_url;
     if (!audioUrl) return;
-    
+
     if (favoriteAudio) {
       favoriteAudio.pause();
     }
-    
+
     const audio = new Audio(audioUrl);
     setFavoriteAudio(audio);
     setPlayingFavoriteId(kuralInfo.id);
-    
-    audio.play().catch(() => {});
+
+    audio.play().catch(() => { });
     audio.onended = () => {
       setPlayingFavoriteId(null);
     };
@@ -73,7 +73,7 @@ export function NavigationModal({
       <div className="bg-white rounded-2xl p-6 max-w-2xl w-full mx-4 max-h-[80vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
         <div className="flex justify-between items-center mb-4">
           <h2 className="text-2xl font-bold text-gray-800">
-            {isTamil ? '📊 வழிசெலுத்தல்' : '📊 Navigation'}
+            {isTamil ? 'வழிசெலுத்தல்' : 'Navigation'}
           </h2>
           <button
             onClick={onClose}
@@ -82,35 +82,32 @@ export function NavigationModal({
             ×
           </button>
         </div>
-        
+
         <div className="flex gap-2 mb-4">
           <button
             onClick={() => setNavTab('sections')}
-            className={`flex-1 py-2 px-4 rounded-lg font-medium transition ${
-              navTab === 'sections' 
-                ? 'bg-gradient-to-r from-orange-500 to-pink-500 text-white' 
+            className={`flex-1 py-2 px-4 rounded-lg font-medium transition ${navTab === 'sections'
+                ? 'bg-gradient-to-r from-orange-500 to-pink-500 text-white'
                 : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-            }`}
+              }`}
           >
             🗂️ {isTamil ? 'பிரிவுகள்' : 'Sections'}
           </button>
           <button
             onClick={() => setNavTab('progress')}
-            className={`flex-1 py-2 px-4 rounded-lg font-medium transition ${
-              navTab === 'progress' 
-                ? 'bg-purple-600 text-white' 
+            className={`flex-1 py-2 px-4 rounded-lg font-medium transition ${navTab === 'progress'
+                ? 'bg-purple-600 text-white'
                 : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-            }`}
+              }`}
           >
             🔥 {visitedKurals.length}/{totalKurals}
           </button>
           <button
             onClick={() => setNavTab('bookmarks')}
-            className={`flex-1 py-2 px-4 rounded-lg font-medium transition ${
-              navTab === 'bookmarks' 
-                ? 'bg-red-500 text-white' 
+            className={`flex-1 py-2 px-4 rounded-lg font-medium transition ${navTab === 'bookmarks'
+                ? 'bg-red-500 text-white'
                 : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-            }`}
+              }`}
           >
             ❤️ {bookmarks.length}
           </button>
@@ -142,24 +139,22 @@ export function NavigationModal({
                 return (
                   <div
                     key={k.id}
-                    className={`flex items-center gap-1 px-1.5 py-1 rounded-lg transition ${
-                      isCurrent
+                    className={`flex items-center gap-1 px-1.5 py-1 rounded-lg transition ${isCurrent
                         ? 'bg-purple-100'
-                        : isVisited 
-                          ? 'bg-green-100' 
+                        : isVisited
+                          ? 'bg-green-100'
                           : 'bg-gray-100'
-                    }`}
+                      }`}
                   >
                     <Link
                       href={`/kural-learning/${k.slug}`}
                       onClick={onClose}
-                      className={`w-6 h-6 flex items-center justify-center text-xs rounded transition hover:scale-110 ${
-                        isCurrent 
-                          ? 'bg-purple-600 text-white font-bold' 
-                          : isVisited 
-                            ? 'bg-green-500 text-white' 
+                      className={`w-6 h-6 flex items-center justify-center text-xs rounded transition hover:scale-110 ${isCurrent
+                          ? 'bg-purple-600 text-white font-bold'
+                          : isVisited
+                            ? 'bg-green-500 text-white'
                             : 'bg-gray-300 text-gray-600 hover:bg-gray-400'
-                      }`}
+                        }`}
                       title={`Kural ${k.id}`}
                     >
                       {k.id}
@@ -199,13 +194,13 @@ export function NavigationModal({
               {(() => {
                 const sections = new Map<string, Map<string, KuralSlugMap[]>>();
                 (allKuralSlugs || []).forEach(k => {
-                  const section = sectionLang === 'tamil' 
+                  const section = sectionLang === 'tamil'
                     ? (k.section_tamil || 'மற்றவை')
                     : (k.section_english || 'Other');
                   const subsection = sectionLang === 'tamil'
                     ? (k.subsection_tamil || 'மற்றவை')
                     : (k.subsection_english || 'Other');
-                  
+
                   if (!sections.has(section)) {
                     sections.set(section, new Map());
                   }
@@ -218,7 +213,7 @@ export function NavigationModal({
 
                 const sectionColors = [
                   'from-purple-500 to-indigo-500',
-                  'from-orange-500 to-red-500', 
+                  'from-orange-500 to-red-500',
                   'from-green-500 to-teal-500',
                   'from-pink-500 to-rose-500',
                   'from-blue-500 to-cyan-500',
@@ -229,7 +224,7 @@ export function NavigationModal({
                   const isSectionExpanded = expandedSections.has(sectionName);
                   const colorClass = sectionColors[sectionIdx % sectionColors.length];
                   const totalKuralsInSection = Array.from(subsections.values()).reduce((sum, arr) => sum + arr.length, 0);
-                  
+
                   return (
                     <div key={sectionName} className="rounded-xl overflow-hidden border border-gray-200">
                       <button
@@ -253,13 +248,13 @@ export function NavigationModal({
                           <span className="text-lg">{isSectionExpanded ? '▼' : '▶'}</span>
                         </span>
                       </button>
-                      
+
                       {isSectionExpanded && (
                         <div className="bg-gray-50 p-2 space-y-1">
                           {Array.from(subsections.entries()).map(([subsectionName, kuralsInSubsection]) => {
                             const subsectionKey = `${sectionName}-${subsectionName}`;
                             const isSubsectionExpanded = expandedSubsections.has(subsectionKey);
-                            
+
                             return (
                               <div key={subsectionKey} className="rounded-lg overflow-hidden">
                                 <button
@@ -283,7 +278,7 @@ export function NavigationModal({
                                     <span className="text-gray-400">{isSubsectionExpanded ? '▼' : '▶'}</span>
                                   </span>
                                 </button>
-                                
+
                                 {isSubsectionExpanded && (
                                   <div className="bg-white border-t border-gray-100 p-2">
                                     <div className="flex flex-wrap gap-1">
@@ -296,13 +291,12 @@ export function NavigationModal({
                                             <Link
                                               href={`/kural-learning/${k.slug}`}
                                               onClick={onClose}
-                                              className={`w-10 h-10 flex items-center justify-center text-xs rounded-lg transition hover:scale-105 ${
-                                                isCurrent 
-                                                  ? 'bg-purple-600 text-white font-bold ring-2 ring-purple-300' 
-                                                  : isVisited 
-                                                    ? 'bg-green-500 text-white' 
+                                              className={`w-10 h-10 flex items-center justify-center text-xs rounded-lg transition hover:scale-105 ${isCurrent
+                                                  ? 'bg-purple-600 text-white font-bold ring-2 ring-purple-300'
+                                                  : isVisited
+                                                    ? 'bg-green-500 text-white'
                                                     : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                                              }`}
+                                                }`}
                                               title={`Kural ${k.id}`}
                                             >
                                               {k.id}
@@ -342,7 +336,7 @@ export function NavigationModal({
               <div className="text-center py-12">
                 <span className="text-6xl mb-4 block">💔</span>
                 <p className="text-gray-600">
-                  {isTamil 
+                  {isTamil
                     ? 'பிடித்த குறள்கள் இல்லை. ❤️ பொத்தானைக் கிளிக் செய்து சேமியுங்கள்!'
                     : 'No favorites yet. Click the ❤️ button to save kurals!'}
                 </p>
@@ -355,7 +349,7 @@ export function NavigationModal({
                   const kuralText = isTamil ? kuralInfo.kural_tamil : kuralInfo.kural_english;
                   const hasAudio = isTamil ? kuralInfo.audio_tamil_url : kuralInfo.audio_english_url;
                   const isPlaying = playingFavoriteId === id;
-                  
+
                   return (
                     <div key={id} className="flex items-start gap-3 p-3 bg-gradient-to-r from-red-50 to-pink-50 rounded-xl border border-red-100 hover:shadow-md transition">
                       <span className="text-red-500 font-bold text-lg min-w-8">#{id}</span>
@@ -368,11 +362,10 @@ export function NavigationModal({
                         {hasAudio && (
                           <button
                             onClick={() => playFavoriteAudio(kuralInfo)}
-                            className={`w-10 h-10 rounded-full flex items-center justify-center transition ${
-                              isPlaying 
-                                ? 'bg-purple-500 text-white animate-pulse' 
+                            className={`w-10 h-10 rounded-full flex items-center justify-center transition ${isPlaying
+                                ? 'bg-purple-500 text-white animate-pulse'
                                 : 'bg-purple-100 text-purple-600 hover:bg-purple-200'
-                            }`}
+                              }`}
                             title={isTamil ? 'ஒலிக்க' : 'Play audio'}
                           >
                             {isPlaying ? (

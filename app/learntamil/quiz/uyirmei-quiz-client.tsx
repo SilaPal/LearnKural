@@ -1,7 +1,9 @@
 'use client';
+import { useAvatarEmotion } from '@/lib/use-avatar-emotion';
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
+import ReactingAvatar from '@/components/reacting-avatar';
 import { meiBaseLetters, uyirMarkers } from '@/lib/tamil-letters';
 import AuthModal from '@/components/auth-modal';
 import { useAuth } from '@/lib/use-auth';
@@ -63,6 +65,7 @@ export default function UyirmeiQuizClient() {
   const [answered, setAnswered] = useState<number | null>(null);
   const [isComplete, setIsComplete] = useState(false);
   const [showCelebration, setShowCelebration] = useState(false);
+  const { emotion: avatarEmotion, react: reactAvatar } = useAvatarEmotion();
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [showUserMenu, setShowUserMenu] = useState(false);
   const { user, logout, isLoading: isAuthLoading } = useAuth();
@@ -85,17 +88,24 @@ export default function UyirmeiQuizClient() {
 
     if (optionIndex === questions[currentIndex].correctIndex) {
       setScore(prev => prev + 1);
+      reactAvatar('happy');
+    } else {
+      reactAvatar('sad');
     }
 
     setTimeout(() => {
       if (currentIndex < questions.length - 1) {
         setCurrentIndex(prev => prev + 1);
         setAnswered(null);
+        reactAvatar('thinking');
       } else {
         setIsComplete(true);
         if (score + (optionIndex === questions[currentIndex].correctIndex ? 1 : 0) >= 7) {
           setShowCelebration(true);
+          reactAvatar('excited');
           setTimeout(() => setShowCelebration(false), 3000);
+        } else {
+          reactAvatar('idle');
         }
       }
     }, 1500);
@@ -335,6 +345,9 @@ export default function UyirmeiQuizClient() {
         onClose={() => setShowAuthModal(false)}
         isTamil={isTamil}
       />
+
+      {/* Floating Avatar */}
+      {user && <ReactingAvatar emotion={avatarEmotion} />}
     </>
   );
 }

@@ -1,4 +1,5 @@
 'use client';
+import { useAvatarEmotion } from '@/lib/use-avatar-emotion';
 
 import { useState, useEffect, useRef, useCallback } from 'react';
 import Link from 'next/link';
@@ -10,6 +11,9 @@ import { NavigationModal, KuralSlugMap as NavKuralSlugMap } from '@/components/n
 import AuthModal from '@/components/auth-modal';
 import { useAuth } from '@/lib/use-auth';
 import { syncFavoritesToDB, syncProgressToDB } from '@/lib/db-sync';
+import ReactingAvatar from '@/components/reacting-avatar';
+import PageHeader from '@/components/page-header';
+import { BadgeEarnedToast } from '@/components/badge-earned-toast';
 import {
   updateKuralActivity,
   updateStreak,
@@ -21,6 +25,8 @@ import {
   saveBadge,
   getAllBadges,
   getUnviewedBadgeCount,
+  getStreakData,
+  recordDailyVisit,
   Badge
 } from '@/lib/badge-system';
 
@@ -63,7 +69,7 @@ function scorePronunciation(spokenText: string, expectedText: string): number {
   return maxLength === 0 ? 1 : (maxLength - distance) / maxLength;
 }
 
-type CelebrationType = 'confetti' | 'fireworks' | 'stars' | 'balloons' | 'sparkles' | 'snow' | 'golden' | null;
+type CelebrationType = 'confetti' | 'fireworks' | 'stars' | 'balloons' | 'snow' | 'golden' | null;
 
 interface PuzzlePiece {
   id: string;
@@ -182,6 +188,9 @@ export default function KuralLearningClient({
   const [showBadgeModal, setShowBadgeModal] = useState(false);
   const [celebrationType, setCelebrationType] = useState<CelebrationType>(null);
   const [newlyEarnedBadge, setNewlyEarnedBadge] = useState<Badge | null>(null);
+  const [totalCoins, setTotalCoins] = useState(0);
+  const [streakCount, setStreakCount] = useState(0);
+  const { emotion: avatarEmotion, react: reactAvatar } = useAvatarEmotion();
   const { user, logout } = useAuth();
   const isPaidUser = user?.tier === 'paid';
   const FREE_FAVORITES_LIMIT = 10;
@@ -221,6 +230,9 @@ export default function KuralLearningClient({
     if (savedBookmarks) {
       setBookmarks(JSON.parse(savedBookmarks));
     }
+    const streakData = getStreakData();
+    setStreakCount(streakData.currentStreak);
+    recordDailyVisit();
   }, [kural.id]);
 
   useEffect(() => {
@@ -237,6 +249,13 @@ export default function KuralLearningClient({
           }
         })
         .catch(err => console.error('Failed to load favorites from DB', err));
+
+      fetch('/api/user/coins')
+        .then(res => res.ok ? res.json() : null)
+        .then(data => {
+          if (data && data.coins !== undefined) setTotalCoins(data.coins);
+        })
+        .catch(err => console.error('Failed to load coins', err));
     }
   }, [user]);
 
@@ -460,8 +479,8 @@ export default function KuralLearningClient({
         setTimeout(() => setLastPlacedCorrect(null), 500);
       } else {
         setPuzzleStreak(0);
-        setShakeWrongSlot(emptySlotIndex);
         setTimeout(() => setShakeWrongSlot(null), 500);
+        reactAvatar('sad');
       }
     }
   };
@@ -482,7 +501,10 @@ export default function KuralLearningClient({
       setFlyingWords(prev => prev.map(w => w.id === word.id ? { ...w, isClicked: true } : w));
       const newPosition = nextExpectedPosition + 1;
       setNextExpectedPosition(newPosition);
+      reactAvatar('happy');
       if (newPosition === flyingWords.length) setGameSolved(true);
+    } else {
+      reactAvatar('sad');
     }
   };
 
@@ -498,6 +520,12 @@ export default function KuralLearningClient({
 
   const handleArrangeWord = (word: BalloonWord, slotIndex: number) => {
     if (gameSolved) return;
+    const isCorrect = word.correctPosition === slotIndex;
+    if (isCorrect) {
+      reactAvatar('happy');
+    } else {
+      reactAvatar('sad');
+    }
     const newArranged = [...arrangedWords];
     const existingIndex = newArranged.findIndex(w => w?.id === word.id);
     if (existingIndex !== -1) newArranged[existingIndex] = null;
@@ -544,7 +572,7 @@ export default function KuralLearningClient({
       } else if (lastBadge.tier === 'silver') {
         setCelebrationType('snow');
       } else if (lastBadge.tier === 'bronze') {
-        setCelebrationType('sparkles');
+        setCelebrationType('stars');
       } else if (lastBadge.type === 'mastery') {
         setCelebrationType('confetti');
       } else if (lastBadge.type === 'streak') {
@@ -553,7 +581,7 @@ export default function KuralLearningClient({
         setCelebrationType('stars');
       }
     } else if (allBadges.length > 0) {
-      setCelebrationType('sparkles');
+      setCelebrationType('stars');
     }
 
     setShowBadgeModal(true);
@@ -614,12 +642,17 @@ export default function KuralLearningClient({
       setNewBadgeCount(prev => prev + 1);
       setCelebrationType('confetti');
     }
+
+    if (activity === 'puzzle' || activity === 'flying' || activity === 'balloon' || activity === 'race') {
+      reactAvatar('excited');
+    }
   }, [kural.id]);
 
   const toggleLanguage = () => {
     const newLang = currentLanguage === 'tamil' ? 'english' : 'tamil';
     setCurrentLanguage(newLang);
     localStorage.setItem('thirukural-language', newLang);
+    window.dispatchEvent(new CustomEvent('tamillanguagechange', { detail: { isTamil: newLang === 'tamil' } }));
   };
 
   const startSpeechRecognition = useCallback(() => {
@@ -639,7 +672,10 @@ export default function KuralLearningClient({
         }
       }, 10000);
 
-      recognition.onstart = () => setIsRecording(true);
+      recognition.onstart = () => {
+        setIsRecording(true);
+        reactAvatar('thinking');
+      };
 
       recognition.onresult = (event: any) => {
         let transcript = '';
@@ -689,7 +725,9 @@ export default function KuralLearningClient({
       const result = window.pronunciationResult;
       if (result && result.score > 0.25) {
         setPronunciationFeedback('success');
+        reactAvatar('happy');
         setTimeout(() => setPronunciationFeedback('none'), 3000);
+        setTimeout(() => reactAvatar('idle'), 5000);
 
         // Track perfect pronunciation for skill badge
         if (result.score >= 0.8) {
@@ -706,7 +744,9 @@ export default function KuralLearningClient({
         }
       } else {
         setPronunciationFeedback('failed');
+        reactAvatar('sad');
         setTimeout(() => setPronunciationFeedback('none'), 2000);
+        setTimeout(() => reactAvatar('idle'), 2000);
       }
       window.pronunciationResult = null;
     }, 500);
@@ -775,150 +815,24 @@ export default function KuralLearningClient({
 
   return (
     <article className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 relative">
-      {/* Auth Button (Top Right) */}
-      <div className="absolute top-4 right-4 sm:top-6 sm:right-6 z-50">
-        {user ? (
-          <>
-            <button
-              onClick={() => setShowUserMenu(!showUserMenu)}
-              className="flex items-center gap-2 hover:opacity-80 transition-opacity"
-            >
-              {user.picture ? (
-                <img
-                  src={user.picture}
-                  alt={user.name}
-                  className="h-9 w-9 rounded-full border-2 border-white/60 shadow-lg"
-                />
-              ) : (
-                <div className="h-9 w-9 rounded-full bg-blue-500 border-2 border-white/60 shadow-lg flex items-center justify-center text-white font-bold text-sm">
-                  {user.name.charAt(0).toUpperCase()}
-                </div>
-              )}
-            </button>
-            {showUserMenu && (
-              <div className="absolute right-0 mt-2 w-52 bg-white rounded-xl shadow-xl border border-gray-100 py-1 z-50">
-                <div className="px-3 py-2 border-b border-gray-100">
-                  <p className="text-xs font-semibold text-gray-800 truncate">{user.name}</p>
-                  <p className="text-xs text-gray-500 truncate">{user.email}</p>
-                </div>
-                {/* Plan Badge */}
-                <div className="px-3 py-2.5 border-b border-gray-100">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-1.5">
-                      <span className="text-base">{isPaidUser ? '✨' : '🆓'}</span>
-                      <span className="text-xs font-semibold text-gray-700">
-                        {isPaidUser
-                          ? (currentLanguage === 'tamil' ? 'பிரீமியம்' : 'Premium Plan')
-                          : (currentLanguage === 'tamil' ? 'இலவச திட்டம்' : 'Free Plan')}
-                      </span>
-                    </div>
-                    {!isPaidUser && (
-                      <button
-                        onClick={() => { setShowUserMenu(false); setShowPricingModal(true); }}
-                        className="text-xs bg-gradient-to-r from-purple-600 to-violet-600 text-white font-semibold px-2.5 py-1 rounded-full hover:opacity-90 transition"
-                      >
-                        {currentLanguage === 'tamil' ? 'மேம்படுத்து' : 'Upgrade'}
-                      </button>
-                    )}
-                  </div>
-                  {!isPaidUser && (
-                    <p className="text-xs text-gray-400 mt-1">
-                      {currentLanguage === 'tamil'
-                        ? `${bookmarks.length}/10 பிடித்தவை`
-                        : `${bookmarks.length}/10 favorites used`}
-                    </p>
-                  )}
-                </div>
-                <button
-                  onClick={async () => { await logout(); setShowUserMenu(false); }}
-                  className="w-full text-left px-3 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors"
-                >
-                  {currentLanguage === 'tamil' ? 'வெளியேறு' : 'Logout'}
-                </button>
-              </div>
-            )}
-          </>
-        ) : (
-          <button
-            onClick={() => setShowAuthModal(true)}
-            className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-500 hover:bg-blue-600 border border-transparent text-white rounded-lg transition-all text-sm font-semibold shadow"
-            title={currentLanguage === 'tamil' ? 'உள்நுழைவு / பதிவு' : 'Login / Sign Up'}
-            aria-label={currentLanguage === 'tamil' ? 'உள்நுழைவு' : 'Login'}
-          >
-            <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
-              <circle cx="12" cy="7" r="4" />
-            </svg>
-            <span className="hidden sm:inline">{currentLanguage === 'tamil' ? 'உள்நுழைவு' : 'Login'}</span>
-          </button>
-        )}
-      </div>
+      <PageHeader
+        onLoginClick={() => setShowAuthModal(true)}
+        onUpgradeClick={() => setShowPricingModal(true)}
+        onBadgesClick={openBadgeModal}
+        newBadgeCount={newBadgeCount}
+        title={currentLanguage === 'tamil' ? `திருக்குறள் ${kural.id}` : `Thirukkural ${kural.id}`}
+        gradientClass="bg-gradient-to-br from-purple-800 via-purple-600 to-violet-500"
+        onToggleFavorite={user ? () => toggleBookmark() : undefined}
+        isFavorited={bookmarks.includes(kural.id)}
+        isTamil={currentLanguage === 'tamil'}
+        toggleLanguage={toggleLanguage}
+        streakCount={visitedKurals.includes(kural.id) ? visitedKurals.length : visitedKurals.length + 1}
+        coinCount={totalCoins}
+        onStreakClick={() => setShowNavModal(true)}
+        onCoinClick={openBadgeModal}
+      />
 
-      <div className="max-w-4xl mx-auto px-4 py-8 mt-6">
-        <header className="mb-6">
-          <div className="flex items-center justify-center gap-3 mb-2">
-            <Link href="/">
-              <img src="/logo.png" alt="Tamili Logo" className="h-12 w-12 rounded-full" />
-            </Link>
-            <h1 className="text-3xl font-bold text-gray-800">
-              {currentLanguage === 'tamil' ? `திருக்குறள் ${kural.id}` : `Thirukkural ${kural.id}`}
-            </h1>
-          </div>
-          <p className="text-gray-600 text-sm text-center">
-            {currentLanguage === 'tamil'
-              ? 'ஒலி மற்றும் காணொளியுடன் தமிழ் ஞானத்தைக் கற்றுக்கொள்ளுங்கள்'
-              : 'Interactive Tamil wisdom learning with audio and video'
-            }
-          </p>
-        </header>
-
-        <div className="flex items-center justify-between mb-3 gap-2">
-          <div className="flex items-center gap-2">
-            <button
-              onClick={openBadgeModal}
-              className="relative px-2 py-1 border-2 border-yellow-500 rounded-lg bg-gradient-to-br from-yellow-400 to-orange-500 hover:scale-105 transition-transform flex items-center"
-              aria-label={currentLanguage === 'tamil' ? 'பேட்ஜ்கள்' : 'Badges'}
-              title={currentLanguage === 'tamil' ? 'உன் பேட்ஜ்களைப் பார்' : 'View your badges'}
-            >
-              <span className="text-lg">🏅</span>
-              {newBadgeCount > 0 && (
-                <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs font-bold rounded-full w-4 h-4 flex items-center justify-center text-[10px]">
-                  {newBadgeCount}
-                </span>
-              )}
-            </button>
-            <button
-              onClick={() => toggleBookmark()}
-              className={`px-2 py-1 border-2 rounded-lg transition flex items-center ${bookmarks.includes(kural.id)
-                ? 'border-red-400 bg-red-50'
-                : 'border-gray-300 bg-white hover:border-red-300'
-                }`}
-              aria-label={currentLanguage === 'tamil' ? 'புத்தகக்குறி' : 'Bookmark'}
-              title={currentLanguage === 'tamil' ? 'இந்தக் குறளை சேமி' : 'Save this kural'}
-            >
-              <span className="text-lg">{bookmarks.includes(kural.id) ? '❤️' : '🤍'}</span>
-            </button>
-            <button
-              onClick={() => setShowNavModal(true)}
-              className="px-2 py-1 border-2 border-orange-500 rounded-lg bg-white hover:bg-orange-50 transition flex items-center"
-              aria-label={currentLanguage === 'tamil' ? 'வழிசெலுத்தல்' : 'Navigate'}
-              title={currentLanguage === 'tamil' ? 'உன் முன்னேற்றத்தைப் பார்' : 'View your progress'}
-            >
-              <span className="text-lg">🔥</span>
-            </button>
-          </div>
-          <button
-            onClick={toggleLanguage}
-            className="px-3 py-1.5 bg-purple-600 text-white text-sm rounded-lg hover:bg-purple-700 transition flex items-center gap-1.5"
-          >
-            <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <circle cx="12" cy="12" r="10" />
-              <path d="M2 12h20" />
-              <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" />
-            </svg>
-            {currentLanguage === 'tamil' ? 'English' : 'தமிழ்'}
-          </button>
-        </div>
+      <div className="max-w-4xl mx-auto px-4 py-8">
 
         <section className="mb-6 rounded-2xl shadow-lg overflow-hidden">
           <h2 className="sr-only">Kural Text</h2>
@@ -1712,25 +1626,12 @@ export default function KuralLearningClient({
 
       {/* New Badge Earned Toast */}
       {newlyEarnedBadge && !showBadgeModal && (
-        <div className="fixed bottom-20 left-1/2 -translate-x-1/2 z-50 animate-badge-entrance">
-          <div
-            className="glass-card-dark px-6 py-4 rounded-2xl flex items-center gap-4 cursor-pointer hover:scale-105 transition-all neon-glow-purple"
-            onClick={() => {
-              setShowBadgeModal(true);
-              setCelebrationType(newlyEarnedBadge.type === 'mastery' ? 'confetti' : newlyEarnedBadge.type === 'streak' ? 'fireworks' : 'snow');
-            }}
-          >
-            <span className="text-4xl neon-pulse">{newlyEarnedBadge.icon}</span>
-            <div>
-              <div className="text-white font-bold">
-                {currentLanguage === 'tamil' ? 'புதிய பேட்ஜ்!' : 'New Badge!'}
-              </div>
-              <div className="text-gray-300 text-sm">
-                {currentLanguage === 'tamil' ? newlyEarnedBadge.nameTamil : newlyEarnedBadge.name}
-              </div>
-            </div>
-          </div>
-        </div>
+        <BadgeEarnedToast
+          badge={newlyEarnedBadge}
+          isTamil={currentLanguage === 'tamil'}
+          onDismiss={() => setNewlyEarnedBadge(null)}
+          onViewAchievements={openBadgeModal}
+        />
       )}
 
       <NavigationModal
@@ -1756,6 +1657,9 @@ export default function KuralLearningClient({
         onClose={() => setShowAuthModal(false)}
         isTamil={currentLanguage === 'tamil'}
       />
+
+      {/* Floating Avatar */}
+      {user && <ReactingAvatar emotion={avatarEmotion} />}
     </article>
   );
 }

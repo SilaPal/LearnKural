@@ -1,6 +1,8 @@
 'use client';
+import { useAvatarEmotion } from '@/lib/use-avatar-emotion';
 
 import { useState, useEffect, useCallback } from 'react';
+import ReactingAvatar from '@/components/reacting-avatar';
 import Link from 'next/link';
 import AuthModal from '@/components/auth-modal';
 import { useAuth } from '@/lib/use-auth';
@@ -30,6 +32,9 @@ const balloonColors = [
   'from-pink-400 to-pink-600',
 ];
 
+const NUM_LANES = 8;
+const LANE_WIDTH = 100 / NUM_LANES;
+
 export default function BalloonGameClient() {
   const [isTamil, setIsTamil] = useState(false);
   const [balloons, setBalloons] = useState<Balloon[]>([]);
@@ -39,6 +44,7 @@ export default function BalloonGameClient() {
   const [isGameOver, setIsGameOver] = useState(false);
   const [showCelebration, setShowCelebration] = useState(false);
   const [balloonId, setBalloonId] = useState(0);
+  const { emotion: avatarEmotion, react: reactAvatar } = useAvatarEmotion();
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [showUserMenu, setShowUserMenu] = useState(false);
   const { user, logout, isLoading: isAuthLoading } = useAuth();
@@ -57,13 +63,29 @@ export default function BalloonGameClient() {
     return tamilLetters[Math.floor(Math.random() * tamilLetters.length)];
   }, []);
 
-  const createBalloon = useCallback((): Balloon => {
+  const createBalloon = useCallback((existingBalloons: Balloon[]): Balloon => {
     const id = balloonId;
     setBalloonId(prev => prev + 1);
+
+    // Filter out occupied lanes
+    const occupiedLanes = new Set(
+      existingBalloons.map(b => Math.floor(b.x / LANE_WIDTH))
+    );
+
+    const availableLanes = Array.from({ length: NUM_LANES }, (_, i) => i)
+      .filter(lane => !occupiedLanes.has(lane));
+
+    // Pick a lane: try available first, otherwise pick the least populated or random
+    const lane = availableLanes.length > 0
+      ? availableLanes[Math.floor(Math.random() * availableLanes.length)]
+      : Math.floor(Math.random() * NUM_LANES);
+
+    const x = (lane * LANE_WIDTH) + (LANE_WIDTH / 2);
+
     return {
       id,
       letter: getRandomLetter(),
-      x: 10 + Math.random() * 80,
+      x,
       y: 100 + Math.random() * 20,
       color: balloonColors[Math.floor(Math.random() * balloonColors.length)],
       isPopped: false,
@@ -74,7 +96,12 @@ export default function BalloonGameClient() {
     setScore(0);
     setLives(3);
     setIsGameOver(false);
-    const initialBalloons = Array.from({ length: 6 }, createBalloon);
+
+    const initialBalloons: Balloon[] = [];
+    for (let i = 0; i < 6; i++) {
+      initialBalloons.push(createBalloon(initialBalloons));
+    }
+
     setBalloons(initialBalloons);
     setTargetLetter(initialBalloons[Math.floor(Math.random() * initialBalloons.length)].letter);
   }, [createBalloon]);
@@ -94,7 +121,7 @@ export default function BalloonGameClient() {
         })).filter(b => b.y > -20 && !b.isPopped);
 
         if (updated.length < 6) {
-          const newBalloon = createBalloon();
+          const newBalloon = createBalloon(updated);
           return [...updated, newBalloon];
         }
         return updated;
@@ -116,8 +143,10 @@ export default function BalloonGameClient() {
       if (score + 10 >= 100) {
         setIsGameOver(true);
         setShowCelebration(true);
+        reactAvatar('excited');
         setTimeout(() => setShowCelebration(false), 3000);
       } else {
+        reactAvatar('happy');
         const remainingBalloons = balloons.filter(b => b.id !== balloon.id && !b.isPopped);
         if (remainingBalloons.length > 0) {
           setTargetLetter(remainingBalloons[Math.floor(Math.random() * remainingBalloons.length)].letter);
@@ -128,6 +157,7 @@ export default function BalloonGameClient() {
     } else {
       setLives(prev => {
         const newLives = prev - 1;
+        reactAvatar('sad');
         if (newLives <= 0) {
           setIsGameOver(true);
         }
@@ -146,9 +176,9 @@ export default function BalloonGameClient() {
     <>
       {showCelebration && (
         <div className="fixed inset-0 z-50 pointer-events-none flex items-center justify-center">
-          <div className="text-center animate-bounce">
-            <div className="text-8xl mb-4">🎉</div>
-            <div className="text-4xl font-bold text-blue-600">
+          <div className="text-center">
+            <ReactingAvatar emotion="happy" className="scale-150 mb-8" />
+            <div className="text-4xl font-bold text-blue-600 animate-bounce">
               {isTamil ? 'வெற்றி!' : 'You Win!'}
             </div>
           </div>
@@ -319,6 +349,9 @@ export default function BalloonGameClient() {
         onClose={() => setShowAuthModal(false)}
         isTamil={isTamil}
       />
+
+      {/* Floating Avatar */}
+      {user && <ReactingAvatar emotion={avatarEmotion} />}
     </>
   );
 }

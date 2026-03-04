@@ -6,6 +6,8 @@ import { letterCategories, TamilLetter, LetterCategory, meiBaseLetters, uyirMark
 import AuthModal from '@/components/auth-modal';
 import { useAuth } from '@/lib/use-auth';
 import BadgeModal from '@/components/badge-modal';
+import PageHeader from '@/components/page-header';
+import PricingModal from '@/components/pricing-modal';
 import { getAllBadges } from '@/lib/badge-system';
 import { syncProgressToDB } from '@/lib/db-sync';
 import { useUserTier } from '@/lib/use-tier';
@@ -37,8 +39,7 @@ export default function LearnTamilClient() {
   const [expandedCategory, setExpandedCategory] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'games' | 'practice'>('practice');
   const [showAuthModal, setShowAuthModal] = useState(false);
-  const [showUserMenu, setShowUserMenu] = useState(false);
-  const [totalCoins, setTotalCoins] = useState(0);
+  const [showPricingModal, setShowPricingModal] = useState(false);
 
   // Badge notification state
   const [badgeCount, setBadgeCount] = useState(0);
@@ -91,11 +92,6 @@ export default function LearnTamilClient() {
           }
         })
         .catch(err => console.error('Failed to load progress from DB', err));
-
-      fetch('/api/user/coins')
-        .then(res => res.json())
-        .then(data => { if (data.coins !== undefined) setTotalCoins(data.coins); })
-        .catch(e => console.error(e));
     }
   }, [user]);
 
@@ -103,6 +99,7 @@ export default function LearnTamilClient() {
     const newLang = !isTamil;
     setIsTamil(newLang);
     localStorage.setItem('thirukural-language', newLang ? 'tamil' : 'english');
+    window.dispatchEvent(new CustomEvent('tamillanguagechange', { detail: { isTamil: newLang } }));
   };
 
   const getCategoryProgress = (category: LetterCategory) => {
@@ -126,141 +123,17 @@ export default function LearnTamilClient() {
 
   return (
     <>
-      <header className="relative bg-gradient-to-r from-orange-500 to-red-500 text-white py-6">
-        <div className="absolute top-4 right-4 sm:top-6 sm:right-6 z-50">
-          {isLoading ? (
-            <div className="h-9 w-9 rounded-full bg-white/20 animate-pulse border-2 border-white/40 shadow-lg"></div>
-          ) : user ? (
-            <div className="relative">
-              <button
-                onClick={() => setShowUserMenu(!showUserMenu)}
-                className="flex items-center gap-2 hover:opacity-80 transition-opacity"
-              >
-                {user.picture ? (
-                  <img
-                    src={user.picture}
-                    alt={user.name}
-                    className="h-9 w-9 rounded-full border-2 border-white/60 shadow-lg object-cover"
-                  />
-                ) : (
-                  <div className="h-9 w-9 rounded-full bg-orange-400 border-2 border-white/60 shadow-lg flex items-center justify-center text-white font-bold text-sm">
-                    {user.name?.charAt(0).toUpperCase() || '?'}
-                  </div>
-                )}
-              </button>
-              {showUserMenu && (
-                <div className="absolute right-0 mt-2 w-52 bg-white rounded-xl shadow-xl border border-gray-100 py-1 z-50">
-                  <div className="px-3 py-2 border-b border-gray-100">
-                    <p className="text-xs font-semibold text-gray-800 truncate">{user.name}</p>
-                    <p className="text-xs text-gray-500 truncate">{user.email}</p>
-                  </div>
-                  <div className="px-3 py-2.5 border-b border-gray-100 flex items-center justify-between">
-                    <div>
-                      <span className="text-xs font-bold text-gray-500 uppercase tracking-wider">Plan</span>
-                      <div className="mt-1 flex items-center gap-1">
-                        {isPaid ? (
-                          <span className="bg-gradient-to-r from-yellow-400 to-yellow-600 text-white text-[10px] font-bold px-2 py-0.5 rounded shadow-sm">PREMIUM</span>
-                        ) : (
-                          <span className="bg-gray-100 text-gray-600 border border-gray-200 text-[10px] font-bold px-2 py-0.5 rounded">FREE</span>
-                        )}
-                      </div>
-                    </div>
-                    {user && (
-                      <div className="bg-orange-100 px-3 py-1 rounded-full border border-orange-200">
-                        <span className="text-sm font-bold text-orange-600">🪙 {totalCoins}</span>
-                      </div>
-                    )}
-                  </div>
-                  <button
-                    onClick={async () => { await logout(); setShowUserMenu(false); }}
-                    className="w-full text-left px-3 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors"
-                  >
-                    {isTamil ? 'வெளியேறு' : 'Logout'}
-                  </button>
-                </div>
-              )}
-            </div>
-          ) : (
-            <button
-              onClick={() => setShowAuthModal(true)}
-              className="flex items-center gap-1.5 px-3 py-1.5 bg-white/20 hover:bg-white/30 border border-white/40 text-white rounded-lg transition-all text-sm font-semibold backdrop-blur-sm shadow"
-              title={isTamil ? 'உள்நுழைவு / பதிவு' : 'Login / Sign Up'}
-              aria-label={isTamil ? 'உள்நுழைவு' : 'Login'}
-            >
-              <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
-                <circle cx="12" cy="7" r="4" />
-              </svg>
-              <span className="hidden sm:inline">{isTamil ? 'உள்நுழைவு' : 'Login'}</span>
-            </button>
-          )}
-        </div>
-
-        <div className="max-w-4xl mx-auto px-4 mt-8 sm:mt-0 flex flex-col items-center">
-          <div className="flex items-center justify-center gap-3 mb-3">
-            <Link href="/" className="shrink-0">
-              <img src="/logo.png" alt="Tamili Logo" className="h-10 w-10 sm:h-12 sm:w-12 rounded-full shadow-md border-2 border-white/30 hover:scale-105 transition-transform" />
-            </Link>
-            <h1 className="text-2xl sm:text-3xl font-bold flex items-center gap-2">
-              <span>✍️</span>
-              {isTamil ? 'தமிழ் எழுத்துக்கள்' : 'Tamil Letters'}
-            </h1>
-
-            {/* Learning Badge Icon */}
-            <button
-              onClick={() => {
-                const allBadges = getAllBadges();
-                const unviewedBadges = allBadges.filter(b => !b.viewed);
-                if (unviewedBadges.length > 0) {
-                  const lastBadge = unviewedBadges[unviewedBadges.length - 1];
-                  if (lastBadge.tier === 'diamond') setCelebrationType('golden');
-                  else if (lastBadge.tier === 'gold') setCelebrationType('fireworks');
-                  else if (lastBadge.tier === 'silver') setCelebrationType('snow');
-                  else setCelebrationType('sparkles');
-                } else if (allBadges.length > 0) {
-                  setCelebrationType('sparkles');
-                }
-                setShowBadgeModal(true);
-                setNewBadgeCount(0);
-              }}
-              className="relative hover:scale-110 transition-transform"
-              title={isTamil ? 'சாதனை பேட்ஜ்கள்' : 'Achievement Badges'}
-            >
-              <div className="h-10 w-10 sm:h-12 sm:w-12 bg-gradient-to-br from-yellow-400 to-orange-500 rounded-full flex items-center justify-center shadow-lg border-2 border-white/20">
-                <span className="text-xl sm:text-2xl">🏅</span>
-              </div>
-              {newBadgeCount > 0 && (
-                <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] sm:text-xs w-4 h-4 sm:w-5 sm:h-5 rounded-full flex items-center justify-center animate-bounce font-bold">
-                  {newBadgeCount}
-                </span>
-              )}
-              {badgeCount > 0 && newBadgeCount === 0 && (
-                <span className="absolute -bottom-1 -right-1 bg-purple-600 text-white text-[10px] sm:text-xs px-1.5 py-0.5 rounded-full font-bold shadow-sm">
-                  {badgeCount}
-                </span>
-              )}
-            </button>
-          </div>
-
-          <p className="text-sm opacity-90 text-center mb-4 max-w-sm">
-            {isTamil ? 'எழுத்துக்களை எழுதக் கற்றுக்கொள்ளுங்கள்' : 'Learn to write Tamil Letters'}
-          </p>
-
-          <div className="flex items-center justify-center gap-3">
-            <button
-              onClick={toggleLanguage}
-              className="flex items-center gap-2 px-3 py-1.5 bg-white/20 hover:bg-white/30 border border-white/30 rounded-lg transition text-sm font-medium backdrop-blur-sm"
-            >
-              <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <circle cx="12" cy="12" r="10" />
-                <path d="M2 12h20" />
-                <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" />
-              </svg>
-              {isTamil ? 'English' : 'தமிழ்'}
-            </button>
-          </div>
-        </div>
-      </header>
+      <PageHeader
+        gradientClass="bg-gradient-to-r from-orange-500 to-red-500"
+        onLoginClick={() => setShowAuthModal(true)}
+        onUpgradeClick={() => setShowPricingModal(true)}
+        onBadgesClick={() => setShowBadgeModal(true)}
+        newBadgeCount={newBadgeCount}
+        title={isTamil ? 'தமிழ் எழுத்துக்கள்' : 'Tamil Letters'}
+        isTamil={isTamil}
+        toggleLanguage={toggleLanguage}
+        onCoinClick={() => setShowBadgeModal(true)}
+      />
 
       {!hasAccess ? (
         <LearnTamilTeaser isTamil={isTamil} isExpired={isTrialExpired} />
@@ -545,6 +418,8 @@ export default function LearnTamilClient() {
         language={isTamil ? 'tamil' : 'english'}
         celebrationType={celebrationType}
       />
+
+      <PricingModal isOpen={showPricingModal} onClose={() => setShowPricingModal(false)} isTamil={isTamil} />
     </>
   );
 }

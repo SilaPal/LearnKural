@@ -3,6 +3,9 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import PricingModal from '@/components/pricing-modal';
+import PageHeader from '@/components/page-header';
+import BadgeModal from '@/components/badge-modal';
+import AuthModal from '@/components/auth-modal';
 import { useAuth } from '@/lib/use-auth';
 import { syncFavoritesToDB } from '@/lib/db-sync';
 
@@ -32,19 +35,19 @@ export default function FavoritesClient({ allKuralSlugs }: Props) {
   const [currentAudio, setCurrentAudio] = useState<HTMLAudioElement | null>(null);
   const [showPricingModal, setShowPricingModal] = useState(false);
 
+  const [showBadgeModal, setShowBadgeModal] = useState(false);
+  const [showAuthModal, setShowAuthModal] = useState(false);
+
   useEffect(() => {
     const savedLang = localStorage.getItem('thirukural-language');
-    if (savedLang === 'tamil') {
-      setIsTamil(true);
-    } else if (savedLang === 'english') {
-      setIsTamil(false);
-    } else {
-      const browserLang = navigator.language || '';
-      if (browserLang.toLowerCase().startsWith('ta')) {
-        setIsTamil(true);
-      }
-    }
+    if (savedLang === 'tamil') setIsTamil(true);
 
+    const handler = (e: Event) => setIsTamil((e as CustomEvent<{ isTamil: boolean }>).detail.isTamil);
+    window.addEventListener('tamillanguagechange', handler);
+    return () => window.removeEventListener('tamillanguagechange', handler);
+  }, []);
+
+  useEffect(() => {
     const savedBookmarks = localStorage.getItem('thirukural-bookmarks');
     if (savedBookmarks) {
       try {
@@ -76,6 +79,7 @@ export default function FavoritesClient({ allKuralSlugs }: Props) {
     const newLang = !isTamil;
     setIsTamil(newLang);
     localStorage.setItem('thirukural-language', newLang ? 'tamil' : 'english');
+    window.dispatchEvent(new CustomEvent('tamillanguagechange', { detail: { isTamil: newLang } }));
   };
 
   const playAudio = (kuralInfo: KuralSlugInfo) => {
@@ -111,39 +115,22 @@ export default function FavoritesClient({ allKuralSlugs }: Props) {
 
   return (
     <>
-      <header className="bg-gradient-to-r from-red-500 to-pink-500 text-white py-6">
-        <div className="max-w-4xl mx-auto px-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <Link href="/" className="p-2 hover:bg-white/20 rounded-full transition">
-                <svg className="h-6 w-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <polyline points="15 18 9 12 15 6" />
-                </svg>
-              </Link>
-              <div>
-                <h1 className="text-2xl font-bold flex items-center gap-2">
-                  <span>❤️</span>
-                  {isTamil ? 'எனக்கு பிடித்தவை' : 'My Favorites'}
-                </h1>
-                <p className="text-sm opacity-90">
-                  {favoriteKurals.length} {isTamil ? 'குறள்கள்' : 'kurals saved'}
-                </p>
-              </div>
-            </div>
-            <button
-              onClick={toggleLanguage}
-              className="flex items-center gap-2 px-3 py-1.5 bg-white/20 hover:bg-white/30 rounded-lg transition text-sm"
-            >
-              <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <circle cx="12" cy="12" r="10" />
-                <path d="M2 12h20" />
-                <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" />
-              </svg>
-              {isTamil ? 'English' : 'தமிழ்'}
-            </button>
-          </div>
+      <PageHeader
+        gradientClass="bg-gradient-to-r from-red-500 to-pink-500"
+        onLoginClick={() => setShowAuthModal(true)}
+        onUpgradeClick={() => setShowPricingModal(true)}
+        onBadgesClick={() => setShowBadgeModal(true)}
+        isTamil={isTamil}
+        toggleLanguage={toggleLanguage}
+        onCoinClick={() => setShowBadgeModal(true)}
+        streakCount={JSON.parse(localStorage.getItem('thirukural-visited') || '[]').length}
+      >
+        <div className="flex flex-col items-center">
+          <p className="text-sm opacity-90 text-center">
+            {favoriteKurals.length} {isTamil ? 'குறள்கள் சேமிக்கப்பட்டுள்ளன' : 'kurals saved'}
+          </p>
         </div>
-      </header>
+      </PageHeader>
 
       <main className="max-w-4xl mx-auto px-4 py-8">
         {/* Free tier limit banner */}
@@ -316,6 +303,19 @@ export default function FavoritesClient({ allKuralSlugs }: Props) {
           </>
         )}
       </main>
+
+      <BadgeModal
+        isOpen={showBadgeModal}
+        onClose={() => setShowBadgeModal(false)}
+        language={isTamil ? 'tamil' : 'english'}
+        celebrationType={null}
+      />
+
+      <AuthModal
+        isOpen={showAuthModal}
+        onClose={() => setShowAuthModal(false)}
+        isTamil={isTamil}
+      />
 
       <PricingModal
         isOpen={showPricingModal}

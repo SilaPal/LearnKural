@@ -1,0 +1,89 @@
+
+> rest-express@1.0.0 build
+> next build
+
+  ▲ Next.js 14.2.35
+  - Environments: .env.local
+
+   Creating an optimized production build ...
+ ✓ Compiled successfully
+   Linting and checking validity of types ...
+   Collecting page data ...
+[dotenv@17.3.1] injecting env (0) from .env.local -- tip: 🛡️ auth for agents: https://vestauth.com
+[dotenv@17.3.1] injecting env (0) from .env.local -- tip: 🛠️  run anywhere with `dotenvx run -- yourcommand`
+[dotenv@17.3.1] injecting env (0) from .env.local -- tip: ⚙️  write to custom object with { processEnv: myObject }
+[dotenv@17.3.1] injecting env (0) from .env.local -- tip: ⚙️  specify custom .env file path with { path: '/custom/path/.env' }
+[dotenv@17.3.1] injecting env (0) from .env.local -- tip: 🔐 prevent building .env in docker: https://dotenvx.com/prebuild
+[dotenv@17.3.1] injecting env (0) from .env.local -- tip: 🛠️  run anywhere with `dotenvx run -- yourcommand`
+[dotenv@17.3.1] injecting env (0) from .env.local -- tip: ⚙️  load multiple .env files with { path: ['.env.local', '.env'] }
+[dotenv@17.3.1] injecting env (0) from .env.local -- tip: 🤖 agentic secret storage: https://dotenvx.com/as2
+   Generating static pages (0/1357) ...
+[dotenv@17.3.1] injecting env (0) from .env.local -- tip: ⚙️  override existing env vars with { override: true }
+   Generating static pages (339/1357) 
+   Generating static pages (678/1357) 
+   Generating static pages (1017/1357) 
+ ✓ Generating static pages (1357/1357)
+   Finalizing page optimization ...
+   Collecting build traces ...
+
+Route (app)                                            Size     First Load JS
+┌ ○ /                                                  9.2 kB          121 kB
+├ ○ /_not-found                                        873 B          88.3 kB
+├ ○ /admin/waitlist                                    2.44 kB        98.6 kB
+├ ƒ /api/admin/waitlist                                0 B                0 B
+├ ƒ /api/auth/google                                   0 B                0 B
+├ ƒ /api/auth/google/callback                          0 B                0 B
+├ ƒ /api/auth/logout                                   0 B                0 B
+├ ƒ /api/auth/user                                     0 B                0 B
+├ ƒ /api/classrooms                                    0 B                0 B
+├ ƒ /api/cron/weekly-reset                             0 B                0 B
+├ ƒ /api/dashboard/parent                              0 B                0 B
+├ ƒ /api/dashboard/school                              0 B                0 B
+├ ƒ /api/dashboard/teacher                             0 B                0 B
+├ ƒ /api/leaderboard                                   0 B                0 B
+├ ƒ /api/payments/checkout                             0 B                0 B
+├ ƒ /api/sandhai                                       0 B                0 B
+├ ƒ /api/sandhai/buy                                   0 B                0 B
+├ ƒ /api/schools                                       0 B                0 B
+├ ƒ /api/schools/invite                                0 B                0 B
+├ ƒ /api/schools/join                                  0 B                0 B
+├ ƒ /api/user/avatar                                   0 B                0 B
+├ ƒ /api/user/coins                                    0 B                0 B
+├ ƒ /api/user/favorites                                0 B                0 B
+├ ƒ /api/user/progress                                 0 B                0 B
+├ ƒ /api/user/region                                   0 B                0 B
+├ ○ /dashboard/parent                                  4.61 kB         104 kB
+├ ○ /dashboard/school                                  5.72 kB         105 kB
+├ ○ /dashboard/teacher                                 5.28 kB         105 kB
+├ ○ /kural-favorites                                   5.28 kB         101 kB
+├ ƒ /kural-favorites/learning/[slug]                   2.32 kB        98.4 kB
+├ ○ /kural-favorites/playing                           2.12 kB        98.2 kB
+├ ● /kural-learning/[slug]                             14.1 kB         123 kB
+├   ├ /kural-learning/kadavul-vazhthu-praise-of-god-1
+├   ├ /kural-learning/kadavul-vazhthu-praise-of-god-2
+├   ├ /kural-learning/kadavul-vazhthu-praise-of-god-3
+├   └ [+1327 more paths]
+├ ƒ /kural-playing                                     11.3 kB         117 kB
+├ ○ /kural-progress                                    5.12 kB         101 kB
+├ ○ /leaderboard                                       49.5 kB         149 kB
+├ ○ /learntamil                                        7.49 kB         113 kB
+├ ○ /learntamil/games/balloon                          3.01 kB         155 kB
+├ ○ /learntamil/games/memory                           2.8 kB          155 kB
+├ ƒ /learntamil/letter/[id]                            5.72 kB         157 kB
+├ ○ /learntamil/quiz                                   7.76 kB         104 kB
+├ ○ /quest                                             2.81 kB        98.9 kB
+├ ○ /robots.txt                                        0 B                0 B
+├ ○ /sandhai                                           4.94 kB         152 kB
+├ ○ /schools/register                                  4.73 kB         104 kB
+├ ○ /sitemap.xml                                       0 B                0 B
+└ ○ /video-sitemap                                     0 B                0 B
++ First Load JS shared by all                          87.4 kB
+  ├ chunks/117-14ba22e2ee74b67b.js                     31.7 kB
+  ├ chunks/fd9d1056-4817102c93d54cf4.js                53.6 kB
+  └ other shared chunks (total)                        2.01 kB
+
+
+○  (Static)   prerendered as static content
+●  (SSG)      prerendered as static HTML (uses getStaticProps)
+ƒ  (Dynamic)  server-rendered on demand
+

@@ -128,7 +128,9 @@ export const avatars = pgTable('avatars', {
     name: varchar('name').notNull(),
     description: varchar('description'),
     price: integer('price').default(0).notNull(),
-    imageUrl: varchar('image_url').notNull(),
+    imageUrl: varchar('image_url').notNull(), // emoji for static, thumbnail for lottie
+    type: varchar('type', { enum: ['static', 'lottie'] }).default('static').notNull(),
+    metadata: jsonb('metadata'), // stores { idle: string, happy: string, excited: string, sad: string }
     isPremiumOnly: boolean('is_premium_only').default(false).notNull(),
     createdAt: timestamp('created_at').defaultNow().notNull(),
 });

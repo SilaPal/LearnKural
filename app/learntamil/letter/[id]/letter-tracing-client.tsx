@@ -1,4 +1,5 @@
 'use client';
+import { useAvatarEmotion } from '@/lib/use-avatar-emotion';
 
 import { useState, useEffect, useRef, useCallback } from 'react';
 import Link from 'next/link';
@@ -47,7 +48,7 @@ export default function LetterTracingClient({
   const hasAccess = isPaid || (!isPaid && !isTrialExpired);
   const isLoading = isAuthLoading || isTierLoading;
   const [totalCoins, setTotalCoins] = useState(0);
-  const [avatarEmotion, setAvatarEmotion] = useState<'idle' | 'happy' | 'sad' | 'excited' | 'thinking'>('idle');
+  const { emotion: avatarEmotion, react: reactAvatar } = useAvatarEmotion();
 
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -175,6 +176,7 @@ export default function LetterTracingClient({
   };
 
   const checkAccuracy = () => {
+    reactAvatar('thinking');
     const canvas = canvasRef.current;
     if (!canvas) return;
 
@@ -243,6 +245,10 @@ export default function LetterTracingClient({
 
     if (finalScore >= 70) {
       markComplete();
+    } else if (finalScore < 40) {
+      reactAvatar('sad');
+    } else {
+      reactAvatar('idle');
     }
   };
 
@@ -285,13 +291,13 @@ export default function LetterTracingClient({
 
     if (user) {
       awardCoins(1);
-      setAvatarEmotion('happy');
+      reactAvatar('happy');
     }
 
     setTimeout(() => {
       setShowCelebration(false);
-      setAvatarEmotion('idle');
-    }, 3000);
+      reactAvatar('idle');
+    }, 5000);
   };
 
   const toggleLanguage = () => {
@@ -558,11 +564,7 @@ export default function LetterTracingClient({
         </main>
       )}
 
-      {user && (
-        <div className="fixed bottom-4 left-4 z-40 hidden md:block">
-          <ReactingAvatar emotion={avatarEmotion} />
-        </div>
-      )}
+      {user && <ReactingAvatar emotion={avatarEmotion} />}
       <AuthModal
         isOpen={showAuthModal}
         onClose={() => setShowAuthModal(false)}

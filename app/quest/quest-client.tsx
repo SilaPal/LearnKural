@@ -3,7 +3,14 @@
 import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import dynamic from 'next/dynamic';
 import { useAuth } from '@/lib/use-auth';
+import PageHeader from '@/components/page-header';
+import BadgeModal from '@/components/badge-modal';
+import AuthModal from '@/components/auth-modal';
+import PricingModal from '@/components/pricing-modal';
+
+const WorldMap = dynamic(() => import('@/components/world-map'), { ssr: false });
 
 interface QuestNode {
     chapter_number: number;
@@ -30,10 +37,20 @@ export default function QuestClient({ kingdoms }: Props) {
     const router = useRouter();
     const [isTamil, setIsTamil] = useState(false);
 
+    const [showBadgeModal, setShowBadgeModal] = useState(false);
+    const [showAuthModal, setShowAuthModal] = useState(false);
+    const [showPricingModal, setShowPricingModal] = useState(false);
+
     useEffect(() => {
         const savedLang = localStorage.getItem('thirukural-language');
         if (savedLang === 'tamil') setIsTamil(true);
 
+        const handler = (e: Event) => setIsTamil((e as CustomEvent<{ isTamil: boolean }>).detail.isTamil);
+        window.addEventListener('tamillanguagechange', handler);
+        return () => window.removeEventListener('tamillanguagechange', handler);
+    }, []);
+
+    useEffect(() => {
         if (user) {
             fetch('/api/user/progress')
                 .then(res => res.json())
@@ -57,6 +74,13 @@ export default function QuestClient({ kingdoms }: Props) {
 
         // Launch Kural Playing with Puzzle game specifically for this Chapter
         router.push(`/kural-playing?game=puzzle&kuralId=${node.firstKuralId}&chapter=${node.chapter_number}`);
+    };
+
+    const toggleLanguage = () => {
+        const next = !isTamil;
+        setIsTamil(next);
+        localStorage.setItem('thirukural-language', next ? 'tamil' : 'english');
+        window.dispatchEvent(new CustomEvent('tamillanguagechange', { detail: { isTamil: next } }));
     };
 
     const getKingdomTheme = (id: string) => {
@@ -97,23 +121,22 @@ export default function QuestClient({ kingdoms }: Props) {
             ></div>
             <div className="fixed inset-0 bg-gradient-to-b from-transparent via-white/10 to-white/30 pointer-events-none"></div>
 
-            <header className="bg-gradient-to-r from-teal-700 to-indigo-900 text-white py-4 shadow-xl z-50 relative">
-                <div className="max-w-6xl mx-auto px-4 flex justify-between items-center">
-                    <div className="flex items-center gap-3">
-                        <Link href="/" className="p-2 hover:bg-white/20 rounded-full transition">
-                            <svg className="h-6 w-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                                <polyline points="15 18 9 12 15 6" />
-                            </svg>
-                        </Link>
-                        <h1 className="text-2xl font-bold font-serif">{isTamil ? 'குறள் பயணம்' : 'Kural Quest'}</h1>
-                    </div>
-                    {!user && (
-                        <div className="bg-white/20 px-4 py-1.5 rounded-full text-sm font-semibold backdrop-blur-sm">
-                            Login to save progress
-                        </div>
-                    )}
+            <PageHeader
+                gradientClass="bg-gradient-to-r from-teal-700 to-indigo-900"
+                onLoginClick={() => setShowAuthModal(true)}
+                onUpgradeClick={() => setShowPricingModal(true)}
+                onBadgesClick={() => setShowBadgeModal(true)}
+                isTamil={isTamil}
+                toggleLanguage={toggleLanguage}
+                onCoinClick={() => setShowBadgeModal(true)}
+                streakCount={JSON.parse(localStorage.getItem('thirukural-visited') || '[]').length}
+            >
+                <div className="flex items-center justify-center gap-2 mt-2">
+                    <span className="text-sm font-bold opacity-80 uppercase tracking-widest">
+                        {isTamil ? 'அத்தியாயம் வரைபடம்' : 'Level Map'}
+                    </span>
                 </div>
-            </header>
+            </PageHeader>
 
             <main className="max-w-6xl mx-auto px-4 py-8 relative z-10">
                 {kingdoms.map((kingdom, kIndex) => {
@@ -192,6 +215,24 @@ export default function QuestClient({ kingdoms }: Props) {
                 })}
             </main>
 
+            <BadgeModal
+                isOpen={showBadgeModal}
+                onClose={() => setShowBadgeModal(false)}
+                language={isTamil ? 'tamil' : 'english'}
+                celebrationType={null}
+            />
+
+            <AuthModal
+                isOpen={showAuthModal}
+                onClose={() => setShowAuthModal(false)}
+                isTamil={isTamil}
+            />
+
+            <PricingModal
+                isOpen={showPricingModal}
+                onClose={() => setShowPricingModal(false)}
+                isTamil={isTamil}
+            />
         </div>
     );
 }

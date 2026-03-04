@@ -6,6 +6,8 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import PageHeader from '@/components/page-header';
 import PricingModal from '@/components/pricing-modal';
+import BadgeModal from '@/components/badge-modal';
+import AuthModal from '@/components/auth-modal';
 
 interface Student {
     id: string;
@@ -32,6 +34,8 @@ export default function TeacherDashboardClient() {
     const [error, setError] = useState('');
     const [selectedClassId, setSelectedClassId] = useState<string>('all');
     const [showPricingModal, setShowPricingModal] = useState(false);
+    const [showAuthModal, setShowAuthModal] = useState(false);
+    const [showBadgeModal, setShowBadgeModal] = useState(false);
 
     useEffect(() => {
         const savedLang = localStorage.getItem('thirukural-language');
@@ -40,6 +44,13 @@ export default function TeacherDashboardClient() {
         window.addEventListener('tamillanguagechange', handler);
         return () => window.removeEventListener('tamillanguagechange', handler);
     }, []);
+
+    const toggleLanguage = () => {
+        const next = !isTamil;
+        setIsTamil(next);
+        localStorage.setItem('thirukural-language', next ? 'tamil' : 'english');
+        window.dispatchEvent(new CustomEvent('tamillanguagechange', { detail: { isTamil: next } }));
+    };
 
 
     useEffect(() => {
@@ -91,7 +102,14 @@ export default function TeacherDashboardClient() {
 
     return (
         <div className="min-h-screen bg-gray-50 font-sans pb-20 relative">
-            <PageHeader gradientClass="bg-gradient-to-r from-purple-700 to-indigo-700" />
+            <PageHeader
+                gradientClass="bg-gradient-to-r from-purple-700 to-indigo-700"
+                onLoginClick={() => setShowAuthModal(true)}
+                onUpgradeClick={() => setShowPricingModal(true)}
+                onBadgesClick={() => setShowBadgeModal(true)}
+                isTamil={isTamil}
+                toggleLanguage={toggleLanguage}
+            />
 
             {/* Premium Requirement & Coming Soon Overlay */}
             <div className="fixed inset-0 z-40 flex items-center justify-center p-4 bg-gray-900/10 backdrop-blur-md pt-20">
@@ -146,6 +164,19 @@ export default function TeacherDashboardClient() {
                 isOpen={showPricingModal}
                 onClose={() => setShowPricingModal(false)}
                 isTamil={isTamil}
+            />
+
+            <AuthModal
+                isOpen={showAuthModal}
+                onClose={() => setShowAuthModal(false)}
+                isTamil={isTamil}
+            />
+
+            <BadgeModal
+                isOpen={showBadgeModal}
+                onClose={() => setShowBadgeModal(false)}
+                language={isTamil ? 'tamil' : 'english'}
+                celebrationType={null}
             />
 
             <main className="max-w-6xl mx-auto px-4 py-10">

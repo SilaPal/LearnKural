@@ -15,38 +15,42 @@ import {
   getTamilLettersCompleted,
   checkTamilBadges,
 } from '@/lib/badge-system';
+import ReactingAvatar from './reacting-avatar';
+import { DotLottieReact } from '@lottiefiles/dotlottie-react';
 
 interface Props {
   isOpen: boolean;
   onClose: () => void;
   language: 'tamil' | 'english';
-  celebrationType: 'confetti' | 'fireworks' | 'stars' | 'balloons' | 'sparkles' | 'snow' | 'golden' | null;
+  celebrationType: 'confetti' | 'fireworks' | 'stars' | 'balloons' | 'snow' | 'golden' | null;
 }
 
-const TIER_STYLES: Record<Badge['tier'], { card: string; label: string; labelText: string; dot: string }> = {
+const TIER_STYLES: Record<Badge['tier'], { card: string; label: string; labelText: string; dot: string; holographic?: boolean }> = {
   bronze: {
-    card: 'bg-gradient-to-br from-amber-100 to-orange-200 border-amber-400 shadow-amber-200',
-    label: 'bg-amber-500 text-white',
+    card: 'bg-white/40 backdrop-blur-md border-amber-400/30 shadow-sm',
+    label: 'bg-amber-600 text-white',
     labelText: 'Rookie',
     dot: 'bg-amber-500',
   },
   silver: {
-    card: 'bg-gradient-to-br from-slate-100 to-gray-200 border-gray-400 shadow-gray-200',
-    label: 'bg-slate-500 text-white',
+    card: 'bg-white/40 backdrop-blur-md border-slate-400/30 shadow-sm',
+    label: 'bg-slate-600 text-white',
     labelText: 'Pro',
     dot: 'bg-slate-400',
   },
   gold: {
-    card: 'bg-gradient-to-br from-yellow-100 to-amber-300 border-yellow-400 shadow-yellow-300',
-    label: 'bg-yellow-500 text-white',
+    card: 'bg-white/40 backdrop-blur-md border-yellow-400/30 shadow-md',
+    label: 'bg-yellow-600 text-white',
     labelText: 'Elite',
     dot: 'bg-yellow-500',
+    holographic: true,
   },
   diamond: {
-    card: 'bg-gradient-to-br from-violet-100 to-purple-200 border-violet-400 shadow-violet-200',
-    label: 'bg-violet-600 text-white',
+    card: 'bg-white/40 backdrop-blur-md border-purple-400/30 shadow-lg',
+    label: 'bg-purple-600 text-white',
     labelText: 'GOAT',
-    dot: 'bg-violet-500',
+    dot: 'bg-purple-500',
+    holographic: true,
   },
 };
 
@@ -55,6 +59,8 @@ export default function BadgeModal({ isOpen, onClose, language, celebrationType 
   const [badges, setBadges] = useState<{ mastery: Badge[]; streak: Badge[]; skill: Badge[]; tamil: Badge[] }>({
     mastery: [], streak: [], skill: [], tamil: [],
   });
+  const [visibleCelebration, setVisibleCelebration] = useState<Props['celebrationType']>(null);
+  const [isFading, setIsFading] = useState(false);
   const [masteredCount, setMasteredCount] = useState(0);
   const [streakData, setStreakData] = useState({ currentStreak: 0, longestStreak: 0, totalDays: 0 });
   const [skillStats, setSkillStats] = useState({ puzzleFastestTime: null as number | null, maxRaceWinStreak: 0 });
@@ -83,8 +89,23 @@ export default function BadgeModal({ isOpen, onClose, language, celebrationType 
           .then(data => setUserStats({ coins: data.coins ?? 0, weeklyXP: data.weeklyXP ?? 0, streak: data.streak ?? 0 }))
           .catch(console.error);
       }
+
+      // Sync celebration and set cleanup timer
+      if (celebrationType) {
+        setVisibleCelebration(celebrationType);
+        setIsFading(false);
+        const fadeTimer = setTimeout(() => setIsFading(true), 3000);
+        const clearTimer = setTimeout(() => setVisibleCelebration(null), 5000);
+        return () => {
+          clearTimeout(fadeTimer);
+          clearTimeout(clearTimer);
+        };
+      }
+    } else {
+      setVisibleCelebration(null);
+      setIsFading(false);
     }
-  }, [isOpen, user]);
+  }, [isOpen, user, celebrationType]);
 
   if (!isOpen) return null;
 
@@ -110,9 +131,12 @@ export default function BadgeModal({ isOpen, onClose, language, celebrationType 
     return (
       <div
         key={badge.id}
-        className={`relative p-3 rounded-2xl border-2 shadow-md ${style.card} animate-badge-entrance hover:scale-105 transition-all duration-200 cursor-default`}
+        className={`relative p-3 rounded-2xl border-2 transition-all duration-300 cursor-default group overflow-hidden ${style.card} ${style.holographic ? 'holographic-border animate-badge-entrance' : 'animate-badge-entrance'} ${!badge.viewed ? 'ring-2 ring-orange-500 animate-badge-flip scale-110' : 'hover:scale-105'}`}
         style={{ animationDelay: `${index * 0.07}s` }}
       >
+        {style.holographic && (
+          <div className="absolute inset-0 opacity-20 group-hover:opacity-40 transition-opacity bg-gradient-to-tr from-transparent via-white to-transparent -translate-x-full group-hover:translate-x-full duration-1000" />
+        )}
         {!badge.viewed && (
           <span className="absolute -top-1.5 -right-1.5 flex h-4 w-4">
             <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-orange-400 opacity-75" />
@@ -174,11 +198,16 @@ export default function BadgeModal({ isOpen, onClose, language, celebrationType 
         onClick={e => e.stopPropagation()}
       >
         {/* ── Header ── */}
-        <div className="bg-gradient-to-r from-violet-600 via-purple-600 to-orange-500 px-4 py-3 shrink-0 rounded-t-2xl">
-          <div className="flex items-center justify-between mb-2">
-            <div className="flex items-center gap-2.5">
-              <div className="w-9 h-9 rounded-xl bg-white/20 flex items-center justify-center text-xl shadow-inner">
-                🏆
+        <div className="bg-gradient-to-br from-violet-600 via-purple-600 to-orange-500 px-4 py-4 shrink-0 rounded-t-2xl relative overflow-hidden">
+          {/* Animated Background Circles */}
+          <div className="absolute top-[-20%] right-[-10%] w-40 h-40 bg-white/10 rounded-full blur-3xl animate-pulse" />
+          <div className="absolute bottom-[-20%] left-[-10%] w-32 h-32 bg-white/10 rounded-full blur-2xl animate-pulse delay-700" />
+
+          <div className="flex items-center justify-between mb-3 relative z-10">
+            <div className="flex items-center gap-4">
+              <div className="relative">
+                <div className="absolute inset-0 bg-white/20 rounded-full blur-md animate-ping" />
+                <ReactingAvatar emotion="happy" className="w-16 h-16 !bg-transparent !border-white/30 !scale-100 shadow-xl" showDismiss={false} />
               </div>
               <div>
                 <h2 className="text-base font-extrabold text-white tracking-tight">
@@ -358,82 +387,76 @@ export default function BadgeModal({ isOpen, onClose, language, celebrationType 
         </div>
       </div>
 
-      {/* ── Celebration Effects (unchanged) ── */}
-      {celebrationType === 'confetti' && (
-        <div className="fixed inset-0 pointer-events-none overflow-hidden z-60">
-          {[...Array(50)].map((_, i) => {
-            const angle = (i / 50) * 360;
-            const distance = 150 + Math.random() * 250;
-            const tx = Math.cos(angle * Math.PI / 180) * distance;
-            const ty = Math.sin(angle * Math.PI / 180) * distance;
-            return (
-              <div key={`confetti-${i}`} className="absolute left-1/2 top-1/2 animate-confetti text-2xl"
-                style={{ '--tx': `${tx}px`, '--ty': `${ty}px`, animationDelay: `${Math.random() * 0.5}s` } as React.CSSProperties}>
-                {['🎉', '🎊', '✨', '⭐', '💫', '🌟'][Math.floor(Math.random() * 6)]}
-              </div>
-            );
-          })}
-        </div>
-      )}
-      {celebrationType === 'fireworks' && (
-        <div className="fixed inset-0 pointer-events-none overflow-hidden z-60">
-          {[...Array(5)].map((_, burst) => (
-            <div key={`burst-${burst}`} className="absolute" style={{ left: `${15 + burst * 18}%`, top: `${30 + (burst % 2) * 20}%` }}>
-              {[...Array(12)].map((_, i) => {
-                const angle = (i / 12) * 360;
-                const tx = Math.cos(angle * Math.PI / 180) * (100 + Math.random() * 100);
-                const ty = Math.sin(angle * Math.PI / 180) * (100 + Math.random() * 100);
-                return <div key={`fw-${burst}-${i}`} className="absolute animate-firework text-xl"
-                  style={{ '--tx': `${tx}px`, '--ty': `${ty}px`, animationDelay: `${burst * 0.3}s` } as React.CSSProperties}>
-                  {['💥', '🔥', '✨', '⚡'][Math.floor(Math.random() * 4)]}
+      {/* ── Celebration Effects (Fading wrapper) ── */}
+      {visibleCelebration && (
+        <div className={`fixed inset-0 pointer-events-none overflow-hidden z-60 transition-opacity duration-[2000ms] ${isFading ? 'opacity-0' : 'opacity-100'}`}>
+          {visibleCelebration === 'confetti' && (
+            <div className="absolute inset-0">
+              {[...Array(50)].map((_, i) => {
+                const angle = (i / 50) * 360;
+                const distance = 150 + Math.random() * 250;
+                const tx = Math.cos(angle * Math.PI / 180) * distance;
+                const ty = Math.sin(angle * Math.PI / 180) * distance;
+                return (
+                  <div key={`confetti-${i}`} className="absolute left-1/2 top-1/2 animate-confetti text-2xl"
+                    style={{ '--tx': `${tx}px`, '--ty': `${ty}px`, animationDelay: `${Math.random() * 0.5}s` } as React.CSSProperties}>
+                    {['🎉', '🎊', '✨', '⭐', '💫', '🌟'][Math.floor(Math.random() * 6)]}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+          {visibleCelebration === 'fireworks' && (
+            <div className="absolute inset-0">
+              {[...Array(5)].map((_, burst) => (
+                <div key={`burst-${burst}`} className="absolute" style={{ left: `${15 + burst * 18}%`, top: `${30 + (burst % 2) * 20}%` }}>
+                  {[...Array(12)].map((_, i) => {
+                    const angle = (i / 12) * 360;
+                    const tx = Math.cos(angle * Math.PI / 180) * (100 + Math.random() * 100);
+                    const ty = Math.sin(angle * Math.PI / 180) * (100 + Math.random() * 100);
+                    return <div key={`fw-${burst}-${i}`} className="absolute animate-firework text-xl"
+                      style={{ '--tx': `${tx}px`, '--ty': `${ty}px`, animationDelay: `${burst * 0.3}s` } as React.CSSProperties}>
+                      {['💥', '🔥', '✨', '⚡'][Math.floor(Math.random() * 4)]}
+                    </div>;
+                  })}
+                </div>
+              ))}
+            </div>
+          )}
+          {visibleCelebration === 'stars' && (
+            <div className="absolute inset-0">
+              {[...Array(30)].map((_, i) => (
+                <div key={`star-${i}`} className="absolute animate-ping"
+                  style={{ left: `${Math.random() * 100}%`, top: `${Math.random() * 100}%`, animationDelay: `${Math.random() * 2}s`, fontSize: `${20 + Math.random() * 24}px` }}>
+                  {['⭐', '🌟', '✨', '💫'][Math.floor(Math.random() * 4)]}
+                </div>
+              ))}
+            </div>
+          )}
+          {visibleCelebration === 'snow' && (
+            <div className="absolute inset-0">
+              {[...Array(50)].map((_, i) => (
+                <div key={`snow-${i}`} className="absolute animate-snow text-2xl"
+                  style={{ left: `${Math.random() * 100}%`, top: '-30px', animationDelay: `${Math.random() * 4}s`, animationDuration: `${4 + Math.random() * 4}s` }}>
+                  {['❄️', '❅', '❆', '✧'][Math.floor(Math.random() * 4)]}
+                </div>
+              ))}
+            </div>
+          )}
+          {visibleCelebration === 'golden' && (
+            <div className="absolute inset-0">
+              <div className="absolute inset-0 bg-gradient-to-b from-yellow-400/20 via-transparent to-amber-500/20 animate-golden-pulse" />
+              {[...Array(30)].map((_, i) => {
+                const angle = (i / 30) * 360;
+                const tx = Math.cos(angle * Math.PI / 180) * (100 + Math.random() * 200);
+                const ty = Math.sin(angle * Math.PI / 180) * (100 + Math.random() * 200);
+                return <div key={`gold-${i}`} className="absolute left-1/2 top-1/2 animate-golden-burst text-3xl"
+                  style={{ '--tx': `${tx}px`, '--ty': `${ty}px`, animationDelay: `${Math.random() * 0.5}s` } as React.CSSProperties}>
+                  {['🏆', '👑', '💰', '⭐', '🌟', '✨'][Math.floor(Math.random() * 6)]}
                 </div>;
               })}
             </div>
-          ))}
-        </div>
-      )}
-      {celebrationType === 'stars' && (
-        <div className="fixed inset-0 pointer-events-none overflow-hidden z-60">
-          {[...Array(30)].map((_, i) => (
-            <div key={`star-${i}`} className="absolute animate-ping"
-              style={{ left: `${Math.random() * 100}%`, top: `${Math.random() * 100}%`, animationDelay: `${Math.random() * 2}s`, fontSize: `${20 + Math.random() * 24}px` }}>
-              {['⭐', '🌟', '✨', '💫'][Math.floor(Math.random() * 4)]}
-            </div>
-          ))}
-        </div>
-      )}
-      {celebrationType === 'sparkles' && (
-        <div className="fixed inset-0 pointer-events-none overflow-hidden z-60">
-          {[...Array(40)].map((_, i) => (
-            <div key={`sparkle-${i}`} className="absolute animate-sparkle-pop text-3xl"
-              style={{ left: `${5 + Math.random() * 90}%`, top: `${5 + Math.random() * 90}%`, animationDelay: `${Math.random() * 3}s`, animationDuration: `${1 + Math.random()}s` }}>
-              ✨
-            </div>
-          ))}
-        </div>
-      )}
-      {celebrationType === 'snow' && (
-        <div className="fixed inset-0 pointer-events-none overflow-hidden z-60">
-          {[...Array(50)].map((_, i) => (
-            <div key={`snow-${i}`} className="absolute animate-snow text-2xl"
-              style={{ left: `${Math.random() * 100}%`, top: '-30px', animationDelay: `${Math.random() * 4}s`, animationDuration: `${4 + Math.random() * 4}s` }}>
-              {['❄️', '❅', '❆', '✧'][Math.floor(Math.random() * 4)]}
-            </div>
-          ))}
-        </div>
-      )}
-      {celebrationType === 'golden' && (
-        <div className="fixed inset-0 pointer-events-none overflow-hidden z-60">
-          <div className="absolute inset-0 bg-gradient-to-b from-yellow-400/20 via-transparent to-amber-500/20 animate-golden-pulse" />
-          {[...Array(30)].map((_, i) => {
-            const angle = (i / 30) * 360;
-            const tx = Math.cos(angle * Math.PI / 180) * (100 + Math.random() * 200);
-            const ty = Math.sin(angle * Math.PI / 180) * (100 + Math.random() * 200);
-            return <div key={`gold-${i}`} className="absolute left-1/2 top-1/2 animate-golden-burst text-3xl"
-              style={{ '--tx': `${tx}px`, '--ty': `${ty}px`, animationDelay: `${Math.random() * 0.5}s` } as React.CSSProperties}>
-              {['🏆', '👑', '💰', '⭐', '🌟', '✨'][Math.floor(Math.random() * 6)]}
-            </div>;
-          })}
+          )}
         </div>
       )}
     </div>

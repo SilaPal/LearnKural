@@ -6,6 +6,8 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import PageHeader from '@/components/page-header';
 import PricingModal from '@/components/pricing-modal';
+import BadgeModal from '@/components/badge-modal';
+import AuthModal from '@/components/auth-modal';
 
 interface DashboardData {
     school: {
@@ -32,14 +34,21 @@ export default function SchoolAdminClient() {
     const [inviteCode, setInviteCode] = useState<string | null>(null);
     const [creatingInvite, setCreatingInvite] = useState(false);
     const [showPricingModal, setShowPricingModal] = useState(false);
+    const [showAuthModal, setShowAuthModal] = useState(false);
+    const [showBadgeModal, setShowBadgeModal] = useState(false);
 
     useEffect(() => {
-        const savedLang = localStorage.getItem('thirukural-language');
-        if (savedLang === 'tamil') setIsTamil(true);
         const handler = (e: Event) => setIsTamil((e as CustomEvent<{ isTamil: boolean }>).detail.isTamil);
         window.addEventListener('tamillanguagechange', handler);
         return () => window.removeEventListener('tamillanguagechange', handler);
     }, []);
+
+    const toggleLanguage = () => {
+        const next = !isTamil;
+        setIsTamil(next);
+        localStorage.setItem('thirukural-language', next ? 'tamil' : 'english');
+        window.dispatchEvent(new CustomEvent('tamillanguagechange', { detail: { isTamil: next } }));
+    };
 
 
     useEffect(() => {
@@ -109,7 +118,14 @@ export default function SchoolAdminClient() {
 
     return (
         <div className="min-h-screen bg-gray-50 pb-20 font-sans relative">
-            <PageHeader gradientClass="bg-gradient-to-r from-purple-700 to-indigo-700" />
+            <PageHeader
+                gradientClass="bg-gradient-to-r from-indigo-700 to-slate-800"
+                onLoginClick={() => setShowAuthModal(true)}
+                onUpgradeClick={() => setShowPricingModal(true)}
+                onBadgesClick={() => setShowBadgeModal(true)}
+                isTamil={isTamil}
+                toggleLanguage={toggleLanguage}
+            />
 
             {/* Premium Requirement & Coming Soon Overlay */}
             <div className="fixed inset-0 z-40 flex items-center justify-center p-4 bg-gray-900/10 backdrop-blur-md pt-20">
@@ -164,6 +180,19 @@ export default function SchoolAdminClient() {
                 isOpen={showPricingModal}
                 onClose={() => setShowPricingModal(false)}
                 isTamil={isTamil}
+            />
+
+            <AuthModal
+                isOpen={showAuthModal}
+                onClose={() => setShowAuthModal(false)}
+                isTamil={isTamil}
+            />
+
+            <BadgeModal
+                isOpen={showBadgeModal}
+                onClose={() => setShowBadgeModal(false)}
+                language={isTamil ? 'tamil' : 'english'}
+                celebrationType={null}
             />
             {/* Header hero area */}
             <div className="bg-gradient-to-r from-purple-800 to-indigo-900 text-white pt-8 pb-24 px-4 sm:px-8 shadow-inner">

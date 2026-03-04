@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/db/db';
 import { users } from '@/db/schema';
 import { eq } from 'drizzle-orm';
+import { signSession } from '@/lib/session';
 
 export const dynamic = 'force-dynamic';
 
@@ -96,8 +97,8 @@ export async function GET(request: NextRequest) {
             }
         }
 
-        // Set session cookie (simple signed JSON for now — swap for iron-session/JWT in production)
-        const sessionData = Buffer.from(JSON.stringify({ userId: user.id })).toString('base64');
+        // Set session cookie (cryptographically signed JSON)
+        const sessionData = signSession({ userId: user.id });
         const finalRedirectUrl = `${origin}${redirectTo}`;
         console.log(`[AUTH] /api/auth/google/callback - Created session for ${user.id}, redirecting back to: ${finalRedirectUrl}`);
         const response = NextResponse.redirect(finalRedirectUrl);

@@ -2,16 +2,22 @@ import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/db/db';
 import { users, waitlist } from '@/db/schema';
 import { eq } from 'drizzle-orm';
+import { verifySession } from '@/lib/session';
 
 async function getUserId(request: NextRequest) {
-    const session = request.cookies.get('thirukural-session')?.value;
-    if (!session) return null;
+    const sessionToken = request.cookies.get('thirukural-session')?.value;
+    if (!sessionToken) return null;
+    
+    // Fallback block if old unassigned session cookie exists (temp backwards compatibility)
     try {
-        const { userId } = JSON.parse(Buffer.from(session, 'base64').toString('utf-8'));
-        return userId;
-    } catch {
-        return null;
-    }
+        if (!sessionToken.includes('.')) {
+             const dec = JSON.parse(Buffer.from(sessionToken, 'base64').toString('utf-8'));
+             return dec.userId || null;
+        }
+    } catch {}
+
+    const sessionData = verifySession(sessionToken);
+    return sessionData?.userId || null;
 }
 /**
  * POST /api/payments/checkout

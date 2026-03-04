@@ -42,6 +42,7 @@ const WorldMap = ({ activeRegion, onSelectRegion, regionalLeaders }: WorldMapPro
         weeklyXP: number;
     } | null>(null);
     const [position, setPosition] = useState({ coordinates: [0, 20] as [number, number], zoom: 1 });
+    const [tooltip, setTooltip] = useState<{ name: string; x: number; y: number } | null>(null);
 
     const handleZoomIn = () => {
         if (position.zoom >= 5) return;
@@ -111,6 +112,19 @@ const WorldMap = ({ activeRegion, onSelectRegion, regionalLeaders }: WorldMapPro
                                             default: { outline: "none", transition: "all 250ms" },
                                             hover: { fill: hoverColor, outline: "none", transition: "all 250ms" },
                                             pressed: { outline: "none" },
+                                        }}
+                                        onMouseEnter={(e) => {
+                                            if (geo.properties?.name) {
+                                                setTooltip({ name: geo.properties.name, x: e.clientX, y: e.clientY });
+                                            }
+                                        }}
+                                        onMouseMove={(e) => {
+                                            if (tooltip && geo.properties?.name) {
+                                                setTooltip({ name: geo.properties.name, x: e.clientX, y: e.clientY });
+                                            }
+                                        }}
+                                        onMouseLeave={() => {
+                                            setTooltip(null);
                                         }}
                                     />
                                 );
@@ -262,6 +276,16 @@ const WorldMap = ({ activeRegion, onSelectRegion, regionalLeaders }: WorldMapPro
                             </button>
                         </div>
                     </div>
+                </div>
+            )}
+
+            {/* Country Tooltip */}
+            {tooltip && (
+                <div
+                    className="fixed z-50 bg-gray-900/90 backdrop-blur-sm text-white text-xs font-bold px-2.5 py-1.5 rounded shadow-lg pointer-events-none transform -translate-x-1/2 -translate-y-full mt-[-10px] border border-gray-700 whitespace-nowrap"
+                    style={{ left: tooltip.x, top: tooltip.y }}
+                >
+                    {tooltip.name}
                 </div>
             )}
         </div >

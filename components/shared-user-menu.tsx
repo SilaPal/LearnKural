@@ -14,8 +14,10 @@ interface SharedUserMenuProps {
   isTamil: boolean;
   isPaidUser: boolean;
   onClose: () => void;
-  onUpgradeClick: () => void;
+  onUpgradeClick?: () => void;
   onLogout: () => void;
+  onBadgesClick?: () => void;
+  newBadgeCount?: number;
 }
 
 export function SharedUserMenu({
@@ -24,7 +26,9 @@ export function SharedUserMenu({
   isPaidUser,
   onClose,
   onUpgradeClick,
-  onLogout
+  onLogout,
+  onBadgesClick,
+  newBadgeCount = 0,
 }: SharedUserMenuProps) {
   return (
     <div className="absolute right-0 mt-2 w-52 bg-white rounded-xl shadow-xl border border-gray-100 py-1 z-50">
@@ -33,9 +37,36 @@ export function SharedUserMenu({
         <p className="text-xs text-gray-500 truncate">{user.email}</p>
       </div>
 
+      {/* Navigation Links */}
+      <Link
+        href="/"
+        onClick={onClose}
+        className="flex items-center gap-2.5 w-full px-3 py-2 text-sm font-medium text-gray-700 hover:bg-purple-50 transition-colors border-b border-gray-100 group"
+      >
+        <span className="text-lg group-hover:scale-110 transition-transform flex items-center justify-center text-purple-600">
+          <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+            <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
+            <polyline points="9 22 9 12 15 12 15 22" />
+          </svg>
+        </span>
+        <span className="flex flex-col leading-tight">
+          <span className="font-semibold text-gray-800">{isTamil ? 'முகப்பு' : 'Home'}</span>
+          <span className="text-xs text-gray-400">{isTamil ? 'முதன்மை பக்கம்' : 'Main page'}</span>
+        </span>
+      </Link>
+
+      {/* Removed Kural Quest from header as per user request */}
+
+
+      {/* Removed Achievements from header as per user request */}
+
+
+      {/* Removed Favorites from header as per user request */}
+
+
       {/* Plan Badge — click to open pricing modal */}
       <button
-        onClick={() => { onClose(); onUpgradeClick(); }}
+        onClick={() => { onClose(); onUpgradeClick?.(); }}
         className="w-full px-3 py-2.5 border-b border-gray-100 hover:bg-gray-50 transition-colors text-left group"
       >
         <div className="flex items-center gap-2.5">
@@ -67,6 +98,18 @@ export function SharedUserMenu({
         <span className="flex flex-col leading-tight">
           <span className="font-semibold text-gray-800">{isTamil ? 'பெருமை மேடை' : 'Hall of Fame'}</span>
           <span className="text-xs text-gray-400">{isTamil ? 'சிறந்தவர்கள் பட்டியல்' : 'Top players ranked'}</span>
+        </span>
+      </Link>
+
+      <Link
+        href="/sandhai"
+        onClick={onClose}
+        className="flex items-center gap-2.5 w-full px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gradient-to-r hover:from-yellow-50 hover:to-orange-50 transition-colors border-b border-gray-100 group"
+      >
+        <span className="text-lg group-hover:scale-110 transition-transform">🛍️</span>
+        <span className="flex flex-col leading-tight">
+          <span className="font-semibold text-gray-800">{isTamil ? 'சந்தை' : 'Sandhai'}</span>
+          <span className="text-xs text-gray-400">{isTamil ? 'அவதாரங்கள் கடை' : 'Avatar Shop'}</span>
         </span>
       </Link>
       <Link
