@@ -53,6 +53,13 @@ interface PageHeaderProps {
  *   Row 1 (inside gradient): logo | centered title | user avatar/login
  *   Row 2 (transparent/below): Per-page controls (favorites, fire, coins, language toggle)
  */
+interface ChildProfile {
+    id: string;
+    nickname: string;
+    activeAvatarId: string;
+    avatarThumbnail?: string | null;
+}
+
 export default function PageHeader({
     gradientClass = 'bg-gradient-to-br from-purple-800 via-purple-600 to-violet-500',
     backHref = '/',
@@ -74,10 +81,12 @@ export default function PageHeader({
     maxWidthClass = 'max-w-4xl',
     children
 }: PageHeaderProps) {
-    const { user, logout } = useAuth();
+    const { user, logout, refetch } = useAuth();
     const isPaidUser = user?.tier === 'paid';
+    const hasChildProfiles = !!(user?.activeProfileId);
     const [isTamilInternal, setIsTamilInternal] = useState(false);
     const [showUserMenu, setShowUserMenu] = useState(false);
+    const [profiles, setProfiles] = useState<ChildProfile[]>([]);
     const menuRef = useRef<HTMLDivElement>(null);
 
     // If isTamilProp is provided, we use it (controlled mode).
@@ -92,6 +101,32 @@ export default function PageHeader({
             }
         }
     }, [isTamilProp]);
+
+    // Fetch child profiles when user is logged in
+    useEffect(() => {
+        if (user) {
+            fetch('/api/child-profiles')
+                .then(res => res.json())
+                .then(data => setProfiles(data.profiles || []))
+                .catch(err => console.error('Failed to fetch profiles:', err));
+        }
+    }, [user]);
+
+    const handleProfileSwitch = async (profileId: string | null) => {
+        try {
+            const res = await fetch('/api/child-profiles/switch', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ profileId }),
+            });
+            if (res.ok) {
+                // Force a full page reload to ensure all components observe the session change
+                window.location.reload();
+            }
+        } catch (err) {
+            console.error('Failed to switch profile:', err);
+        }
+    };
 
     const toggleLanguage = () => {
         if (toggleLanguageProp) {
@@ -126,8 +161,8 @@ export default function PageHeader({
     return (
         <div suppressHydrationWarning className="w-full">
             {/* ── Row 1: gradient bar with logo, title, user ── */}
-            <header className={`${gradientClass} text-white shadow-lg py-5 sm:py-7`}>
-                <div className={`${maxWidthClass} mx-auto px-4 relative flex items-center justify-between`}>
+            <header className={`${gradientClass} text-white shadow-lg py-5 sm:py-7 relative`}>
+                <div className={`${maxWidthClass} mx-auto px-4 flex items-center justify-between`}>
                     {/* Left: back arrow + logo */}
                     <div className="flex items-center gap-3 z-10">
                         {showBack && (
@@ -154,26 +189,37 @@ export default function PageHeader({
                         <span suppressHydrationWarning>{title || (isTamil ? 'திருக்குறள்' : 'Thirukkural')}</span>
                     </Link>
 
-                    {/* Right: user avatar / login button */}
-                    <div className="flex items-center gap-2 z-10">
+                    {/* Right: user avatar / login button — absolute so dropdown isn't clipped by header */}
+                    <div className="absolute top-0 bottom-0 right-4 flex items-center gap-2 z-50" ref={menuRef}>
                         {user ? (
-                            <div className="relative" ref={menuRef}>
+                            <>
+                                {/* Active child profile indicator — clickable, returns to selector */}
+                                {user.activeProfileNickname && (
+                                    <Link
+                                        href="/profile-select"
+                                        className="hidden sm:flex items-center gap-1.5 bg-orange-500/30 border border-orange-300/50 rounded-full px-3 py-1 hover:bg-orange-500/50 transition-colors cursor-pointer"
+                                        title="Switch profile"
+                                    >
+                                        <span className="text-xs text-white font-bold">{user.activeProfileNickname}</span>
+                                        <span className="text-white/70 text-xs">↩</span>
+                                    </Link>
+                                )}
                                 <button
                                     onClick={() => setShowUserMenu(v => !v)}
                                     className="flex items-center gap-2 hover:opacity-80 transition-opacity"
-                                    title={user.name}
+                                    title={user.activeProfileNickname || user.name}
                                 >
                                     {user.picture ? (
                                         <Image
                                             src={user.picture}
-                                            alt={user.name}
+                                            alt={user.activeProfileNickname || user.name}
                                             className="h-9 w-9 rounded-full border-2 border-white/60 shadow-lg"
                                             width={36}
                                             height={36}
                                         />
                                     ) : (
                                         <div className="h-9 w-9 rounded-full bg-white/20 border-2 border-white/60 shadow-lg flex items-center justify-center text-white font-bold text-sm">
-                                            {user.name.charAt(0).toUpperCase()}
+                                            {(user.activeProfileNickname || user.name).charAt(0).toUpperCase()}
                                         </div>
                                     )}
                                 </button>
@@ -193,10 +239,15 @@ export default function PageHeader({
                                         onClose={() => setShowUserMenu(false)}
                                         onUpgradeClick={onUpgradeClick}
                                         onBadgesClick={onBadgesClick}
+                                        newBadgeCount={newBadgeCount}
                                         onLogout={logout}
+                                        hasChildProfiles={hasChildProfiles}
+                                        activeProfileNickname={user.activeProfileNickname}
+                                        profiles={profiles}
+                                        onProfileSwitch={handleProfileSwitch}
                                     />
                                 )}
-                            </div>
+                            </>
                         ) : (
                             <button
                                 onClick={handleLoginClick}
@@ -290,7 +341,7 @@ export default function PageHeader({
                                     </span>
                                 </button>
                                 <div suppressHydrationWarning className="absolute left-1/2 -translate-x-1/2 top-13 bg-gray-800 text-white text-xs rounded px-2 py-1 whitespace-nowrap opacity-0 group-hover/coins:opacity-100 transition-opacity pointer-events-none z-50 shadow-lg font-medium">
-                                    {isTamil ? 'நாணயங்கள்' : 'Total Coins'}
+                                    {isTamil ? '🛒 சந்தையில் செலவிடு' : '🛒 Tap to spend in Shop'}
                                 </div>
                             </div>
                         )}
@@ -309,7 +360,7 @@ export default function PageHeader({
                                     <span className="font-black text-gray-800 text-sm">{coinCount}</span>
                                 </button>
                                 <div suppressHydrationWarning className="absolute right-0 top-11 bg-gray-800 text-white text-[10px] rounded px-2 py-1 whitespace-nowrap opacity-0 group-hover/coins-right:opacity-100 transition-opacity pointer-events-none z-50 shadow-lg font-medium">
-                                    {isTamil ? 'நாணயங்கள்' : 'Total Coins'}
+                                    {isTamil ? '🛒 சந்தையில் செலவிடு' : '🛒 Tap to spend in Shop'}
                                 </div>
                             </div>
                         )}

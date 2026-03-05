@@ -24,6 +24,7 @@ interface LeaderboardEntry {
     longestStreak: number;
     activeAvatarId: string;
     avatarImageUrl: string | null;
+    avatarThumbnailUrl?: string | null;
     region: string;
     tier: string;
     schoolName: string | null;
@@ -42,12 +43,34 @@ function Avatar({ entry, size = 'md' }: { entry: LeaderboardEntry; size?: 'sm' |
 
     // 1. Prefer Google Profile Picture if it exists and looks like a URL
     const hasPhoto = entry.picture && (entry.picture.startsWith('http') || entry.picture.startsWith('/') || entry.picture.includes('.'));
-
     if (hasPhoto) {
-        return <img src={entry.picture!} alt={entry.name} className={`${cls} rounded-full object-cover flex-shrink-0 border border-gray-100`} />;
+        return <img src={entry.picture!} alt={entry.name} className={`${cls} rounded-full object-cover flex-shrink-0 border border-gray-100 shadow-sm`} />;
     }
 
-    // 2. Fallback to purchased Avatar Image (Emoji)
+    // 2. Prefer character Thumbnail (HQ Preview)
+    const hasThumbnail = entry.avatarThumbnailUrl && (entry.avatarThumbnailUrl.startsWith('http') || entry.avatarThumbnailUrl.startsWith('/') || entry.avatarThumbnailUrl.includes('.'));
+    if (hasThumbnail) {
+        return <img src={entry.avatarThumbnailUrl!} alt={entry.name} className={`${cls} rounded-full object-cover flex-shrink-0 border border-purple-200 shadow-sm bg-purple-50`} />;
+    }
+
+    // 3. Fallback to purchased Avatar Image/Emoji (Static characters)
+    const hasAvatarImg = entry.avatarImageUrl && (entry.avatarImageUrl.startsWith('http') || entry.avatarImageUrl.startsWith('/') || entry.avatarImageUrl.includes('.'));
+    if (hasAvatarImg) {
+        return <img src={entry.avatarImageUrl!} alt={entry.name} className={`${cls} rounded-full object-cover flex-shrink-0 border border-purple-100 shadow-sm bg-purple-50`} />;
+    }
+
+    // 4. Default Character (Handle character IDs appearing as text)
+    if (entry.avatarImageUrl && entry.avatarImageUrl.length > 2) {
+        // This is likely a character ID like 'stickman', not an emoji
+        // We should show initials or a generic icon if no URL is available
+        return (
+            <div className={`${cls} rounded-full bg-indigo-50 flex items-center justify-center font-black text-indigo-700 flex-shrink-0 border border-indigo-100`}>
+                {entry.name.charAt(0).toUpperCase()}
+            </div>
+        );
+    }
+
+    // 5. Use as emoji if short
     if (entry.avatarImageUrl) {
         return (
             <div className={`${cls} rounded-full bg-purple-50 flex items-center justify-center font-black flex-shrink-0 border border-purple-100 shadow-sm`}>
@@ -56,7 +79,7 @@ function Avatar({ entry, size = 'md' }: { entry: LeaderboardEntry; size?: 'sm' |
         );
     }
 
-    // 3. Last fallback: Initial
+    // 6. Last fallback: Initial
     return (
         <div className={`${cls} rounded-full bg-indigo-50 flex items-center justify-center font-black text-indigo-700 flex-shrink-0 border border-indigo-100`}>
             {entry.name.charAt(0).toUpperCase()}
@@ -66,6 +89,7 @@ function Avatar({ entry, size = 'md' }: { entry: LeaderboardEntry; size?: 'sm' |
 
 function PodiumCard({ entry, rank, isTamil, tab }: { entry: LeaderboardEntry; rank: number; isTamil: boolean; tab: Tab }) {
     const cfg = TAB_CONFIG[tab];
+    if (!entry) return null;
     const value = entry[cfg.valueKey] as number;
 
     const styles = [
@@ -76,8 +100,8 @@ function PodiumCard({ entry, rank, isTamil, tab }: { entry: LeaderboardEntry; ra
 
     return (
         <div className={`flex flex-col items-center gap-1.5 ${styles.order}`}>
-            <span className="text-xl">{MEDAL[rank]}</span>
-            <div className={`ring-2 ${styles.ring} rounded-full shadow-md`}>
+            <span className="text-xl flex-shrink-0">{MEDAL[rank]}</span>
+            <div className={`relative ring-2 ${styles.ring} rounded-full shadow-md overflow-hidden bg-white`}>
                 <Avatar entry={entry} size="md" />
             </div>
             <div className="text-center w-full px-1">
@@ -97,6 +121,7 @@ function PodiumCard({ entry, rank, isTamil, tab }: { entry: LeaderboardEntry; ra
         </div>
     );
 }
+
 
 function FreeTierTeaser({ isTamil, isExpired }: { isTamil: boolean; isExpired?: boolean }) {
     return (
@@ -209,26 +234,42 @@ export default function LeaderboardClient() {
 
     useEffect(() => {
         if (user) {
+            // Refetch my stats (coins, xp, streak) whenever the user/profile context changes
             fetch('/api/user/coins')
                 .then(r => r.json())
                 .then(d => setMyStats({ coins: d.coins ?? 0, weeklyXP: d.weeklyXP ?? 0, streak: d.streak ?? 0 }))
                 .catch(() => { });
+
+            // Auto-switch to the profile's region if we're on Global
+            if (selectedRegion === 'Global' && user.region && user.region !== 'Global') {
+                setSelectedRegion(user.region);
+            }
         }
-    }, [user]);
+    }, [user, user?.activeProfileId]);
 
     useEffect(() => {
         setLoading(true);
-        const region = selectedRegion !== 'Global' ? `&region=${selectedRegion}` : '';
+        const region = selectedRegion === 'Global' ? '' : `&region=${encodeURIComponent(selectedRegion)}`;
         fetch(`/api/leaderboard?tab=${tab}${region}`)
-            .then(res => res.json())
-            .then(data => setEntries(Array.isArray(data) ? data : []))
-            .catch(() => setEntries([]))
-            .finally(() => setLoading(false));
-    }, [tab, selectedRegion, isPaid]);
+            .then((res) => res.json())
+            .then((data) => {
+                // The API now returns a flat array of entries for the requested tab/region
+                setEntries(Array.isArray(data) ? data : []);
+                setLoading(false);
+            })
+            .catch((err) => {
+                console.error('Failed to fetch leaderboard:', err);
+                setEntries([]);
+                setLoading(false);
+            });
+    }, [tab, selectedRegion, isPaid, user?.activeProfileId]);
 
-    const myRank = user ? entries.findIndex(e => e.id === user.id) : -1;
-
-    // Extract the #1 player for each region from the global leaderboard
+    // Derived data
+    // Use effective identity for ranking (Child ID if playing as child, else Parent ID)
+    const effectiveMeId = user?.activeProfileId || user?.id;
+    const myRank = effectiveMeId ? entries.findIndex(e => e.id === effectiveMeId) : -1;
+    const myEntry = myRank !== -1 ? entries[myRank] : null;
+    const showStickyMe = myEntry && (myRank >= 3);
     useEffect(() => {
         fetch(`/api/leaderboard?tab=${tab}&region=Global`)
             .then(res => res.json())
@@ -237,6 +278,8 @@ export default function LeaderboardClient() {
                 const leaders: Record<string, {
                     name: string,
                     picture: string | null,
+                    avatarImageUrl: string | null,
+                    avatarThumbnailUrl: string | null,
                     streak: number;
                     coins: number;
                     weeklyXP: number;
@@ -245,7 +288,9 @@ export default function LeaderboardClient() {
                     if (entry.region && entry.region !== 'Global' && !leaders[entry.region]) {
                         leaders[entry.region] = {
                             name: entry.name,
-                            picture: entry.picture || entry.avatarImageUrl,
+                            picture: entry.picture,
+                            avatarImageUrl: entry.avatarImageUrl,
+                            avatarThumbnailUrl: entry.avatarThumbnailUrl,
                             streak: entry.streak,
                             coins: entry.coins,
                             weeklyXP: entry.weeklyXP
@@ -284,7 +329,7 @@ export default function LeaderboardClient() {
                 {user && myStats && (
                     <div className="grid grid-cols-3 gap-3 mb-5">
                         {[
-                            { label: isTamil ? 'வார நாணயம்' : 'Weekly Coins', value: myStats.weeklyXP, emoji: '🔥' },
+                            { label: isTamil ? 'வார புள்ளிகள்' : 'Weekly Points', value: myStats.weeklyXP, emoji: '🔥' },
                             { label: isTamil ? 'மொத்த நாணயம்' : 'Total Coins', value: myStats.coins, emoji: '🪙' },
                             { label: isTamil ? 'தொடர்ச்சி' : 'Streak', value: `${myStats.streak}d`, emoji: '⚡' },
                         ].map(s => (
@@ -401,7 +446,7 @@ export default function LeaderboardClient() {
                                 )}
                                 <div className="flex-1 min-w-0">
                                     <div className="text-gray-800 font-bold text-sm truncate">
-                                        {user.name} <span className="text-purple-400 text-xs font-normal">({isTamil ? 'நீங்கள்' : 'you'})</span>
+                                        {user.activeProfileNickname || user.name} <span className="text-purple-400 text-xs font-normal">({isTamil ? 'நீங்கள்' : 'you'})</span>
                                     </div>
                                 </div>
                                 <div className="text-purple-700 font-black text-sm flex-shrink-0 text-right">

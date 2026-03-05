@@ -9,14 +9,14 @@ export const dynamic = 'force-dynamic';
 async function getUserId(request: NextRequest) {
     const sessionToken = request.cookies.get('thirukural-session')?.value;
     if (!sessionToken) return null;
-    
+
     // Fallback block if old unassigned session cookie exists (temp backwards compatibility)
     try {
         if (!sessionToken.includes('.')) {
-             const dec = JSON.parse(Buffer.from(sessionToken, 'base64').toString('utf-8'));
-             return dec.userId || null;
+            const dec = JSON.parse(Buffer.from(sessionToken, 'base64').toString('utf-8'));
+            return dec.userId || null;
         }
-    } catch {}
+    } catch { }
 
     const sessionData = verifySession(sessionToken);
     return sessionData?.userId || null;
@@ -28,7 +28,7 @@ export async function POST(request: NextRequest) {
 
     try {
         const body = await request.json();
-        const { code } = body;
+        const { code, childProfileId } = body;
 
         if (!code) return NextResponse.json({ error: 'Invite code is required' }, { status: 400 });
 
@@ -39,21 +39,34 @@ export async function POST(request: NextRequest) {
             return NextResponse.json({ error: 'Invite code has expired' }, { status: 410 });
         }
 
-        // Update user: Assign school and role
+        // Update user: Assign school and role. If joining as student and childProfileId is present, we only assign parent role.
+        let updatedRole: any = invite.role;
+        if (invite.role === 'student' && childProfileId) {
+            updatedRole = 'parent';
+        }
+
+        const updateData: any = {
+            schoolId: invite.schoolId,
+            role: updatedRole, // 'student', 'parent', or 'teacher'
+            tier: 'paid' // Joining a school grants premium access
+        };
+
         await db.update(users)
-            .set({
-                schoolId: invite.schoolId,
-                role: invite.role, // 'student' or 'teacher'
-                tier: 'paid' // Joining a school grants premium access
-            })
+            .set(updateData)
             .where(eq(users.id, userId));
 
         // If it was a classroom-specific invite and user is a student, join classroom
         if (invite.classroomId && invite.role === 'student') {
-            await db.insert(classroomStudents).values({
+            const studentLinkObj: any = {
+                id: 'cs_' + Math.random().toString(36).substring(2, 10),
                 classroomId: invite.classroomId,
-                studentId: userId
-            }).onConflictDoNothing();
+                studentId: userId,
+            };
+            if (childProfileId) {
+                studentLinkObj.childProfileId = childProfileId;
+            }
+
+            await db.insert(classroomStudents).values(studentLinkObj).onConflictDoNothing();
         }
 
         return NextResponse.json({

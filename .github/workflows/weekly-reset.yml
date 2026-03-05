@@ -1,0 +1,27 @@
+name: Weekly Leaderboard Reset
+
+on:
+  schedule:
+    # Every Sunday at 00:00 UTC
+    - cron: '0 0 * * 0'
+  # Also allows manual trigger from GitHub Actions UI (test without waiting for Sunday)
+  workflow_dispatch:
+
+jobs:
+  reset-weekly-xp:
+    name: Reset Weekly XP
+    runs-on: ubuntu-latest
+    steps:
+      - name: Call weekly reset API
+        run: |
+          echo "Calling weekly reset at $(date -u)"
+          RESPONSE=$(curl -s -o /dev/null -w "%{http_code}" \
+            -X POST "${{ secrets.APP_URL }}/api/cron/weekly-reset" \
+            -H "x-cron-secret: ${{ secrets.CRON_SECRET }}" \
+            -H "Content-Type: application/json")
+          echo "Response status: $RESPONSE"
+          if [ "$RESPONSE" != "200" ]; then
+            echo "ERROR: Reset failed with status $RESPONSE"
+            exit 1
+          fi
+          echo "Weekly XP reset successful!"

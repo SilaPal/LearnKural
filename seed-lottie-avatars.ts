@@ -24,6 +24,7 @@ async function seedLottie() {
             : `Premium animated ${char.name} avatar with full expressions!`,
         price: char.price,
         imageUrl: char.emoji,
+        thumbnailUrl: `/assets/avatars/thumbnails/${char.name.toLowerCase()}.png`,
         type: 'lottie' as const,
         isPremiumOnly: char.isPremium,
         metadata: {

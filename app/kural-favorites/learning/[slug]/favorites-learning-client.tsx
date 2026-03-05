@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Kural } from '@/shared/schema';
 import dynamic from 'next/dynamic';
+import { useAuth } from '@/lib/use-auth';
 
 const KuralLearningClient = dynamic(
   () => import('@/app/kural-learning/[slug]/kural-learning-client'),
@@ -30,6 +31,7 @@ interface Props {
 }
 
 export default function FavoritesLearningClient({ kural, allKuralSlugs }: Props) {
+  const { user } = useAuth();
   const [favoriteIds, setFavoriteIds] = useState<number[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isTamil, setIsTamil] = useState(false);
@@ -41,12 +43,15 @@ export default function FavoritesLearningClient({ kural, allKuralSlugs }: Props)
       setIsTamil(true);
     }
 
-    const savedBookmarks = localStorage.getItem('thirukural-bookmarks');
+    const profileId = user?.activeProfileId || user?.id || 'guest';
+    const bookmarksKey = `thirukural-bookmarks-${profileId}`;
+
+    const savedBookmarks = localStorage.getItem(bookmarksKey);
     if (savedBookmarks) {
       try {
         const bookmarkIds: number[] = JSON.parse(savedBookmarks);
         setFavoriteIds(bookmarkIds.sort((a, b) => a - b));
-      } catch {}
+      } catch { }
     }
     setIsLoading(false);
   }, []);
@@ -66,7 +71,7 @@ export default function FavoritesLearningClient({ kural, allKuralSlugs }: Props)
         <h2 className="text-2xl font-bold text-gray-700 mb-3">
           {isTamil ? 'பிடித்த குறள்கள் இல்லை' : 'No favorites to learn'}
         </h2>
-        <Link 
+        <Link
           href="/kural-favorites"
           className="inline-flex items-center gap-2 px-6 py-3 bg-purple-600 text-white rounded-full font-semibold hover:bg-purple-700 transition"
         >
@@ -81,7 +86,7 @@ export default function FavoritesLearningClient({ kural, allKuralSlugs }: Props)
 
   const favoriteSlugs = allKuralSlugs.filter(k => favoriteIds.includes(k.id));
   const currentIndex = favoriteSlugs.findIndex(k => k.id === kural.id);
-  
+
   const prevFavorite = currentIndex > 0 ? favoriteSlugs[currentIndex - 1] : null;
   const nextFavorite = currentIndex < favoriteSlugs.length - 1 ? favoriteSlugs[currentIndex + 1] : null;
 
@@ -91,7 +96,7 @@ export default function FavoritesLearningClient({ kural, allKuralSlugs }: Props)
         <div className="max-w-4xl mx-auto flex items-center justify-between">
           <Link href="/kural-favorites" className="inline-flex items-center gap-2 hover:underline text-sm">
             <span>❤️</span>
-            {isTamil 
+            {isTamil
               ? `பிடித்த குறள் ${currentIndex + 1} / ${favoriteSlugs.length}`
               : `Favorite ${currentIndex + 1} of ${favoriteSlugs.length}`}
           </Link>
@@ -117,7 +122,7 @@ export default function FavoritesLearningClient({ kural, allKuralSlugs }: Props)
           </div>
         </div>
       </div>
-      <KuralLearningClient 
+      <KuralLearningClient
         kural={kural}
         kuralIndex={currentIndex}
         totalKurals={favoriteSlugs.length}

@@ -15,8 +15,11 @@ interface WaitlistEntry {
 export default function WaitlistClient() {
     const { user, isLoading: authLoading } = useAuth();
     const [list, setList] = useState<WaitlistEntry[]>([]);
+    const [pendingSchools, setPendingSchools] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
+    const [activeTab, setActiveTab] = useState<'waitlist' | 'schools'>('waitlist');
     const [error, setError] = useState<string | null>(null);
+    const [processingId, setProcessingId] = useState<string | null>(null);
     const router = useRouter();
 
     const ADMIN_EMAIL = 'anu.ganesan@gmail.com';
@@ -28,21 +31,37 @@ export default function WaitlistClient() {
         }
 
         if (user) {
-            fetch('/api/admin/waitlist')
-                .then(res => {
-                    if (!res.ok) throw new Error('Unauthorized or Server Error');
-                    return res.json();
-                })
-                .then(data => {
-                    setList(data);
-                    setLoading(false);
-                })
-                .catch(err => {
-                    setError(err.message);
-                    setLoading(false);
-                });
+            Promise.all([
+                fetch('/api/admin/waitlist').then(res => res.ok ? res.json() : []),
+                fetch('/api/admin/schools/approve').then(res => res.ok ? res.json() : [])
+            ]).then(([waitlistData, schoolData]) => {
+                setList(waitlistData);
+                setPendingSchools(schoolData);
+                setLoading(false);
+            }).catch(err => {
+                setError(err.message);
+                setLoading(false);
+            });
         }
     }, [user, authLoading, router]);
+
+    const handleApproveSchool = async (schoolId: string) => {
+        setProcessingId(schoolId);
+        try {
+            const res = await fetch('/api/admin/schools/approve', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ schoolId })
+            });
+            if (res.ok) {
+                setPendingSchools(prev => prev.filter(s => s.id !== schoolId));
+            }
+        } catch (e) {
+            console.error(e);
+        } finally {
+            setProcessingId(null);
+        }
+    };
 
     if (authLoading || loading) {
         return (
@@ -69,7 +88,7 @@ export default function WaitlistClient() {
     }
 
     return (
-        <div className="min-h-screen bg-gray-50 pb-20">
+        <div className="min-h-screen bg-gray-50 pb-20 font-sans">
             {/* Header */}
             <header className="bg-white border-b border-gray-200 sticky top-0 z-30 shadow-sm">
                 <div className="max-w-6xl mx-auto px-4 h-20 flex items-center justify-between">
@@ -78,8 +97,8 @@ export default function WaitlistClient() {
                             <svg className="h-6 w-6 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 19l-7-7 7-7" /></svg>
                         </Link>
                         <div>
-                            <h1 className="text-xl font-bold text-gray-900">Premium Waitlist</h1>
-                            <p className="text-xs text-indigo-600 font-semibold tracking-wider uppercase">Admin Portal</p>
+                            <h1 className="text-xl font-bold text-gray-900">Admin Portal</h1>
+                            <p className="text-xs text-indigo-600 font-semibold tracking-wider uppercase">System Control</p>
                         </div>
                     </div>
                     <div className="flex items-center gap-3 bg-indigo-50 px-4 py-2 rounded-xl border border-indigo-100">
@@ -93,94 +112,172 @@ export default function WaitlistClient() {
             </header>
 
             <main className="max-w-6xl mx-auto px-4 py-8">
-                {/* Stats Overview */}
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-                    <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
-                        <p className="text-sm font-medium text-gray-500 mb-1">Total Interested Users</p>
-                        <h2 className="text-4xl font-black text-gray-900">{list.length}</h2>
-                    </div>
-                    <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
-                        <p className="text-sm font-medium text-gray-500 mb-1">Recent Signups (Last 7 Days)</p>
-                        <h2 className="text-4xl font-black text-indigo-600">
-                            {list.filter(e => new Date(e.createdAt).getTime() > Date.now() - 7 * 24 * 60 * 60 * 1000).length}
-                        </h2>
-                    </div>
-                    <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
-                        <p className="text-sm font-medium text-gray-500 mb-1">Conversion Potential</p>
-                        <h2 className="text-4xl font-black text-amber-500">High</h2>
-                    </div>
+                {/* Tabs */}
+                <div className="flex gap-2 mb-8 bg-white p-1 rounded-2xl shadow-sm border border-gray-100 w-fit">
+                    <button
+                        onClick={() => setActiveTab('waitlist')}
+                        className={`px-6 py-2.5 rounded-xl font-bold transition-all ${activeTab === 'waitlist' ? 'bg-indigo-600 text-white shadow-md' : 'text-gray-500 hover:bg-gray-50'}`}
+                    >
+                        💎 Waitlist ({list.length})
+                    </button>
+                    <button
+                        onClick={() => setActiveTab('schools')}
+                        className={`px-6 py-2.5 rounded-xl font-bold transition-all ${activeTab === 'schools' ? 'bg-indigo-600 text-white shadow-md' : 'text-gray-500 hover:bg-gray-50'}`}
+                    >
+                        🏫 Schools ({pendingSchools.length})
+                    </button>
                 </div>
 
-                {/* Data Table */}
-                <div className="bg-white rounded-3xl shadow-lg border border-gray-200 overflow-hidden">
-                    <div className="px-8 py-6 border-b border-gray-100 flex items-center justify-between bg-gray-50/50">
-                        <h3 className="font-bold text-gray-800 flex items-center gap-2">
-                            User Records
-                            <span className="bg-gray-200 text-gray-600 text-xs px-2 py-0.5 rounded-full font-bold">{list.length}</span>
-                        </h3>
-                    </div>
+                {activeTab === 'waitlist' ? (
+                    <>
+                        {/* Stats Overview */}
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+                            <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
+                                <p className="text-sm font-medium text-gray-500 mb-1">Total Interested Users</p>
+                                <h2 className="text-4xl font-black text-gray-900">{list.length}</h2>
+                            </div>
+                            <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
+                                <p className="text-sm font-medium text-gray-500 mb-1">Recent Signups (Last 7 Days)</p>
+                                <h2 className="text-4xl font-black text-indigo-600">
+                                    {list.filter(e => new Date(e.createdAt).getTime() > Date.now() - 7 * 24 * 60 * 60 * 1000).length}
+                                </h2>
+                            </div>
+                            <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
+                                <p className="text-sm font-medium text-gray-500 mb-1">Conversion Potential</p>
+                                <h2 className="text-4xl font-black text-amber-500">High</h2>
+                            </div>
+                        </div>
 
-                    <div className="overflow-x-auto">
-                        <table className="w-full text-left">
-                            <thead>
-                                <tr className="text-xs font-bold text-gray-400 uppercase tracking-widest border-b border-gray-100">
-                                    <th className="px-8 py-4">User</th>
-                                    <th className="px-8 py-4">Email Address</th>
-                                    <th className="px-8 py-4">Status</th>
-                                    <th className="px-8 py-4">Joined Date</th>
-                                </tr>
-                            </thead>
-                            <tbody className="divide-y divide-gray-50">
-                                {list.map((entry, idx) => (
-                                    <tr key={idx} className="hover:bg-indigo-50/30 transition-colors group">
-                                        <td className="px-8 py-5">
-                                            <div className="flex items-center gap-3">
-                                                <div className="h-10 w-10 rounded-full bg-gradient-to-br from-indigo-500 to-purple-500 flex items-center justify-center text-white font-bold text-sm shadow-sm group-hover:scale-110 transition-transform">
-                                                    {entry.userName?.charAt(0) || entry.email.charAt(0).toUpperCase()}
+                        {/* Data Table */}
+                        <div className="bg-white rounded-3xl shadow-lg border border-gray-200 overflow-hidden">
+                            <div className="px-8 py-6 border-b border-gray-100 flex items-center justify-between bg-gray-50/50">
+                                <h3 className="font-bold text-gray-800 flex items-center gap-2">
+                                    User Records
+                                    <span className="bg-gray-200 text-gray-600 text-xs px-2 py-0.5 rounded-full font-bold">{list.length}</span>
+                                </h3>
+                            </div>
+
+                            <div className="overflow-x-auto">
+                                <table className="w-full text-left">
+                                    <thead>
+                                        <tr className="text-xs font-bold text-gray-400 uppercase tracking-widest border-b border-gray-100">
+                                            <th className="px-8 py-4">User</th>
+                                            <th className="px-8 py-4">Email Address</th>
+                                            <th className="px-8 py-4">Status</th>
+                                            <th className="px-8 py-4">Joined Date</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody className="divide-y divide-gray-50">
+                                        {list.map((entry, idx) => (
+                                            <tr key={idx} className="hover:bg-indigo-50/30 transition-colors group">
+                                                <td className="px-8 py-5">
+                                                    <div className="flex items-center gap-3">
+                                                        <div className="h-10 w-10 rounded-full bg-gradient-to-br from-indigo-500 to-purple-500 flex items-center justify-center text-white font-bold text-sm shadow-sm group-hover:scale-110 transition-transform">
+                                                            {entry.userName?.charAt(0) || entry.email.charAt(0).toUpperCase()}
+                                                        </div>
+                                                        <span className="font-bold text-gray-900">{entry.userName || 'Guest User'}</span>
+                                                    </div>
+                                                </td>
+                                                <td className="px-8 py-5">
+                                                    <span className="text-gray-600 font-medium">{entry.email}</span>
+                                                </td>
+                                                <td className="px-8 py-5">
+                                                    <span className={`px-3 py-1 rounded-full text-xs font-bold ${entry.userTier === 'paid'
+                                                        ? 'bg-amber-100 text-amber-700'
+                                                        : 'bg-emerald-100 text-emerald-700'
+                                                        }`}>
+                                                        {entry.userTier === 'paid' ? 'PREMIUM' : 'FREE USER'}
+                                                    </span>
+                                                </td>
+                                                <td className="px-8 py-5">
+                                                    <div className="text-gray-900 font-bold text-sm">
+                                                        {new Date(entry.createdAt).toLocaleDateString('en-IN', {
+                                                            day: '2-digit',
+                                                            month: 'short',
+                                                            year: 'numeric'
+                                                        })}
+                                                    </div>
+                                                    <div className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">
+                                                        {new Date(entry.createdAt).toLocaleTimeString('en-IN', {
+                                                            hour: '2-digit',
+                                                            minute: '2-digit'
+                                                        })}
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
+                            {list.length === 0 && (
+                                <div className="px-8 py-20 text-center">
+                                    <div className="text-4xl mb-4">🧊</div>
+                                    <p className="text-gray-400 font-bold">The waitlist is currently empty.</p>
+                                </div>
+                            )}
+                        </div>
+                    </>
+                ) : (
+                    <div className="bg-white rounded-3xl shadow-lg border border-gray-200 overflow-hidden">
+                        <div className="px-8 py-6 border-b border-gray-100 flex items-center justify-between bg-gray-50/50">
+                            <h3 className="font-bold text-gray-800 flex items-center gap-2">
+                                Pending Approvals
+                                <span className="bg-orange-100 text-orange-600 text-xs px-2 py-0.5 rounded-full font-bold">{pendingSchools.length}</span>
+                            </h3>
+                        </div>
+
+                        <div className="overflow-x-auto">
+                            <table className="w-full text-left">
+                                <thead>
+                                    <tr className="text-xs font-bold text-gray-400 uppercase tracking-widest border-b border-gray-100">
+                                        <th className="px-8 py-4">School Name</th>
+                                        <th className="px-8 py-4">Requested On</th>
+                                        <th className="px-8 py-4">Quick Preview</th>
+                                        <th className="px-8 py-4 text-right">Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody className="divide-y divide-gray-50">
+                                    {pendingSchools.map((school) => (
+                                        <tr key={school.id} className="hover:bg-orange-50/30 transition-colors">
+                                            <td className="px-8 py-5">
+                                                <div className="flex flex-col">
+                                                    <span className="font-bold text-gray-900">{school.name}</span>
+                                                    <span className="text-[10px] text-gray-400 font-mono tracking-tighter">{school.id}</span>
                                                 </div>
-                                                <span className="font-bold text-gray-900">{entry.userName || 'Guest User'}</span>
-                                            </div>
-                                        </td>
-                                        <td className="px-8 py-5">
-                                            <span className="text-gray-600 font-medium">{entry.email}</span>
-                                        </td>
-                                        <td className="px-8 py-5">
-                                            <span className={`px-3 py-1 rounded-full text-xs font-bold ${entry.userTier === 'paid'
-                                                    ? 'bg-amber-100 text-amber-700'
-                                                    : 'bg-emerald-100 text-emerald-700'
-                                                }`}>
-                                                {entry.userTier === 'paid' ? 'PREMIUM' : 'FREE USER'}
-                                            </span>
-                                        </td>
-                                        <td className="px-8 py-5">
-                                            <div className="text-gray-900 font-bold text-sm">
-                                                {new Date(entry.createdAt).toLocaleDateString('en-IN', {
-                                                    day: '2-digit',
-                                                    month: 'short',
-                                                    year: 'numeric'
-                                                })}
-                                            </div>
-                                            <div className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">
-                                                {new Date(entry.createdAt).toLocaleTimeString('en-IN', {
-                                                    hour: '2-digit',
-                                                    minute: '2-digit'
-                                                })}
-                                            </div>
-                                        </td>
-                                    </tr>
-                                ))}
-                                {list.length === 0 && (
-                                    <tr>
-                                        <td colSpan={4} className="px-8 py-20 text-center">
-                                            <div className="text-4xl mb-4">🧊</div>
-                                            <p className="text-gray-400 font-bold">The waitlist is currently empty.</p>
-                                        </td>
-                                    </tr>
-                                )}
-                            </tbody>
-                        </table>
+                                            </td>
+                                            <td className="px-8 py-5">
+                                                <div className="text-gray-900 font-bold text-sm">
+                                                    {new Date(school.createdAt).toLocaleDateString()}
+                                                </div>
+                                            </td>
+                                            <td className="px-8 py-5">
+                                                <div className="flex gap-2">
+                                                    {school.logo ? <img src={school.logo} className="w-8 h-8 rounded border" /> : <div className="w-8 h-8 bg-gray-100 rounded border border-dashed" />}
+                                                    {school.banner ? <img src={school.banner} className="w-16 h-8 rounded border object-cover" /> : <div className="w-16 h-8 bg-gray-100 rounded border border-dashed" />}
+                                                </div>
+                                            </td>
+                                            <td className="px-8 py-5 text-right">
+                                                <button
+                                                    onClick={() => handleApproveSchool(school.id)}
+                                                    disabled={processingId === school.id}
+                                                    className="bg-emerald-500 hover:bg-emerald-600 text-white px-5 py-2 rounded-xl text-sm font-bold shadow-sm transition disabled:opacity-50"
+                                                >
+                                                    {processingId === school.id ? 'Approving...' : 'Approve ✅'}
+                                                </button>
+                                            </td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+                        {pendingSchools.length === 0 && (
+                            <div className="px-8 py-20 text-center">
+                                <div className="text-4xl mb-4">✨</div>
+                                <p className="text-gray-400 font-bold">No schools are pending approval at this time.</p>
+                            </div>
+                        )}
                     </div>
-                </div>
+                )}
             </main>
         </div>
     );

@@ -40,9 +40,7 @@ export default function FavoritesClient({ allKuralSlugs }: Props) {
   const [streakCount, setStreakCount] = useState(0);
 
   useEffect(() => {
-    try {
-      setStreakCount(JSON.parse(localStorage.getItem('thirukural-visited') || '[]').length);
-    } catch {}
+    // Streak count shifted to render time for profile sensitivity
   }, []);
 
   useEffect(() => {
@@ -55,18 +53,25 @@ export default function FavoritesClient({ allKuralSlugs }: Props) {
   }, []);
 
   useEffect(() => {
-    const savedBookmarks = localStorage.getItem('thirukural-bookmarks');
-    if (savedBookmarks) {
-      try {
-        setBookmarks(JSON.parse(savedBookmarks));
-      } catch { }
-    }
+    // Bookmarks loaded in user effect
   }, []);
 
   const { user } = useAuth();
 
   useEffect(() => {
     if (user) {
+      const profileId = user.activeProfileId || user.id;
+      const bookmarksKey = `thirukural-bookmarks-${profileId}`;
+      const visitedKey = `thirukural-visited-${profileId}`;
+
+      const savedBookmarks = localStorage.getItem(bookmarksKey);
+      if (savedBookmarks) setBookmarks(JSON.parse(savedBookmarks));
+
+      const savedVisited = localStorage.getItem(visitedKey);
+      if (savedVisited) {
+        try { setStreakCount(JSON.parse(savedVisited).length); } catch { }
+      }
+
       fetch('/api/user/favorites')
         .then(res => {
           if (res.ok) return res.json();
@@ -75,10 +80,18 @@ export default function FavoritesClient({ allKuralSlugs }: Props) {
         .then(data => {
           if (data && Array.isArray(data)) {
             setBookmarks(data);
-            localStorage.setItem('thirukural-bookmarks', JSON.stringify(data));
+            localStorage.setItem(bookmarksKey, JSON.stringify(data));
           }
         })
         .catch(err => console.error('Failed to load favorites from DB', err));
+    } else {
+      const savedBookmarks = localStorage.getItem('thirukural-bookmarks-guest');
+      if (savedBookmarks) setBookmarks(JSON.parse(savedBookmarks));
+
+      const savedVisited = localStorage.getItem('thirukural-visited-guest');
+      if (savedVisited) {
+        try { setStreakCount(JSON.parse(savedVisited).length); } catch { }
+      }
     }
   }, [user]);
 
@@ -109,9 +122,12 @@ export default function FavoritesClient({ allKuralSlugs }: Props) {
   };
 
   const removeBookmark = (id: number) => {
+    const profileId = user?.activeProfileId || user?.id || 'guest';
+    const bookmarksKey = `thirukural-bookmarks-${profileId}`;
+
     const newBookmarks = bookmarks.filter(b => b !== id);
     setBookmarks(newBookmarks);
-    localStorage.setItem('thirukural-bookmarks', JSON.stringify(newBookmarks));
+    localStorage.setItem(bookmarksKey, JSON.stringify(newBookmarks));
     if (user) syncFavoritesToDB(newBookmarks);
   };
 

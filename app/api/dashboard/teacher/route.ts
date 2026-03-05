@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/db/db';
-import { users, classrooms, classroomStudents, userProgress } from '@/db/schema';
+import { users, classrooms, classroomStudents, childProfiles } from '@/db/schema';
 import { eq, inArray } from 'drizzle-orm';
 import { verifySession } from '@/lib/session';
 
@@ -9,14 +9,14 @@ export const dynamic = 'force-dynamic';
 async function getUserId(request: NextRequest) {
     const sessionToken = request.cookies.get('thirukural-session')?.value;
     if (!sessionToken) return null;
-    
+
     // Fallback block if old unassigned session cookie exists (temp backwards compatibility)
     try {
         if (!sessionToken.includes('.')) {
-             const dec = JSON.parse(Buffer.from(sessionToken, 'base64').toString('utf-8'));
-             return dec.userId || null;
+            const dec = JSON.parse(Buffer.from(sessionToken, 'base64').toString('utf-8'));
+            return dec.userId || null;
         }
-    } catch {}
+    } catch { }
 
     const sessionData = verifySession(sessionToken);
     return sessionData?.userId || null;
@@ -46,34 +46,57 @@ export async function GET(request: NextRequest) {
             .from(classroomStudents)
             .where(inArray(classroomStudents.classroomId, classroomIds));
 
-        const studentIds = studentMappings.map(m => m.studentId);
+        if (studentMappings.length === 0) {
+            return NextResponse.json({ classrooms: myClassrooms, students: [] });
+        }
 
-        let studentsWithProgress: any[] = [];
-        if (studentIds.length > 0) {
-            // 3. Get student details and progress
-            const studentDetails = await db.select({
+        // 3. Collect kid profile IDs and direct student IDs
+        const childProfileIds = studentMappings.map(m => m.childProfileId).filter(Boolean) as string[];
+        const individualStudentIds = studentMappings.map(m => m.childProfileId ? null : m.studentId).filter(Boolean) as string[];
+
+        let activeStudents: any[] = [];
+
+        // 4a. Fetch child profiles
+        if (childProfileIds.length > 0) {
+            const children = await db.select().from(childProfiles).where(inArray(childProfiles.id, childProfileIds));
+            children.forEach(child => {
+                const mapping = studentMappings.find(m => m.childProfileId === child.id);
+                activeStudents.push({
+                    id: child.id,
+                    name: child.nickname,
+                    email: 'Child Profile', // Child profiles do not have emails
+                    picture: null,          // Can map lottie avatars if needed later
+                    classroomId: mapping?.classroomId,
+                    progress: {
+                        completedChapters: child.completedChapters
+                    }
+                });
+            });
+        }
+
+        // 4b. Fetch adult/independent students (using the app directly, e.g. MVP1)
+        if (individualStudentIds.length > 0) {
+            const independentUsers = await db.select({
                 id: users.id,
                 name: users.name,
                 email: users.email,
                 picture: users.picture,
-            }).from(users).where(inArray(users.id, studentIds));
+            }).from(users).where(inArray(users.id, individualStudentIds));
 
-            const studentProgressData = await db.select().from(userProgress).where(inArray(userProgress.userId, studentIds));
-
-            studentsWithProgress = studentDetails.map(s => {
-                const progress = studentProgressData.find(p => p.userId === s.id);
-                const mapping = studentMappings.find(m => m.studentId === s.id);
-                return {
-                    ...s,
+            // Optional: Fetch user_progress for adults here if needed, but assuming most are children right now
+            independentUsers.forEach(u => {
+                const mapping = studentMappings.find(m => m.studentId === u.id && !m.childProfileId);
+                activeStudents.push({
+                    ...u,
                     classroomId: mapping?.classroomId,
-                    progress: progress || { completedChapters: [] }
-                };
+                    progress: { completedChapters: [] } // default for now, can join userProgress if needed
+                });
             });
         }
 
         return NextResponse.json({
             classrooms: myClassrooms,
-            students: studentsWithProgress
+            students: activeStudents
         });
     } catch (error) {
         console.error('Teacher Dashboard API error:', error);

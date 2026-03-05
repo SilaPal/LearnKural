@@ -1,13 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/db/db';
-import { users } from '@/db/schema';
-import { sql } from 'drizzle-orm';
+import { users, childProfiles } from '@/db/schema';
+import { sql, lt } from 'drizzle-orm';
 
 export const dynamic = 'force-dynamic';
 
 /**
  * POST /api/cron/weekly-reset
- * Resets weekly_xp to 0 for all users.
+ * 1. Resets weekly_xp to 0 for all users.
+ * 2. Resets expired child profile avatars back to 'none'.
  * Called by GitHub Actions every Sunday at midnight UTC.
  * Protected by x-cron-secret header.
  */
@@ -21,10 +22,19 @@ export async function POST(request: NextRequest) {
     }
 
     try {
+        const now = new Date();
+
+        // 1. Reset weekly XP
         await db.update(users).set({ weeklyXP: 0 });
-        const now = new Date().toISOString();
-        console.log(`[cron] Weekly XP reset completed at ${now}`);
-        return NextResponse.json({ ok: true, resetAt: now });
+
+        // 2. Reset expired child avatars back to 'none'
+        await db.update(childProfiles)
+            .set({ activeAvatarId: 'none', avatarExpiresAt: null })
+            .where(lt(childProfiles.avatarExpiresAt, now));
+
+        const resetAt = now.toISOString();
+        console.log(`[cron] Weekly reset completed at ${resetAt}`);
+        return NextResponse.json({ ok: true, resetAt });
     } catch (err) {
         console.error('[cron] Weekly reset failed:', err);
         return NextResponse.json({ error: 'Reset failed' }, { status: 500 });

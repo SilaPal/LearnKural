@@ -72,6 +72,8 @@ export default function RegisterClient() {
         }
     };
 
+    const [isPendingApproval, setIsPendingApproval] = useState(false);
+
     const handleRegister = async (e: React.FormEvent) => {
         e.preventDefault();
         setSubmitting(true);
@@ -84,7 +86,7 @@ export default function RegisterClient() {
             });
             const data = await res.json();
             if (data.id) {
-                router.push('/dashboard/school');
+                setIsPendingApproval(true);
             } else {
                 setError(data.error || 'Failed to create school');
             }
@@ -108,54 +110,6 @@ export default function RegisterClient() {
                 toggleLanguage={toggleLanguage}
             />
 
-            {/* Premium Requirement & Coming Soon Overlay */}
-            <div className="fixed inset-0 z-40 flex items-center justify-center p-4 bg-slate-900/10 backdrop-blur-md pt-20">
-                <div className="bg-white p-8 sm:p-12 rounded-[2.5rem] shadow-2xl border border-white max-w-lg w-full text-center relative overflow-hidden group">
-                    <div className="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 bg-[length:200%_auto] animate-gradient"></div>
-
-                    <div className="text-6xl mb-6 transform group-hover:scale-110 transition-transform duration-500">
-                        {isPaid ? '🚀' : '💎'}
-                    </div>
-
-                    <h2 className="text-3xl sm:text-4xl font-black text-gray-900 mb-4 tracking-tight">
-                        {isPaid
-                            ? (isTamil ? 'விரைவில் வருகிறது!' : 'Coming Soon!')
-                            : (isTamil ? 'பிரீமியம் அனுமதி தேவை' : 'Premium Access Required')}
-                    </h2>
-
-                    <p className="text-gray-600 mb-10 leading-relaxed font-medium text-sm sm:text-base">
-                        {isPaid
-                            ? (isTamil
-                                ? 'பள்ளி மேடை தற்போது உருவாக்கப்பட்டு வருகிறது. விரைவில் பயன்பாட்டுக்கு வரும்!'
-                                : 'The School Portal is currently under construction. Stay tuned for the official launch!')
-                            : (isTamil
-                                ? 'பள்ளி மேடையைப் பயன்படுத்த பிரீமியம் சந்தா தேவை. உங்கள் திட்டத்தை மேம்படுத்தவும்.'
-                                : 'The School Portal is a premium feature. Please upgrade your plan to access these features.')}
-                    </p>
-
-                    {!isPaid ? (
-                        <button
-                            onClick={() => setShowPricingModal(true)}
-                            className="w-full bg-gradient-to-r from-indigo-600 to-indigo-700 text-white py-4 rounded-2xl font-black shadow-xl shadow-indigo-200 transition-all hover:scale-[1.02] active:scale-95 text-lg"
-                        >
-                            {isTamil ? 'பிரீமியத்திற்கு மாறவும்' : 'Upgrade to Premium'}
-                        </button>
-                    ) : (
-                        <Link
-                            href="/"
-                            className="w-full inline-block bg-slate-900 text-white py-4 rounded-2xl font-black shadow-xl transition-all hover:scale-[1.02] active:scale-95 text-lg"
-                        >
-                            {isTamil ? 'முகப்புக்குச் செல்க' : 'Back to Home'}
-                        </Link>
-                    )}
-
-                    {!isPaid && (
-                        <Link href="/" className="mt-6 inline-block text-slate-400 hover:text-slate-600 font-bold text-sm underline underline-offset-4 decoration-2">
-                            {isTamil ? 'பிறகு பார்க்கலாம்' : 'Maybe Later'}
-                        </Link>
-                    )}
-                </div>
-            </div>
 
             <PricingModal
                 isOpen={showPricingModal}
@@ -202,7 +156,25 @@ export default function RegisterClient() {
                     </div>
 
                     <div className="px-8 pb-10">
-                        {mode === 'join' ? (
+                        {isPendingApproval ? (
+                            <div className="text-center py-10 animate-fade-in">
+                                <div className="text-6xl mb-6">📬</div>
+                                <h2 className="text-2xl font-black text-indigo-900 mb-4">
+                                    {isTamil ? 'கோரிக்கை அனுப்பப்பட்டது!' : 'Registration Received!'}
+                                </h2>
+                                <p className="text-indigo-600 font-medium mb-8 leading-relaxed">
+                                    {isTamil
+                                        ? 'உங்கள் பள்ளிக்கான விண்ணப்பம் வெற்றிகரமாக சமர்ப்பிக்கப்பட்டது. நிர்வாகியின் ஒப்புதலுக்குப் பிறகு மின்னஞ்சல் மூலம் உங்களுக்குத் தெரிவிக்கப்படும்.'
+                                        : 'Your school registration request has been submitted successfully. Our administrators will review it shortly, and you will be notified via email once approved.'}
+                                </p>
+                                <Link
+                                    href="/"
+                                    className="inline-block bg-indigo-600 text-white px-10 py-4 rounded-2xl font-black shadow-xl shadow-indigo-100 transition hover:scale-105 active:scale-95"
+                                >
+                                    {isTamil ? 'முகப்புக்குத் திரும்புக' : 'Return to Home'}
+                                </Link>
+                            </div>
+                        ) : mode === 'join' ? (
                             <form onSubmit={handleJoin} className="space-y-6">
                                 <div className="text-center">
                                     <label className="block text-sm font-black text-slate-700 uppercase tracking-widest mb-4">

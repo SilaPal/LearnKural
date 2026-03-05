@@ -15,6 +15,15 @@ export interface AuthUser {
     parentId: string | null;
     createdAt: string;
     region: string;
+    // MVP 1: child profile session fields
+    activeProfileId: string | null;
+    activeProfileNickname: string | null;
+    coins: number;
+    weeklyXP: number;
+    streak: number;
+    longestStreak: number;
+    badges: any[];
+    badgeCount: number;
 }
 
 interface UseAuthReturn {

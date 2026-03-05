@@ -152,14 +152,37 @@ const WorldMap = ({ activeRegion, onSelectRegion, regionalLeaders }: WorldMapPro
                                             <div className="absolute -top-3 text-xs items-center justify-center font-black bg-gradient-to-r from-amber-300 to-yellow-500 text-yellow-900 px-2 py-0.5 rounded shadow-lg z-10 animate-pulse border border-yellow-200 shadow-yellow-500/50">
                                                 #1
                                             </div>
-                                            {/* Avatar */}
-                                            {leader.picture && (leader.picture.startsWith('http') || leader.picture.startsWith('/') || leader.picture.includes('.')) ? (
-                                                <img src={leader.picture} alt="Top Player" className="w-12 h-12 rounded-full border-4 border-yellow-400 shadow-[0_0_20px_rgba(250,204,21,0.8)] object-cover bg-white" />
-                                            ) : (
-                                                <div className="w-12 h-12 rounded-full border-4 border-yellow-400 shadow-[0_0_20px_rgba(250,204,21,0.8)] bg-gradient-to-br from-purple-500 to-indigo-600 text-white font-black flex items-center justify-center text-lg">
-                                                    {leader.picture || leader.name.charAt(0).toUpperCase()}
-                                                </div>
-                                            )}
+                                            {/* Avatar rendering logic matching LeaderboardClient */}
+                                            {(() => {
+                                                const hasPhoto = leader.picture && (leader.picture.startsWith('http') || leader.picture.startsWith('/') || leader.picture.includes('.'));
+                                                const hasThumbnail = (leader as any).avatarThumbnailUrl && ((leader as any).avatarThumbnailUrl.startsWith('http') || (leader as any).avatarThumbnailUrl.startsWith('/') || (leader as any).avatarThumbnailUrl.includes('.'));
+                                                const hasAvatarImg = (leader as any).avatarImageUrl && ((leader as any).avatarImageUrl.startsWith('http') || (leader as any).avatarImageUrl.startsWith('/') || (leader as any).avatarImageUrl.includes('.'));
+
+                                                if (hasPhoto) {
+                                                    return <img src={leader.picture!} alt="Top Player" className="w-12 h-12 rounded-full border-4 border-yellow-400 shadow-[0_0_20px_rgba(250,204,21,0.8)] object-cover bg-white" />;
+                                                }
+                                                if (hasThumbnail) {
+                                                    return <img src={(leader as any).avatarThumbnailUrl} alt="Top Player" className="w-12 h-12 rounded-full border-4 border-yellow-400 shadow-[0_0_20px_rgba(250,204,21,0.8)] object-cover bg-white" />;
+                                                }
+                                                if (hasAvatarImg) {
+                                                    return <img src={(leader as any).avatarImageUrl} alt="Top Player" className="w-12 h-12 rounded-full border-4 border-yellow-400 shadow-[0_0_20px_rgba(250,204,21,0.8)] object-cover bg-white" />;
+                                                }
+
+                                                // Handle unicode emoji vs long character IDs
+                                                if ((leader.picture && leader.picture.length <= 2) || ((leader as any).avatarImageUrl && (leader as any).avatarImageUrl.length <= 2)) {
+                                                    return (
+                                                        <div className="w-12 h-12 rounded-full border-4 border-yellow-400 shadow-[0_0_20px_rgba(250,204,21,0.8)] bg-gradient-to-br from-purple-500 to-indigo-600 text-white font-black flex items-center justify-center text-lg">
+                                                            {leader.picture || (leader as any).avatarImageUrl}
+                                                        </div>
+                                                    );
+                                                }
+
+                                                return (
+                                                    <div className="w-12 h-12 rounded-full border-4 border-yellow-400 shadow-[0_0_20px_rgba(250,204,21,0.8)] bg-gradient-to-br from-purple-500 to-indigo-600 text-white font-black flex items-center justify-center text-lg uppercase">
+                                                        {leader.name.charAt(0)}
+                                                    </div>
+                                                );
+                                            })()}
                                             {/* Drop shadow indicator on the "ground" */}
                                             <div className="absolute -bottom-3 w-6 h-1.5 bg-black/20 rounded-[100%] blur-[2px]"></div>
                                         </div>

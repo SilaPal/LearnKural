@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { Kural } from '@/shared/schema';
 import dynamic from 'next/dynamic';
+import { useAuth } from '@/lib/use-auth';
 
 const KuralPlayingClient = dynamic(
   () => import('@/app/kural-playing/kural-playing-client'),
@@ -15,6 +16,7 @@ interface Props {
 }
 
 export default function FavoritesPlayingClient({ allKurals }: Props) {
+  const { user } = useAuth();
   const [favoriteKurals, setFavoriteKurals] = useState<Kural[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isTamil, setIsTamil] = useState(false);
@@ -25,14 +27,19 @@ export default function FavoritesPlayingClient({ allKurals }: Props) {
       setIsTamil(true);
     }
 
-    const savedBookmarks = localStorage.getItem('thirukural-bookmarks');
+    const profileId = user?.activeProfileId || user?.id || 'guest';
+    const bookmarksKey = `thirukural-bookmarks-${profileId}`;
+
+    const savedBookmarks = localStorage.getItem(bookmarksKey);
     if (savedBookmarks) {
       try {
         const bookmarkIds: number[] = JSON.parse(savedBookmarks);
         const favorites = allKurals.filter(k => bookmarkIds.includes(k.id));
         favorites.sort((a, b) => a.id - b.id);
         setFavoriteKurals(favorites);
-      } catch {}
+      } catch { }
+    } else if (!user) {
+      // Fallback for legacy guest if needed, but better to stick to the new pattern
     }
     setIsLoading(false);
   }, [allKurals]);
@@ -53,11 +60,11 @@ export default function FavoritesPlayingClient({ allKurals }: Props) {
           {isTamil ? 'பிடித்த குறள்கள் இல்லை' : 'No favorites to play'}
         </h2>
         <p className="text-gray-600 mb-6 text-center">
-          {isTamil 
+          {isTamil
             ? 'முதலில் சில குறள்களை பிடித்தவையாக சேர்க்கவும்!'
             : 'Add some kurals to your favorites first!'}
         </p>
-        <Link 
+        <Link
           href="/kural-favorites"
           className="inline-flex items-center gap-2 px-6 py-3 bg-purple-600 text-white rounded-full font-semibold hover:bg-purple-700 transition"
         >
@@ -75,7 +82,7 @@ export default function FavoritesPlayingClient({ allKurals }: Props) {
       <div className="bg-gradient-to-r from-red-500 to-pink-500 text-white py-2 px-4 text-center text-sm">
         <Link href="/kural-favorites" className="inline-flex items-center gap-2 hover:underline">
           <span>❤️</span>
-          {isTamil 
+          {isTamil
             ? `பிடித்த ${favoriteKurals.length} குறள்களை விளையாடுகிறீர்கள்`
             : `Playing with ${favoriteKurals.length} favorite kurals`}
         </Link>

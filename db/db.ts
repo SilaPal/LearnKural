@@ -5,7 +5,7 @@ import * as dotenv from 'dotenv';
 
 dotenv.config({ path: '.env.local' });
 
-const connectionString = process.env.DATABASE_URL!;
+const connectionString = (process.env.DATABASE_URL || '').replace(/^["']|["']$/g, '');
 
 // Singleton pattern for Drizzle + Next.js to prevent "too many clients" errors
 const globalForDb = global as unknown as { client: postgres.Sql | undefined };

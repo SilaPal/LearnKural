@@ -7,7 +7,17 @@ import AuthModal from '@/components/auth-modal';
 import PricingModal from '@/components/pricing-modal';
 import { NavigationModal, KuralSlugMap as NavKuralSlugMap } from '@/components/navigation-modal';
 import { SharedUserMenu } from '@/components/shared-user-menu';
-import { getAllBadges, getMasteredCount, getStreakData, recordDailyVisit, checkStreakBadge, saveBadge, Badge } from '@/lib/badge-system';
+import {
+  getAllBadges,
+  getMasteredCount,
+  getStreakData,
+  recordDailyVisit,
+  checkStreakBadge,
+  saveBadge,
+  Badge,
+  getUnviewedBadgeCount,
+  updateStreak
+} from '@/lib/badge-system';
 import { useAuth } from '@/lib/use-auth';
 import { syncFavoritesToDB } from '@/lib/db-sync';
 import { detectRegionFromTimezone } from '@/lib/detect-region';
@@ -101,13 +111,17 @@ export default function HomeClient({ totalKurals, kuralOfDay, firstKuralSlug, al
   const [celebrationType, setCelebrationType] = useState<CelebrationType>(null);
   const [badgeCount, setBadgeCount] = useState(0);
   const [newBadgeCount, setNewBadgeCount] = useState(0);
+  const [newlyEarnedBadge, setNewlyEarnedBadge] = useState<Badge | null>(null);
   const [showNavModal, setShowNavModal] = useState(false);
   const [visitedKurals, setVisitedKurals] = useState<number[]>([]);
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [showUserMenu, setShowUserMenu] = useState(false);
   const [showPricingModal, setShowPricingModal] = useState(false);
+  const [profiles, setProfiles] = useState<any[]>([]);
   const [selectedHomeGame, setSelectedHomeGame] = useState<'puzzle' | 'flying' | 'balloon' | 'race'>('puzzle');
   const [iframeLoading, setIframeLoading] = useState(true);
+  const [streakCount, setStreakCount] = useState(0);
+  const [totalCoins, setTotalCoins] = useState(0);
   const userMenuRef = useRef<HTMLDivElement>(null);
   const { user, logout } = useAuth();
   const isPaidUser = user?.tier === 'paid';
@@ -134,34 +148,16 @@ export default function HomeClient({ totalKurals, kuralOfDay, firstKuralSlug, al
       setTimeout(() => setShowShine(false), 4000);
     }
 
-    const savedBookmarks = localStorage.getItem('thirukural-bookmarks');
-    if (savedBookmarks) {
-      try {
-        setBookmarks(JSON.parse(savedBookmarks));
-      } catch { }
-    }
-
-    const visited = localStorage.getItem('thirukural-visited-kurals');
-    if (visited) {
-      try {
-        setVisitedKurals(JSON.parse(visited));
-      } catch { }
-    }
+    // We'll load bookmarks and visited kurals in the user-dependent effect below
 
     // Badge system - check streak on visit
+    // Initial badge count and unviewed badges are set here, then updated in the user-dependent effect
+    // This is for guest users or initial load before user data is available
     setBadgeCount(getAllBadges().length);
-    const unviewedBadges = getAllBadges().filter(b => !b.viewed);
-    setNewBadgeCount(unviewedBadges.length);
+    setNewBadgeCount(getAllBadges().filter(b => !b.viewed).length);
 
-    // Record daily visit and check streak badge
-    recordDailyVisit();
-    const streakData = getStreakData();
-    const streakBadge = checkStreakBadge(streakData.currentStreak);
-    if (streakBadge) {
-      saveBadge(streakBadge);
-      setBadgeCount(getAllBadges().length);
-      setNewBadgeCount(prev => prev + 1);
-    }
+    // Record daily visit (this will be called once on mount)
+    // We'll also handle the user-dependent visit recording in the other effect
   }, []);
 
   useEffect(() => {
@@ -180,28 +176,88 @@ export default function HomeClient({ totalKurals, kuralOfDay, firstKuralSlug, al
 
   useEffect(() => {
     if (user) {
-      // Fetch Favorites
+      const profileId = user.activeProfileId || user.id;
+      const bookmarksKey = `thirukural-bookmarks-${profileId}`;
+      const visitedKey = `thirukural-visited-${profileId}`;
+
+      // Load streak and badges for profile
+      const streak = getStreakData(user, profileId);
+      setStreakCount(streak.currentStreak);
+      setNewBadgeCount(getUnviewedBadgeCount(user, profileId));
+
+      // Load from local storage first for instant UI
+      const localBookmarks = localStorage.getItem(bookmarksKey);
+      if (localBookmarks) setBookmarks(JSON.parse(localBookmarks));
+
+      const localVisited = localStorage.getItem(visitedKey);
+      if (localVisited) setVisitedKurals(JSON.parse(localVisited).map(Number));
+
+      // Fetch Favorites from DB
       fetch('/api/user/favorites')
         .then(res => res.ok ? res.json() : null)
         .then(data => {
           if (data && Array.isArray(data)) {
             setBookmarks(data);
-            localStorage.setItem('thirukural-bookmarks', JSON.stringify(data));
+            localStorage.setItem(bookmarksKey, JSON.stringify(data));
           }
         })
         .catch(err => console.error('Failed to load favorites', err));
 
-      // Fetch Progress (Badges)
+      // Sync local state with server on mount
       fetch('/api/user/progress')
         .then(res => res.ok ? res.json() : null)
         .then(data => {
-          if (data && data.badges) {
-            localStorage.setItem('learntamil-badges', JSON.stringify(data.badges));
+          if (data?.completedChapters) {
+            const serverVisited = Array.from(new Set(data.completedChapters)).map(Number);
+            setVisitedKurals(prev => {
+              const merged = Array.from(new Set([...prev, ...serverVisited]));
+              localStorage.setItem(visitedKey, JSON.stringify(merged));
+              return merged;
+            });
           }
+          if (data && data.badges) {
+            localStorage.setItem('thirukural-all-badges', JSON.stringify(data.badges));
+          }
+          // Also record daily visit for the active user/profile
+          const { streakData, newBadge } = updateStreak(user, profileId);
+          setStreakCount(streakData.currentStreak);
+          if (newBadge) {
+            saveBadge(newBadge, profileId);
+            setNewlyEarnedBadge(newBadge);
+            setNewBadgeCount(prev => prev + 1);
+          }
+          recordDailyVisit(user, profileId);
         })
         .catch(err => console.error('Failed to load progress', err));
+
+      // Fetch latest coins
+      fetch('/api/user/coins')
+        .then(res => res.json())
+        .then(data => { if (data.coins !== undefined) setTotalCoins(data.coins); })
+        .catch(err => console.error('Failed to load coins', err));
+
+      // Fetch child profiles
+      fetch('/api/child-profiles')
+        .then(res => res.json())
+        .then(data => setProfiles(data.profiles || []))
+        .catch(err => console.error('Failed to fetch profiles:', err));
     }
   }, [user]);
+
+  const handleProfileSwitch = async (profileId: string | null) => {
+    try {
+      const res = await fetch('/api/child-profiles/switch', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ profileId }),
+      });
+      if (res.ok) {
+        window.location.reload();
+      }
+    } catch (err) {
+      console.error('Failed to switch profile:', err);
+    }
+  };
 
   const toggleLanguage = () => {
     const newLang = !isTamil;
@@ -229,11 +285,14 @@ export default function HomeClient({ totalKurals, kuralOfDay, firstKuralSlug, al
       setShowPricingModal(true);
       return;
     }
+    const id = user?.activeProfileId || user?.id || 'guest';
+    const bookmarksKey = `thirukural-bookmarks-${id}`;
+
     const newBookmarks = bookmarks.includes(kuralId)
       ? bookmarks.filter(id => id !== kuralId)
       : [...bookmarks, kuralId];
     setBookmarks(newBookmarks);
-    localStorage.setItem('thirukural-bookmarks', JSON.stringify(newBookmarks));
+    localStorage.setItem(bookmarksKey, JSON.stringify(newBookmarks));
     if (user) syncFavoritesToDB(newBookmarks);
   };
 
@@ -244,24 +303,37 @@ export default function HomeClient({ totalKurals, kuralOfDay, firstKuralSlug, al
         <div className="absolute top-4 right-4 sm:top-5 sm:right-5 z-10" ref={userMenuRef}>
           {user ? (
             <>
-              <button
-                onClick={() => setShowUserMenu(v => !v)}
-                className="flex items-center gap-2 hover:opacity-80 transition-opacity"
-                title={user.name}
-                aria-label={isTamil ? 'பயனர் மெனு' : 'User menu'}
-              >
-                {user.picture ? (
-                  <img
-                    src={user.picture}
-                    alt={user.name}
-                    className="h-9 w-9 rounded-full border-2 border-white/60 shadow-lg"
-                  />
-                ) : (
-                  <div className="h-9 w-9 rounded-full bg-white/20 border-2 border-white/60 shadow-lg flex items-center justify-center text-white font-bold text-sm">
-                    {user.name.charAt(0).toUpperCase()}
-                  </div>
+              <div className="flex items-center gap-2">
+                {/* Active child profile indicator — match PageHeader style */}
+                {user.activeProfileNickname && (
+                  <Link
+                    href="/profile-select"
+                    className="hidden sm:flex items-center gap-1.5 bg-orange-500/30 border border-orange-300/50 rounded-full px-3 py-1 hover:bg-orange-500/50 transition-colors cursor-pointer"
+                    title="Switch profile"
+                  >
+                    <span className="text-xs text-white font-bold">{user.activeProfileNickname}</span>
+                    <span className="text-white/70 text-xs">↩</span>
+                  </Link>
                 )}
-              </button>
+                <button
+                  onClick={() => setShowUserMenu(v => !v)}
+                  className="flex items-center gap-2 hover:opacity-80 transition-opacity"
+                  title={user.activeProfileNickname || user.name}
+                  aria-label={isTamil ? 'பயனர் மெனு' : 'User menu'}
+                >
+                  {user.picture ? (
+                    <img
+                      src={user.picture}
+                      alt={user.activeProfileNickname || user.name}
+                      className="h-9 w-9 rounded-full border-2 border-white/60 shadow-lg"
+                    />
+                  ) : (
+                    <div className="h-9 w-9 rounded-full bg-white/20 border-2 border-white/60 shadow-lg flex items-center justify-center text-white font-bold text-sm">
+                      {(user.activeProfileNickname || user.name).charAt(0).toUpperCase()}
+                    </div>
+                  )}
+                </button>
+              </div>
               {showUserMenu && (
                 <SharedUserMenu
                   user={{
@@ -278,6 +350,10 @@ export default function HomeClient({ totalKurals, kuralOfDay, firstKuralSlug, al
                   onUpgradeClick={() => setShowPricingModal(true)}
                   onBadgesClick={() => setShowBadgeModal(true)}
                   onLogout={logout}
+                  hasChildProfiles={!!user.activeProfileId}
+                  activeProfileNickname={user.activeProfileNickname}
+                  profiles={profiles}
+                  onProfileSwitch={handleProfileSwitch}
                 />
               )}
             </>
@@ -376,8 +452,20 @@ export default function HomeClient({ totalKurals, kuralOfDay, firstKuralSlug, al
             )}
           </Link>
 
-
-
+          {user && (
+            <button
+              onClick={() => setShowBadgeModal(true)}
+              className="relative hover:scale-110 transition-transform"
+              title={isTamil ? 'நாணயங்கள்' : 'Coins'}
+            >
+              <div className="h-12 w-12 bg-white border-2 border-yellow-400 rounded-full flex items-center justify-center shadow-lg hover:bg-yellow-50 transition-colors">
+                <span className="text-2xl">💰</span>
+              </div>
+              <span suppressHydrationWarning className="absolute -top-1 -right-1 bg-white border border-yellow-600 text-yellow-700 px-1.5 py-0.5 rounded-full text-[10px] font-black shadow-sm">
+                {totalCoins}
+              </span>
+            </button>
+          )}
 
           <button
             onClick={toggleLanguage}

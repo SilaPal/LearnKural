@@ -129,7 +129,13 @@ export default function QuestClient({ kingdoms }: Props) {
                 isTamil={isTamil}
                 toggleLanguage={toggleLanguage}
                 onCoinClick={() => setShowBadgeModal(true)}
-                streakCount={JSON.parse(localStorage.getItem('thirukural-visited') || '[]').length}
+                streakCount={(() => {
+                    const profileId = user?.activeProfileId || user?.id || 'guest';
+                    const key = `thirukural-visited-${profileId}`;
+                    try {
+                        return JSON.parse(localStorage.getItem(key) || '[]').length;
+                    } catch { return 0; }
+                })()}
             >
                 <div className="flex items-center justify-center gap-2 mt-2">
                     <span className="text-sm font-bold opacity-80 uppercase tracking-widest">

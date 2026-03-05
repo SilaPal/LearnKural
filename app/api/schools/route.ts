@@ -9,14 +9,14 @@ export const dynamic = 'force-dynamic';
 async function getUserId(request: NextRequest) {
     const sessionToken = request.cookies.get('thirukural-session')?.value;
     if (!sessionToken) return null;
-    
+
     // Fallback block if old unassigned session cookie exists (temp backwards compatibility)
     try {
         if (!sessionToken.includes('.')) {
-             const dec = JSON.parse(Buffer.from(sessionToken, 'base64').toString('utf-8'));
-             return dec.userId || null;
+            const dec = JSON.parse(Buffer.from(sessionToken, 'base64').toString('utf-8'));
+            return dec.userId || null;
         }
-    } catch {}
+    } catch { }
 
     const sessionData = verifySession(sessionToken);
     return sessionData?.userId || null;
@@ -54,13 +54,17 @@ export async function POST(request: NextRequest) {
             name,
             logo: logo || null,
             banner: banner || null,
-            subscriptionStatus: 'active'
+            subscriptionStatus: 'active',
+            isApproved: false
         }).returning();
 
         // Update the user who created it to be the school_admin
+        const [currentUser] = await db.select({ role: users.role }).from(users).where(eq(users.id, userId));
+        const newRole = currentUser?.role === 'super_admin' ? 'super_admin' : 'school_admin';
+
         await db.update(users)
             .set({
-                role: 'school_admin',
+                role: newRole,
                 schoolId: schoolId,
                 tier: 'paid' // School admins get premium features
             })

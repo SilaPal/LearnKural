@@ -71,23 +71,26 @@ export default function BadgeModal({ isOpen, onClose, language, celebrationType 
 
   useEffect(() => {
     if (isOpen) {
+      const profileId = user?.activeProfileId || user?.id || 'guest';
+
       // Check for newly earned Tamil badges when modal opens
-      checkTamilBadges();
-      const byCategory = getBadgesByCategory();
+      checkTamilBadges(profileId);
+      const byCategory = getBadgesByCategory(user, profileId);
       setBadges(byCategory);
-      setMasteredCount(getMasteredCount());
-      const streak = getStreakData();
+      setMasteredCount(getMasteredCount(profileId));
+      const streak = getStreakData(user, profileId);
       setStreakData({ currentStreak: streak.currentStreak, longestStreak: streak.longestStreak, totalDays: streak.totalDays });
-      const skills = getSkillStats();
+      const skills = getSkillStats(profileId);
       setSkillStats({ puzzleFastestTime: skills.puzzleFastestTime, maxRaceWinStreak: skills.maxRaceWinStreak });
-      setTamilCompleted(getTamilLettersCompleted());
-      markBadgesViewed();
+      setTamilCompleted(getTamilLettersCompleted(profileId));
+      markBadgesViewed(profileId);
 
       if (user) {
-        fetch('/api/user/coins')
-          .then(res => res.json())
-          .then(data => setUserStats({ coins: data.coins ?? 0, weeklyXP: data.weeklyXP ?? 0, streak: data.streak ?? 0 }))
-          .catch(console.error);
+        setUserStats({
+          coins: user.coins ?? 0,
+          weeklyXP: user.weeklyXP ?? 0,
+          streak: user.streak ?? 0
+        });
       }
 
       // Sync celebration and set cleanup timer
@@ -252,7 +255,7 @@ export default function BadgeModal({ isOpen, onClose, language, celebrationType 
             <div className="text-center flex-1">
               <div className="text-xl leading-none mb-1">⚡</div>
               <div className="font-extrabold text-purple-500 text-lg">{userStats.weeklyXP}</div>
-              <div className="text-[9px] sm:text-[10px] font-bold text-gray-400 uppercase tracking-widest leading-none mt-0.5">{language === 'tamil' ? 'வார நாணயம்' : 'Weekly Coins'}</div>
+              <div className="text-[9px] sm:text-[10px] font-bold text-gray-400 uppercase tracking-widest leading-none mt-0.5">{language === 'tamil' ? 'வார புள்ளிகள்' : 'Weekly Points'}</div>
             </div>
             <div className="w-px h-10 bg-gray-100"></div>
             <div className="text-center flex-1">

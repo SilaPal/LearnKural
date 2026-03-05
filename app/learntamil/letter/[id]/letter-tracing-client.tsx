@@ -60,7 +60,8 @@ export default function LetterTracingClient({
       setIsTamil(true);
     }
 
-    const savedCompleted = localStorage.getItem('learntamil-completed');
+    const profileId = user?.activeProfileId || user?.id || 'guest';
+    const savedCompleted = localStorage.getItem(`learntamil-completed-${profileId}`);
     if (savedCompleted) {
       try {
         const completed: string[] = JSON.parse(savedCompleted);
@@ -69,8 +70,7 @@ export default function LetterTracingClient({
         }
       } catch { }
     }
-  }, [letter.id]);
-
+  }, [letter.id, user]);
   useEffect(() => {
     if (user) {
       fetch('/api/user/coins')
@@ -256,7 +256,8 @@ export default function LetterTracingClient({
     setIsCompleted(true);
     setShowCelebration(true);
 
-    const savedCompleted = localStorage.getItem('learntamil-completed');
+    const profileId = user?.activeProfileId || user?.id || 'guest';
+    const savedCompleted = localStorage.getItem(`learntamil-completed-${profileId}`);
     let completed: string[] = [];
     if (savedCompleted) {
       try {
@@ -266,7 +267,7 @@ export default function LetterTracingClient({
 
     if (!completed.includes(letter.id)) {
       completed.push(letter.id);
-      localStorage.setItem('learntamil-completed', JSON.stringify(completed));
+      localStorage.setItem(`learntamil-completed-${profileId}`, JSON.stringify(completed));
     }
 
     if (category) {
@@ -274,7 +275,8 @@ export default function LetterTracingClient({
       const allCategoryCompleted = categoryLetterIds.every(id => completed.includes(id));
 
       if (allCategoryCompleted) {
-        const savedBadges = localStorage.getItem('learntamil-badges');
+        const badgesKey = `learntamil-badges-${profileId}`;
+        const savedBadges = localStorage.getItem(badgesKey);
         let badges: { categoryId: string; earnedAt: number }[] = [];
         if (savedBadges) {
           try {
@@ -284,7 +286,7 @@ export default function LetterTracingClient({
 
         if (!badges.some(b => b.categoryId === category.id)) {
           badges.push({ categoryId: category.id, earnedAt: Date.now() });
-          localStorage.setItem('learntamil-badges', JSON.stringify(badges));
+          localStorage.setItem(badgesKey, JSON.stringify(badges));
         }
       }
     }

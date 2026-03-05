@@ -1,49 +1,59 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/db/db';
-import { userProgress } from '@/db/schema';
+import { userProgress, childProfiles } from '@/db/schema';
 import { eq } from 'drizzle-orm';
-import { verifySession } from '@/lib/session';
+import { getEffectiveId } from '@/lib/resolve-active-id';
 
 export const dynamic = 'force-dynamic';
 
-async function getUserId(request: NextRequest) {
-    const sessionToken = request.cookies.get('thirukural-session')?.value;
-    if (!sessionToken) return null;
-    
-    // Fallback block if old unassigned session cookie exists (temp backwards compatibility)
-    try {
-        if (!sessionToken.includes('.')) {
-             const dec = JSON.parse(Buffer.from(sessionToken, 'base64').toString('utf-8'));
-             return dec.userId || null;
-        }
-    } catch {}
-
-    const sessionData = verifySession(sessionToken);
-    return sessionData?.userId || null;
-}
-
 export async function GET(request: NextRequest) {
-    const userId = await getUserId(request);
-    if (!userId) return NextResponse.json(null, { status: 401 });
+    const effectiveId = getEffectiveId(request);
+    if (!effectiveId) return NextResponse.json(null, { status: 401 });
 
-    const [progress] = await db.select().from(userProgress).where(eq(userProgress.userId, userId));
+    if (effectiveId.startsWith('cp_')) {
+        const [profile] = await db
+            .select({
+                completedLetters: childProfiles.completedLetters,
+                completedChapters: childProfiles.completedChapters,
+                badges: childProfiles.badges
+            })
+            .from(childProfiles)
+            .where(eq(childProfiles.id, effectiveId));
 
+        return NextResponse.json(profile || { completedLetters: [], badges: [], completedChapters: [] });
+    }
+
+    const [progress] = await db.select().from(userProgress).where(eq(userProgress.userId, effectiveId));
     return NextResponse.json(progress || { completedLetters: [], badges: [], completedChapters: [] });
 }
 
 export async function POST(request: NextRequest) {
-    const userId = await getUserId(request);
-    if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    const effectiveId = getEffectiveId(request);
+    if (!effectiveId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
     try {
         const body = await request.json();
         const { completedLetters, badges, completedChapters } = body;
 
-        let [progress] = await db.select().from(userProgress).where(eq(userProgress.userId, userId));
+        if (effectiveId.startsWith('cp_')) {
+            const [profile] = await db
+                .update(childProfiles)
+                .set({
+                    completedLetters: completedLetters !== undefined ? completedLetters : undefined,
+                    completedChapters: completedChapters !== undefined ? completedChapters : undefined,
+                    badges: badges !== undefined ? badges : undefined,
+                })
+                .where(eq(childProfiles.id, effectiveId))
+                .returning();
+
+            return NextResponse.json(profile);
+        }
+
+        let [progress] = await db.select().from(userProgress).where(eq(userProgress.userId, effectiveId));
 
         if (!progress) {
             [progress] = await db.insert(userProgress).values({
-                userId,
+                userId: effectiveId,
                 completedLetters: completedLetters || [],
                 completedChapters: completedChapters || [],
                 badges: badges || [],
@@ -54,7 +64,7 @@ export async function POST(request: NextRequest) {
                 completedChapters: completedChapters !== undefined ? completedChapters : progress.completedChapters,
                 badges: badges !== undefined ? badges : progress.badges,
                 updatedAt: new Date(),
-            }).where(eq(userProgress.userId, userId)).returning();
+            }).where(eq(userProgress.userId, effectiveId)).returning();
         }
 
         return NextResponse.json(progress);
@@ -63,3 +73,4 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
     }
 }
+

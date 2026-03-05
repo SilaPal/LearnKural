@@ -19,8 +19,10 @@ interface DashboardData {
     stats: {
         students: number;
         classrooms: number;
+        staff: number;
     };
     classrooms: any[];
+    staff: any[];
     recentUsers: any[];
 }
 
@@ -36,6 +38,8 @@ export default function SchoolAdminClient() {
     const [showPricingModal, setShowPricingModal] = useState(false);
     const [showAuthModal, setShowAuthModal] = useState(false);
     const [showBadgeModal, setShowBadgeModal] = useState(false);
+    const [teacherEmail, setTeacherEmail] = useState('');
+    const [addingTeacher, setAddingTeacher] = useState(false);
 
     useEffect(() => {
         const handler = (e: Event) => setIsTamil((e as CustomEvent<{ isTamil: boolean }>).detail.isTamil);
@@ -52,7 +56,7 @@ export default function SchoolAdminClient() {
 
 
     useEffect(() => {
-        if (!isLoading && (!user || user.role !== 'school_admin')) {
+        if (!isLoading && (!user || (user.role !== 'school_admin' && user.role !== 'super_admin'))) {
             router.push('/schools/register');
             return;
         }
@@ -96,6 +100,33 @@ export default function SchoolAdminClient() {
         }
     };
 
+    const handleAddTeacher = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!teacherEmail) return;
+        setAddingTeacher(true);
+        try {
+            const res = await fetch('/api/schools/teachers', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email: teacherEmail, schoolId: data?.school.id })
+            });
+            const result = await res.json();
+            if (res.ok) {
+                alert(isTamil ? 'ஆசிரியர் வெற்றிகரமாக சேர்க்கப்பட்டார்!' : 'Teacher added successfully!');
+                setTeacherEmail('');
+                // Refresh data
+                const refreshRes = await fetch('/api/dashboard/school');
+                if (refreshRes.ok) setData(await refreshRes.json());
+            } else {
+                alert(result.error || 'Failed to add teacher');
+            }
+        } catch (err) {
+            alert('Network error');
+        } finally {
+            setAddingTeacher(false);
+        }
+    };
+
     if (loading) return (
         <div className="min-h-screen bg-gray-50 flex items-center justify-center">
             <div className="animate-spin h-10 w-10 border-4 border-purple-500 border-t-transparent rounded-full"></div>
@@ -127,54 +158,48 @@ export default function SchoolAdminClient() {
                 toggleLanguage={toggleLanguage}
             />
 
-            {/* Premium Requirement & Coming Soon Overlay */}
-            <div className="fixed inset-0 z-40 flex items-center justify-center p-4 bg-gray-900/10 backdrop-blur-md pt-20">
-                <div className="bg-white p-8 sm:p-12 rounded-[2.5rem] shadow-2xl border border-white max-w-lg w-full text-center relative overflow-hidden group">
-                    <div className="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-purple-500 via-indigo-500 to-purple-500 bg-[length:200%_auto] animate-gradient"></div>
-
-                    <div className="text-6xl mb-6 transform group-hover:scale-110 transition-transform duration-500">
-                        {isPaid ? '🚀' : '💎'}
-                    </div>
-
-                    <h2 className="text-3xl sm:text-4xl font-black text-gray-900 mb-4 tracking-tight">
-                        {isPaid
-                            ? (isTamil ? 'விரைவில் வருகிறது!' : 'Coming Soon!')
-                            : (isTamil ? 'பிரீமியம் அனுமதி தேவை' : 'Premium Access Required')}
-                    </h2>
-
-                    <p className="text-gray-600 mb-10 leading-relaxed font-medium">
-                        {isPaid
-                            ? (isTamil
-                                ? 'பள்ளி மேடை தற்போது உருவாக்கப்பட்டு வருகிறது. விரைவில் பயன்பாட்டுக்கு வரும்!'
-                                : 'The School Portal is currently under construction. Stay tuned for the official launch!')
-                            : (isTamil
-                                ? 'பள்ளி மேடையைப் பயன்படுத்த பிரீமியம் சந்தா தேவை. உங்கள் திட்டத்தை மேம்படுத்தவும்.'
-                                : 'The School Portal is a premium feature. Please upgrade your plan to access this dashboard.')}
-                    </p>
-
-                    {!isPaid ? (
-                        <button
-                            onClick={() => setShowPricingModal(true)}
-                            className="w-full bg-gradient-to-r from-purple-600 to-indigo-600 text-white py-4 rounded-2xl font-black shadow-xl shadow-purple-200 transition-all hover:scale-[1.02] active:scale-95 text-lg"
-                        >
-                            {isTamil ? 'பிரீமியத்திற்கு மாறவும்' : 'Upgrade to Premium'}
-                        </button>
-                    ) : (
-                        <Link
-                            href="/"
-                            className="w-full inline-block bg-gray-900 text-white py-4 rounded-2xl font-black shadow-xl transition-all hover:scale-[1.02] active:scale-95 text-lg"
-                        >
-                            {isTamil ? 'முகப்புக்குச் செல்க' : 'Back to Home'}
-                        </Link>
-                    )}
-
-                    {!isPaid && (
-                        <Link href="/" className="mt-6 inline-block text-gray-400 hover:text-gray-600 font-bold text-sm underline underline-offset-4 decoration-2">
-                            {isTamil ? 'பிறகு பார்க்கலாம்' : 'Maybe Later'}
-                        </Link>
-                    )}
+            {/* Academy Settings (Edit Name/Branding) */}
+            <section className="bg-white p-6 sm:p-8 rounded-3xl shadow-sm border border-gray-100 mb-8 overflow-hidden relative">
+                <div className="absolute top-0 right-0 p-4">
+                    <button
+                        onClick={async () => {
+                            const newName = prompt(isTamil ? 'புதிய பள்ளியின் பெயர்:' : 'New School Name:', data.school.name);
+                            if (newName && newName !== data.school.name) {
+                                try {
+                                    const res = await fetch(`/api/schools/${data.school.id}`, {
+                                        method: 'PATCH',
+                                        headers: { 'Content-Type': 'application/json' },
+                                        body: JSON.stringify({ name: newName })
+                                    });
+                                    if (res.ok) {
+                                        setData({ ...data, school: { ...data.school, name: newName } });
+                                    }
+                                } catch (e) {
+                                    alert('Failed to update school');
+                                }
+                            }
+                        }}
+                        className="bg-gray-50 hover:bg-gray-100 text-gray-500 font-bold px-4 py-2 rounded-xl text-xs flex items-center gap-2 border border-gray-100 transition-all font-sans"
+                    >
+                        ✏️ {isTamil ? 'பெயர் மாற்ற' : 'Edit Name'}
+                    </button>
                 </div>
-            </div>
+                <div className="flex flex-col sm:flex-row items-center gap-6">
+                    {data.school.logo ? (
+                        <div className="h-24 w-24 rounded-2xl bg-white shadow-md p-2 border border-gray-100 overflow-hidden shrink-0">
+                            <img src={data.school.logo} alt="" className="w-full h-full object-contain" />
+                        </div>
+                    ) : (
+                        <div className="h-24 w-24 rounded-2xl bg-gradient-to-br from-indigo-50 to-purple-50 flex items-center justify-center text-4xl shrink-0 border-2 border-dashed border-indigo-200">
+                            🏫
+                        </div>
+                    )}
+                    <div className="text-center sm:text-left">
+                        <h3 className="text-2xl font-black text-gray-900 mb-1">{data.school.name}</h3>
+                        <p className="text-gray-500 font-medium text-sm">Managed by {user?.name}</p>
+                    </div>
+                </div>
+            </section>
 
             <PricingModal
                 isOpen={showPricingModal}
@@ -218,33 +243,84 @@ export default function SchoolAdminClient() {
             {/* Main Content */}
             <main className="max-w-6xl mx-auto px-4 -mt-16 relative z-10">
                 {/* Stats Cards */}
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-6 mb-10">
-                    <div className="bg-white p-6 sm:p-8 rounded-3xl shadow-sm border border-gray-100 flex items-center justify-between hover:shadow-md transition-all group">
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-4 sm:gap-4 mb-10">
+                    <div className="bg-white p-5 rounded-3xl shadow-sm border border-gray-100 flex items-center justify-between hover:shadow-md transition-all group">
                         <div>
-                            <div className="text-gray-400 text-xs font-bold uppercase tracking-widest mb-1 group-hover:text-purple-600 transition-colors">{isTamil ? 'மாணவர்கள்' : 'Total Students'}</div>
-                            <div className="text-3xl sm:text-4xl font-black text-gray-900">{data.stats.students}</div>
+                            <div className="text-gray-400 text-[10px] font-bold uppercase tracking-widest mb-1 group-hover:text-purple-600 transition-colors uppercase">{isTamil ? 'மாணவர்கள்' : 'Students'}</div>
+                            <div className="text-2xl font-black text-gray-900">{data.stats.students}</div>
                         </div>
-                        <div className="h-14 w-14 sm:h-16 sm:w-16 bg-purple-50 rounded-2xl flex items-center justify-center text-2xl sm:text-3xl shadow-inner border border-purple-100">👦</div>
+                        <div className="h-12 w-12 bg-purple-50 rounded-2xl flex items-center justify-center text-xl shadow-inner border border-purple-100 uppercase">👦</div>
                     </div>
-                    <div className="bg-white p-6 sm:p-8 rounded-3xl shadow-sm border border-gray-100 flex items-center justify-between hover:shadow-md transition-all group">
+                    <div className="bg-white p-5 rounded-3xl shadow-sm border border-gray-100 flex items-center justify-between hover:shadow-md transition-all group">
                         <div>
-                            <div className="text-gray-400 text-xs font-bold uppercase tracking-widest mb-1 group-hover:text-amber-600 transition-colors">{isTamil ? 'வகுப்பறைகள்' : 'Active Classes'}</div>
-                            <div className="text-3xl sm:text-4xl font-black text-gray-900">{data.stats.classrooms}</div>
+                            <div className="text-gray-400 text-[10px] font-bold uppercase tracking-widest mb-1 group-hover:text-indigo-600 transition-colors uppercase">{isTamil ? 'ஆசிரியர்கள்' : 'Staff'}</div>
+                            <div className="text-2xl font-black text-gray-900">{data.stats.staff}</div>
                         </div>
-                        <div className="h-14 w-14 sm:h-16 sm:w-16 bg-amber-50 rounded-2xl flex items-center justify-center text-2xl sm:text-3xl shadow-inner border border-amber-100">🏫</div>
+                        <div className="h-12 w-12 bg-indigo-50 rounded-2xl flex items-center justify-center text-xl shadow-inner border border-indigo-100 uppercase">👩‍🏫</div>
                     </div>
-                    <div className="bg-white p-6 sm:p-8 rounded-3xl shadow-sm border border-gray-100 flex items-center justify-between hover:shadow-md transition-all group">
+                    <div className="bg-white p-5 rounded-3xl shadow-sm border border-gray-100 flex items-center justify-between hover:shadow-md transition-all group">
                         <div>
-                            <div className="text-gray-400 text-xs font-bold uppercase tracking-widest mb-1 group-hover:text-emerald-600 transition-colors">{isTamil ? 'குறள் தேர்ச்சி' : 'Mastery Score'}</div>
-                            <div className="text-3xl sm:text-4xl font-black text-emerald-600">84<span className="text-lg text-gray-400 ml-1 font-bold">%</span></div>
+                            <div className="text-gray-400 text-[10px] font-bold uppercase tracking-widest mb-1 group-hover:text-amber-600 transition-colors uppercase">{isTamil ? 'வகுப்புகள்' : 'Classes'}</div>
+                            <div className="text-2xl font-black text-gray-900">{data.stats.classrooms}</div>
                         </div>
-                        <div className="h-14 w-14 sm:h-16 sm:w-16 bg-emerald-50 rounded-2xl flex items-center justify-center text-2xl sm:text-3xl shadow-inner border border-emerald-100">📈</div>
+                        <div className="h-12 w-12 bg-amber-50 rounded-2xl flex items-center justify-center text-xl shadow-inner border border-amber-100 uppercase">🏫</div>
+                    </div>
+                    <div className="bg-white p-5 rounded-3xl shadow-sm border border-gray-100 flex items-center justify-between hover:shadow-md transition-all group">
+                        <div>
+                            <div className="text-gray-400 text-[10px] font-bold uppercase tracking-widest mb-1 group-hover:text-emerald-600 transition-colors">{isTamil ? 'தேர்ச்சி' : 'Mastery'}</div>
+                            <div className="text-2xl font-black text-emerald-600">84%</div>
+                        </div>
+                        <div className="h-12 w-12 bg-emerald-50 rounded-2xl flex items-center justify-center text-xl shadow-inner border border-emerald-100 uppercase">📈</div>
                     </div>
                 </div>
 
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-10">
                     {/* Left Column: Classrooms & Management */}
                     <div className="lg:col-span-2 space-y-10">
+                        {/* Staff Section */}
+                        <section>
+                            <div className="flex items-center justify-between mb-6">
+                                <h2 className="text-xl sm:text-2xl font-black text-gray-900 tracking-tight">{isTamil ? 'ஆசிரியர்கள் & பணியாளர்கள்' : 'Staff & Teachers'} 👨‍🏫</h2>
+                            </div>
+                            <div className="bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden">
+                                <form onSubmit={handleAddTeacher} className="p-4 bg-gray-50/50 border-b border-gray-100 flex gap-3">
+                                    <input
+                                        type="email"
+                                        placeholder={isTamil ? 'ஆசிரியரின் மின்னஞ்சல்' : "Teacher's Email"}
+                                        value={teacherEmail}
+                                        onChange={(e) => setTeacherEmail(e.target.value)}
+                                        className="flex-grow bg-white px-4 py-2.5 rounded-xl border border-gray-200 text-sm focus:ring-2 focus:ring-purple-500 outline-none transition-all"
+                                        required
+                                    />
+                                    <button
+                                        type="submit"
+                                        disabled={addingTeacher}
+                                        className="bg-gray-900 text-white px-6 py-2.5 rounded-xl font-bold text-sm hover:bg-black transition-all disabled:opacity-50"
+                                    >
+                                        {addingTeacher ? '...' : (isTamil ? 'சேர்' : 'Add')}
+                                    </button>
+                                </form>
+                                <div className="divide-y divide-gray-50">
+                                    {data.staff.map(member => (
+                                        <div key={member.id} className="p-4 flex items-center justify-between hover:bg-gray-50 transition-colors">
+                                            <div className="flex items-center gap-3">
+                                                <div className="h-10 w-10 bg-indigo-50 rounded-xl flex items-center justify-center text-lg border border-indigo-100 overflow-hidden shrink-0">
+                                                    {member.picture ? <img src={member.picture} alt="" className="w-full h-full object-cover" /> : '👨‍🏫'}
+                                                </div>
+                                                <div>
+                                                    <div className="font-bold text-gray-900 text-sm">{member.name}</div>
+                                                    <div className="text-[10px] text-gray-500 font-medium">{member.email}</div>
+                                                </div>
+                                            </div>
+                                            <span className="text-[10px] font-bold uppercase tracking-widest px-2.5 py-1 rounded-md bg-indigo-50 text-indigo-600 border border-indigo-100">
+                                                {member.role}
+                                            </span>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        </section>
+
                         <section>
                             <div className="flex items-center justify-between mb-6">
                                 <h2 className="text-xl sm:text-2xl font-black text-gray-900 tracking-tight">{isTamil ? 'வகுப்பறைகள்' : 'Classrooms'}</h2>

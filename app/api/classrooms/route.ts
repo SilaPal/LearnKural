@@ -9,14 +9,14 @@ export const dynamic = 'force-dynamic';
 async function getUserId(request: NextRequest) {
     const sessionToken = request.cookies.get('thirukural-session')?.value;
     if (!sessionToken) return null;
-    
+
     // Fallback block if old unassigned session cookie exists (temp backwards compatibility)
     try {
         if (!sessionToken.includes('.')) {
-             const dec = JSON.parse(Buffer.from(sessionToken, 'base64').toString('utf-8'));
-             return dec.userId || null;
+            const dec = JSON.parse(Buffer.from(sessionToken, 'base64').toString('utf-8'));
+            return dec.userId || null;
         }
-    } catch {}
+    } catch { }
 
     const sessionData = verifySession(sessionToken);
     return sessionData?.userId || null;
@@ -69,13 +69,34 @@ export async function POST(request: NextRequest) {
             return NextResponse.json({ error: 'Name and School ID are required' }, { status: 400 });
         }
 
+        // Verify permissions
+        const [user] = await db.select().from(users).where(eq(users.id, userId));
+        if (!user) return NextResponse.json({ error: 'User not found' }, { status: 404 });
+
+        const isSuperAdmin = user.role === 'super_admin';
+        const isSchoolAdmin = user.role === 'school_admin' && user.schoolId === schoolId;
+        const isTeacherForThisSchool = user.role === 'teacher' && user.schoolId === schoolId;
+
+        if (!isSuperAdmin && !isSchoolAdmin && !isTeacherForThisSchool) {
+            return NextResponse.json({ error: 'Forbidden: You must be a teacher or admin of this school' }, { status: 403 });
+        }
+
+        // If a specific teacherId is provided, verify they also belong to this school
+        const targetTeacherId = teacherId || userId;
+        if (targetTeacherId !== userId) {
+            const [targetTeacher] = await db.select({ schoolId: users.schoolId }).from(users).where(eq(users.id, targetTeacherId));
+            if (!targetTeacher || targetTeacher.schoolId !== schoolId) {
+                return NextResponse.json({ error: 'The specified teacher does not belong to this school' }, { status: 403 });
+            }
+        }
+
         const classroomId = `class_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`;
 
         const [newClassroom] = await db.insert(classrooms).values({
             id: classroomId,
             name,
             schoolId,
-            teacherId: teacherId || userId // Defaults to creator if they are a teacher
+            teacherId: targetTeacherId
         }).returning();
 
         return NextResponse.json(newClassroom);

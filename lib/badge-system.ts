@@ -89,17 +89,21 @@ export const TAMIL_BADGES: Record<string, { name: string; nameTamil: string; ico
   'tamil-scholar': { name: 'Tamil Scholar', nameTamil: 'தமிழ் அறிஞர்', icon: '🌟', tier: 'diamond', lettersNeeded: 247, description: 'Completed the full Tamil alphabet!', descriptionTamil: '247 எழுத்துக்கள் அனைத்தும் கற்றீர்கள்!' },
 };
 
-export function getTamilLettersCompleted(): number {
+export function getProfileId(user?: any): string {
+  return user?.activeProfileId || user?.id || 'guest';
+}
+
+export function getTamilLettersCompleted(profileId: string = 'guest'): number {
   if (typeof window === 'undefined') return 0;
-  const saved = localStorage.getItem('learntamil-completed');
+  const saved = localStorage.getItem(`learntamil-completed-${profileId}`);
   if (!saved) return 0;
   try { return (JSON.parse(saved) as string[]).length; } catch { return 0; }
 }
 
-export function checkTamilBadges(): Badge[] {
+export function checkTamilBadges(profileId: string = 'guest'): Badge[] {
   if (typeof window === 'undefined') return [];
-  const completed = getTamilLettersCompleted();
-  const allBadges = getAllBadges();
+  const completed = getTamilLettersCompleted(profileId);
+  const allBadges = getAllBadges(undefined, profileId);
   const earned: Badge[] = [];
   for (const [id, info] of Object.entries(TAMIL_BADGES)) {
     if (completed >= info.lettersNeeded && !allBadges.some(b => b.id === `tamil-${id.replace('tamil-', '')}`)) {
@@ -116,26 +120,26 @@ export function checkTamilBadges(): Badge[] {
         earnedAt: new Date().toISOString(),
         viewed: false,
       };
-      saveBadge(badge);
+      saveBadge(badge, profileId);
       earned.push(badge);
     }
   }
   return earned;
 }
 
-export function getKuralProgress(): KuralProgress[] {
+export function getKuralProgress(profileId: string = 'guest'): KuralProgress[] {
   if (typeof window === 'undefined') return [];
-  const saved = localStorage.getItem('thirukural-kural-progress');
+  const saved = localStorage.getItem(`thirukural-kural-progress-${profileId}`);
   return saved ? JSON.parse(saved) : [];
 }
 
-export function saveKuralProgress(progress: KuralProgress[]): void {
+export function saveKuralProgress(progress: KuralProgress[], profileId: string = 'guest'): void {
   if (typeof window === 'undefined') return;
-  localStorage.setItem('thirukural-kural-progress', JSON.stringify(progress));
+  localStorage.setItem(`thirukural-kural-progress-${profileId}`, JSON.stringify(progress));
 }
 
-export function updateKuralActivity(kuralId: number, activity: keyof Omit<KuralProgress, 'kuralId' | 'mastered' | 'masteredAt'>): KuralProgress {
-  const allProgress = getKuralProgress();
+export function updateKuralActivity(kuralId: number, activity: keyof Omit<KuralProgress, 'kuralId' | 'mastered' | 'masteredAt'>, profileId: string = 'guest'): KuralProgress {
+  const allProgress = getKuralProgress(profileId);
   let kuralProgress = allProgress.find(p => p.kuralId === kuralId);
 
   if (!kuralProgress) {
@@ -163,31 +167,43 @@ export function updateKuralActivity(kuralId: number, activity: keyof Omit<KuralP
     kuralProgress.masteredAt = new Date().toISOString();
   }
 
-  saveKuralProgress(allProgress);
+  saveKuralProgress(allProgress, profileId);
   return kuralProgress;
 }
 
-export function getMasteredCount(): number {
-  return getKuralProgress().filter(p => p.mastered).length;
+export function getMasteredCount(profileId: string = 'guest'): number {
+  return getKuralProgress(profileId).filter(p => p.mastered).length;
 }
 
-export function getStreakData(): StreakData {
+export function getStreakData(user?: any, profileId?: string): StreakData {
+  const pid = profileId || getProfileId(user);
+
+  if (user?.streak !== undefined && !profileId) {
+    return {
+      currentStreak: user.streak,
+      longestStreak: user.longestStreak || user.streak,
+      lastActiveDate: new Date().toISOString().split('T')[0],
+      totalDays: user.streak,
+      streakBadgesEarned: user.badges?.filter((b: any) => b.type === 'streak').map((b: any) => b.id) || []
+    };
+  }
   if (typeof window === 'undefined') {
     return { currentStreak: 0, longestStreak: 0, lastActiveDate: '', totalDays: 0, streakBadgesEarned: [] };
   }
-  const saved = localStorage.getItem('thirukural-streak-data');
+  const saved = localStorage.getItem(`thirukural-streak-data-${pid}`);
   if (saved) return JSON.parse(saved);
   return { currentStreak: 0, longestStreak: 0, lastActiveDate: '', totalDays: 0, streakBadgesEarned: [] };
 }
 
-export function saveStreakData(data: StreakData): void {
+export function saveStreakData(data: StreakData, profileId: string = 'guest'): void {
   if (typeof window === 'undefined') return;
-  localStorage.setItem('thirukural-streak-data', JSON.stringify(data));
+  localStorage.setItem(`thirukural-streak-data-${profileId}`, JSON.stringify(data));
 }
 
-export function recordDailyVisit(): void {
+export function recordDailyVisit(user?: any, profileId?: string): void {
+  const pid = profileId || getProfileId(user);
   const today = new Date().toISOString().split('T')[0];
-  const data = getStreakData();
+  const data = getStreakData(user, pid);
 
   if (data.lastActiveDate === today) return;
 
@@ -208,11 +224,12 @@ export function recordDailyVisit(): void {
     data.longestStreak = data.currentStreak;
   }
 
-  saveStreakData(data);
+  saveStreakData(data, pid);
 }
 
-export function checkStreakBadge(currentStreak: number): Badge | null {
-  const data = getStreakData();
+export function checkStreakBadge(currentStreak: number, user?: any, profileId?: string): Badge | null {
+  const pid = profileId || getProfileId(user);
+  const data = getStreakData(user, pid);
 
   for (const milestone of STREAK_MILESTONES) {
     if (currentStreak >= milestone && !data.streakBadgesEarned.includes(`streak-${milestone}`)) {
@@ -231,79 +248,37 @@ export function checkStreakBadge(currentStreak: number): Badge | null {
         viewed: false
       };
       data.streakBadgesEarned.push(`streak-${milestone}`);
-      saveStreakData(data);
+      saveStreakData(data, pid);
       return badge;
     }
   }
   return null;
 }
 
-export function updateStreak(): { streakData: StreakData; newBadge: Badge | null } {
-  const today = new Date().toISOString().split('T')[0];
-  const data = getStreakData();
-
-  if (data.lastActiveDate === today) {
-    return { streakData: data, newBadge: null };
-  }
-
-  const yesterday = new Date();
-  yesterday.setDate(yesterday.getDate() - 1);
-  const yesterdayStr = yesterday.toISOString().split('T')[0];
-
-  if (data.lastActiveDate === yesterdayStr) {
-    data.currentStreak += 1;
-  } else if (data.lastActiveDate !== today) {
-    data.currentStreak = 1;
-  }
-
-  data.lastActiveDate = today;
-  data.totalDays += 1;
-
-  if (data.currentStreak > data.longestStreak) {
-    data.longestStreak = data.currentStreak;
-  }
-
-  let newBadge: Badge | null = null;
-  for (const milestone of STREAK_MILESTONES) {
-    if (data.currentStreak >= milestone && !data.streakBadgesEarned.includes(`streak-${milestone}`)) {
-      const badgeInfo = STREAK_BADGES[milestone];
-      newBadge = {
-        id: `streak-${milestone}`,
-        type: 'streak',
-        category: 'streak',
-        name: badgeInfo.name,
-        nameTamil: badgeInfo.nameTamil,
-        description: `${milestone} day streak achieved!`,
-        descriptionTamil: `${milestone} நாள் தொடர் சாதனை!`,
-        icon: badgeInfo.icon,
-        tier: badgeInfo.tier,
-        earnedAt: new Date().toISOString(),
-        viewed: false
-      };
-      data.streakBadgesEarned.push(`streak-${milestone}`);
-      break;
-    }
-  }
-
-  saveStreakData(data);
+export function updateStreak(user?: any, profileId?: string): { streakData: StreakData; newBadge: Badge | null } {
+  const pid = profileId || getProfileId(user);
+  recordDailyVisit(user, pid);
+  const data = getStreakData(user, pid);
+  const newBadge = checkStreakBadge(data.currentStreak, user, pid);
   return { streakData: data, newBadge };
 }
 
-export function getSkillStats(): SkillStats {
+
+export function getSkillStats(profileId: string = 'guest'): SkillStats {
   if (typeof window === 'undefined') {
     return { puzzleFastestTime: null, raceWinStreak: 0, maxRaceWinStreak: 0, perfectPronunciations: 0, consecutivePerfectPronunciations: 0, balloonPerfectGames: 0, flyingPerfectGames: 0, skillBadgesEarned: [] };
   }
-  const saved = localStorage.getItem('thirukural-skill-stats');
+  const saved = localStorage.getItem(`thirukural-skill-stats-${profileId}`);
   if (saved) return JSON.parse(saved);
   return { puzzleFastestTime: null, raceWinStreak: 0, maxRaceWinStreak: 0, perfectPronunciations: 0, consecutivePerfectPronunciations: 0, balloonPerfectGames: 0, flyingPerfectGames: 0, skillBadgesEarned: [] };
 }
 
-export function saveSkillStats(stats: SkillStats): void {
+export function saveSkillStats(stats: SkillStats, profileId: string = 'guest'): void {
   if (typeof window === 'undefined') return;
-  localStorage.setItem('thirukural-skill-stats', JSON.stringify(stats));
+  localStorage.setItem(`thirukural-skill-stats-${profileId}`, JSON.stringify(stats));
 }
 
-export function checkSkillBadge(skillId: string, stats: SkillStats): Badge | null {
+export function checkSkillBadge(skillId: string, stats: SkillStats, profileId: string = 'guest'): Badge | null {
   if (stats.skillBadgesEarned.includes(skillId)) return null;
 
   const skillInfo = SKILL_BADGES[skillId as keyof typeof SKILL_BADGES];
@@ -334,7 +309,7 @@ export function checkSkillBadge(skillId: string, stats: SkillStats): Badge | nul
 
   if (earned) {
     stats.skillBadgesEarned.push(skillId);
-    saveSkillStats(stats);
+    saveSkillStats(stats, profileId);
 
     return {
       id: `skill-${skillId}`,
@@ -354,8 +329,8 @@ export function checkSkillBadge(skillId: string, stats: SkillStats): Badge | nul
   return null;
 }
 
-export function checkMasteryBadge(masteredCount: number): Badge | null {
-  const allBadges = getAllBadges();
+export function checkMasteryBadge(masteredCount: number, profileId: string = 'guest'): Badge | null {
+  const allBadges = getAllBadges(undefined, profileId);
 
   for (const milestone of MASTERY_MILESTONES) {
     if (masteredCount >= milestone) {
@@ -382,34 +357,38 @@ export function checkMasteryBadge(masteredCount: number): Badge | null {
   return null;
 }
 
-export function getAllBadges(): Badge[] {
+export function getAllBadges(user?: any, profileId?: string): Badge[] {
+  if (user?.badges && !profileId) return user.badges;
   if (typeof window === 'undefined') return [];
-  const saved = localStorage.getItem('thirukural-all-badges');
+  const pid = profileId || getProfileId(user);
+  const saved = localStorage.getItem(`thirukural-all-badges-${pid}`);
   return saved ? JSON.parse(saved) : [];
 }
 
-export function saveBadge(badge: Badge): void {
+export function saveBadge(badge: Badge, profileId: string = 'guest'): void {
   if (typeof window === 'undefined') return;
-  const allBadges = getAllBadges();
+  const allBadges = getAllBadges(undefined, profileId);
   if (!allBadges.some(b => b.id === badge.id)) {
     allBadges.push(badge);
-    localStorage.setItem('thirukural-all-badges', JSON.stringify(allBadges));
+    localStorage.setItem(`thirukural-all-badges-${profileId}`, JSON.stringify(allBadges));
   }
 }
 
-export function markBadgesViewed(): void {
+export function markBadgesViewed(profileId: string = 'guest'): void {
   if (typeof window === 'undefined') return;
-  const allBadges = getAllBadges();
+  const allBadges = getAllBadges(undefined, profileId);
   const updated = allBadges.map(b => ({ ...b, viewed: true }));
-  localStorage.setItem('thirukural-all-badges', JSON.stringify(updated));
+  localStorage.setItem(`thirukural-all-badges-${profileId}`, JSON.stringify(updated));
 }
 
-export function getUnviewedBadgeCount(): number {
-  return getAllBadges().filter(b => !b.viewed).length;
+export function getUnviewedBadgeCount(user?: any, profileId?: string): number {
+  const pid = profileId || getProfileId(user);
+  return getAllBadges(user, pid).filter(b => !b.viewed).length;
 }
 
-export function getBadgesByCategory(): { mastery: Badge[]; streak: Badge[]; skill: Badge[]; tamil: Badge[] } {
-  const allBadges = getAllBadges();
+export function getBadgesByCategory(user?: any, profileId?: string): { mastery: Badge[]; streak: Badge[]; skill: Badge[]; tamil: Badge[] } {
+  const pid = profileId || getProfileId(user);
+  const allBadges = getAllBadges(user, pid);
   return {
     mastery: allBadges.filter(b => b.type === 'mastery'),
     streak: allBadges.filter(b => b.type === 'streak'),

@@ -87,8 +87,8 @@ export function NavigationModal({
           <button
             onClick={() => setNavTab('sections')}
             className={`flex-1 py-2 px-4 rounded-lg font-medium transition ${navTab === 'sections'
-                ? 'bg-gradient-to-r from-orange-500 to-pink-500 text-white'
-                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+              ? 'bg-gradient-to-r from-orange-500 to-pink-500 text-white'
+              : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
               }`}
           >
             🗂️ {isTamil ? 'பிரிவுகள்' : 'Sections'}
@@ -96,17 +96,17 @@ export function NavigationModal({
           <button
             onClick={() => setNavTab('progress')}
             className={`flex-1 py-2 px-4 rounded-lg font-medium transition ${navTab === 'progress'
-                ? 'bg-purple-600 text-white'
-                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+              ? 'bg-purple-600 text-white'
+              : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
               }`}
           >
-            🔥 {visitedKurals.length}/{totalKurals}
+            🔥 {new Set(visitedKurals).size}/{totalKurals}
           </button>
           <button
             onClick={() => setNavTab('bookmarks')}
             className={`flex-1 py-2 px-4 rounded-lg font-medium transition ${navTab === 'bookmarks'
-                ? 'bg-red-500 text-white'
-                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+              ? 'bg-red-500 text-white'
+              : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
               }`}
           >
             ❤️ {bookmarks.length}
@@ -115,46 +115,42 @@ export function NavigationModal({
 
         {navTab === 'progress' && (
           <div>
-            <div className="flex gap-4 text-sm mb-3">
-              <span className="flex items-center gap-1">
-                <span className="w-4 h-4 rounded bg-green-500"></span>
-                {isTamil ? 'பார்த்தது' : 'Visited'}
-              </span>
-              {currentKuralId !== undefined && (
-                <span className="flex items-center gap-1">
-                  <span className="w-4 h-4 rounded bg-purple-600"></span>
-                  {isTamil ? 'தற்போதைய' : 'Current'}
-                </span>
-              )}
-              <span className="flex items-center gap-1">
-                <span className="w-4 h-4 rounded bg-gray-300"></span>
-                {isTamil ? 'பார்க்கவில்லை' : 'Not visited'}
-              </span>
+            <div className="flex flex-wrap items-center gap-x-6 gap-y-2 text-sm mb-4 bg-gray-50 p-3 rounded-xl border border-gray-100">
+              <div className="flex items-center gap-1.5">
+                <span className="w-5 h-5 rounded bg-gray-300 shadow-sm border border-gray-400/20"></span>
+                <span className="font-medium text-gray-700">{isTamil ? 'பார்க்கவில்லை' : 'Not visited'}</span>
+              </div>
+              <div className="flex items-center gap-3 border-l pl-4 border-gray-200">
+                <div className="flex items-center gap-1.5">
+                  <span className="w-5 h-5 rounded bg-green-500 shadow-sm"></span>
+                  <span className="font-medium text-gray-700">{isTamil ? 'பார்த்தது' : 'Visited'}</span>
+                </div>
+                <div className="flex items-center gap-1.5 ml-1 border-l pl-3 border-gray-200">
+                  <span className="text-sm">❤️</span>
+                  <span className="font-medium text-gray-700">{isTamil ? 'விருப்பமானவை' : 'Favorites'}</span>
+                </div>
+              </div>
             </div>
             <div className="grid grid-cols-6 sm:grid-cols-8 md:grid-cols-10 gap-2 max-h-64 overflow-y-auto">
               {(allKuralSlugs || []).map((k) => {
-                const isCurrent = currentKuralId !== undefined && k.id === currentKuralId;
-                const isVisited = visitedKurals.includes(k.id);
-                const isBookmarked = bookmarks.includes(k.id);
+                const isCurrent = currentKuralId !== undefined && Number(k.id) === Number(currentKuralId);
+                const isVisited = visitedKurals.some(v => Number(v) === Number(k.id));
+                const isBookmarked = bookmarks.some(b => Number(b) === Number(k.id));
                 return (
                   <div
                     key={k.id}
-                    className={`flex items-center gap-1 px-1.5 py-1 rounded-lg transition ${isCurrent
-                        ? 'bg-purple-100'
-                        : isVisited
-                          ? 'bg-green-100'
-                          : 'bg-gray-100'
+                    className={`flex items-center gap-1 px-1.5 py-1 rounded-lg transition ${isVisited
+                      ? 'bg-green-100'
+                      : 'bg-gray-100'
                       }`}
                   >
                     <Link
                       href={`/kural-learning/${k.slug}`}
                       onClick={onClose}
-                      className={`w-6 h-6 flex items-center justify-center text-xs rounded transition hover:scale-110 ${isCurrent
-                          ? 'bg-purple-600 text-white font-bold'
-                          : isVisited
-                            ? 'bg-green-500 text-white'
-                            : 'bg-gray-300 text-gray-600 hover:bg-gray-400'
-                        }`}
+                      className={`w-6 h-6 flex items-center justify-center text-xs rounded transition hover:scale-110 ${isVisited
+                        ? 'bg-green-500 text-white shadow-sm'
+                        : 'bg-gray-300 text-gray-600 hover:bg-gray-400'
+                        } ${isCurrent ? 'ring-2 ring-purple-500 ring-offset-2 scale-110 z-10 shadow-md' : ''}`}
                       title={`Kural ${k.id}`}
                     >
                       {k.id}
@@ -283,19 +279,17 @@ export function NavigationModal({
                                   <div className="bg-white border-t border-gray-100 p-2">
                                     <div className="flex flex-wrap gap-1">
                                       {kuralsInSubsection.map(k => {
-                                        const isCurrent = currentKuralId !== undefined && k.id === currentKuralId;
-                                        const isVisited = visitedKurals.includes(k.id);
-                                        const isBookmarked = bookmarks.includes(k.id);
+                                        const isCurrent = currentKuralId !== undefined && Number(k.id) === Number(currentKuralId);
+                                        const isVisited = visitedKurals.some(v => Number(v) === Number(k.id));
+                                        const isBookmarked = bookmarks.some(b => Number(b) === Number(k.id));
                                         return (
                                           <div key={k.id} className="relative group">
                                             <Link
                                               href={`/kural-learning/${k.slug}`}
                                               onClick={onClose}
-                                              className={`w-10 h-10 flex items-center justify-center text-xs rounded-lg transition hover:scale-105 ${isCurrent
-                                                  ? 'bg-purple-600 text-white font-bold ring-2 ring-purple-300'
-                                                  : isVisited
-                                                    ? 'bg-green-500 text-white'
-                                                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                                              className={`w-10 h-10 flex items-center justify-center text-xs rounded-lg transition hover:scale-105 ${isVisited
+                                                ? 'bg-green-500 text-white shadow-md'
+                                                : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
                                                 }`}
                                               title={`Kural ${k.id}`}
                                             >
@@ -332,6 +326,31 @@ export function NavigationModal({
 
         {navTab === 'bookmarks' && (
           <div>
+            {bookmarks.length > 0 && (
+              <div className="flex gap-3 mb-6">
+                <Link
+                  href={(() => {
+                    const firstId = [...bookmarks].sort((a, b) => a - b)[0];
+                    const kural = allKuralSlugs.find(k => k.id === firstId);
+                    return kural ? `/kural-favorites/learning/${kural.slug}` : '#';
+                  })()}
+                  onClick={onClose}
+                  className="flex-1 flex items-center justify-center gap-2 py-3 bg-purple-600 text-white rounded-xl font-bold shadow-lg hover:bg-purple-700 transition transform hover:-translate-y-0.5 active:translate-y-0"
+                >
+                  <span className="text-xl">📖</span>
+                  <span>{isTamil ? 'அனைத்தையும் கற்க' : 'Learn All'}</span>
+                </Link>
+                <Link
+                  href="/kural-favorites/playing"
+                  onClick={onClose}
+                  className="flex-1 flex items-center justify-center gap-2 py-3 bg-red-500 text-white rounded-xl font-bold shadow-lg hover:bg-red-600 transition transform hover:-translate-y-0.5 active:translate-y-0"
+                >
+                  <span className="text-xl">🎮</span>
+                  <span>{isTamil ? 'விளையாடு' : 'Play All'}</span>
+                </Link>
+              </div>
+            )}
+
             {bookmarks.length === 0 ? (
               <div className="text-center py-12">
                 <span className="text-6xl mb-4 block">💔</span>
@@ -363,8 +382,8 @@ export function NavigationModal({
                           <button
                             onClick={() => playFavoriteAudio(kuralInfo)}
                             className={`w-10 h-10 rounded-full flex items-center justify-center transition ${isPlaying
-                                ? 'bg-purple-500 text-white animate-pulse'
-                                : 'bg-purple-100 text-purple-600 hover:bg-purple-200'
+                              ? 'bg-purple-500 text-white animate-pulse'
+                              : 'bg-purple-100 text-purple-600 hover:bg-purple-200'
                               }`}
                             title={isTamil ? 'ஒலிக்க' : 'Play audio'}
                           >

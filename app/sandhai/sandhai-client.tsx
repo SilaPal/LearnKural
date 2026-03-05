@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
+import { useSearchParams, useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/use-auth';
 import PricingModal from '@/components/pricing-modal';
 import PageHeader from '@/components/page-header';
@@ -16,6 +17,7 @@ interface AvatarItem {
     description: string | null;
     price: number;
     imageUrl: string;
+    thumbnailUrl: string | null;
     type: 'static' | 'lottie';
     metadata: {
         idle: string;
@@ -29,6 +31,12 @@ interface AvatarItem {
 
 export default function SandhaiClient() {
     const { user, refetch } = useAuth();
+    const searchParams = useSearchParams();
+    const router = useRouter();
+    // If ?for=<profileId>&nickname=<name> is set, we're picking avatar FOR a child profile
+    const forProfileId = searchParams.get('for');
+    const forNickname = searchParams.get('nickname');
+
     const [avatars, setAvars] = useState<AvatarItem[]>([]);
     const [unlockedIds, setUnlockedIds] = useState<string[]>([]);
     const [coins, setCoins] = useState(0);
@@ -118,14 +126,30 @@ export default function SandhaiClient() {
     const handleEquip = async (id: string) => {
         if (!user) return;
         try {
-            const res = await fetch('/api/user/avatar', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ avatarId: id })
-            });
-            const data = await res.json();
-            if (data.activeAvatarId) {
-                setActiveAvatar(data.activeAvatarId);
+            if (forProfileId) {
+                // Picking avatar FOR a child profile — use PATCH child-profiles
+                const res = await fetch('/api/child-profiles', {
+                    method: 'PATCH',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ profileId: forProfileId, avatarId: id }),
+                });
+                const data = await res.json();
+                if (data.success) {
+                    setActiveAvatar(id);
+                    // Navigate back to profile-select after a moment
+                    setTimeout(() => router.push('/profile-select'), 800);
+                }
+            } else {
+                // Normal: equip for the currently active user/child
+                const res = await fetch('/api/user/avatar', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ avatarId: id })
+                });
+                const data = await res.json();
+                if (data.activeAvatarId) {
+                    setActiveAvatar(data.activeAvatarId);
+                }
             }
         } catch (e) {
             console.error(e);
@@ -148,6 +172,16 @@ export default function SandhaiClient() {
             >
                 <div className="h-2"></div>
             </PageHeader>
+
+            {/* Contextual banner when picking avatar for a child profile */}
+            {forProfileId && (
+                <div className="bg-orange-500 text-white px-4 py-2 flex items-center justify-between text-sm font-semibold">
+                    <span>🎨 Picking avatar for <strong>{forNickname || 'child'}</strong></span>
+                    <button onClick={() => router.push('/profile-select')} className="underline hover:no-underline">
+                        ↩ Cancel
+                    </button>
+                </div>
+            )}
 
             {user?.tier === 'free' && (
                 <div className="bg-gradient-to-r from-purple-600 to-indigo-600 text-white py-3 shadow-lg relative overflow-hidden group">
@@ -196,40 +230,45 @@ export default function SandhaiClient() {
                                     onMouseEnter={() => setHoveredAvatarId(avatar.id)}
                                     onMouseLeave={() => setHoveredAvatarId(null)}
                                 >
-                                    {avatar.isPremiumOnly && (
+                                    {/* Expiry badge — only shown in child-picking mode */}
+                                    {forProfileId && (
+                                        <div className={`absolute -top-2 left-1/2 -translate-x-1/2 text-white text-[9px] font-bold px-2 py-0.5 rounded-full shadow-sm z-20 whitespace-nowrap ${user?.tier === 'paid' ? 'bg-purple-600' : 'bg-orange-500'}`}>
+                                            {user?.tier === 'paid' ? '✨ Unlimited' : '⏱ 30 days'}
+                                        </div>
+                                    )}
+                                    {avatar.isPremiumOnly && !forProfileId && (
                                         <div className="absolute -top-2 -right-2 bg-gradient-to-r from-purple-600 to-violet-600 text-white text-[10px] font-bold px-2 py-1 rounded-full shadow-sm z-20">
                                             PREMIUM
                                         </div>
                                     )}
-                                    <div className="w-24 h-24 overflow-hidden rounded-full group">
+                                    <div className="w-24 h-24 overflow-hidden rounded-full group bg-white shadow-inner border border-gray-100">
                                         {isLottie ? (
-                                            <div className="group-hover:scale-110 transition-transform duration-300">
-                                                <div className="w-24 h-24 relative bg-white/50 backdrop-blur-sm rounded-full border-2 border-orange-200 flex items-center justify-center overflow-hidden">
-                                                    {hoveredAvatarId === avatar.id || isActive ? (
-                                                        <DotLottieReact
-                                                            src={avatar.metadata?.idle || ''}
-                                                            loop
-                                                            autoplay
-                                                            style={{ width: '100%', height: '100%' }}
+                                            <div className="group-hover:scale-110 transition-transform duration-300 w-full h-full relative">
+                                                {hoveredAvatarId === avatar.id || isActive ? (
+                                                    <DotLottieReact
+                                                        src={avatar.metadata?.idle || ''}
+                                                        loop
+                                                        autoplay
+                                                        style={{ width: '100%', height: '100%' }}
+                                                    />
+                                                ) : (
+                                                    avatar.thumbnailUrl ? (
+                                                        <img
+                                                            src={avatar.thumbnailUrl}
+                                                            alt={avatar.name}
+                                                            className="w-full h-full object-cover opacity-90"
                                                         />
                                                     ) : (
-                                                        avatar.imageUrl?.startsWith('/') || avatar.imageUrl?.startsWith('http') ? (
-                                                            <Image
-                                                                src={avatar.imageUrl}
-                                                                alt={avatar.name}
-                                                                fill
-                                                                className="object-cover opacity-80"
-                                                            />
-                                                        ) : (
-                                                            <div className="w-full h-full flex items-center justify-center text-6xl opacity-80">
-                                                                {avatar.imageUrl}
-                                                            </div>
-                                                        )
-                                                    )}
-                                                </div>
+                                                        <div className="w-full h-full flex items-center justify-center text-6xl opacity-80">
+                                                            {avatar.imageUrl}
+                                                        </div>
+                                                    )
+                                                )}
                                             </div>
                                         ) : (
-                                            <div className="text-6xl group-hover:bounce transition-all">{avatar.imageUrl}</div>
+                                            <div className="w-full h-full flex items-center justify-center text-6xl group-hover:bounce transition-all">
+                                                {avatar.imageUrl}
+                                            </div>
                                         )}
                                     </div>
                                     <div>

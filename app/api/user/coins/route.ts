@@ -1,26 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/db/db';
-import { users } from '@/db/schema';
+import { users, childProfiles } from '@/db/schema';
 import { eq } from 'drizzle-orm';
-import { verifySession } from '@/lib/session';
+import { getEffectiveId, resolveActiveId } from '@/lib/resolve-active-id';
 
 export const dynamic = 'force-dynamic';
-
-async function getUserId(request: NextRequest) {
-    const sessionToken = request.cookies.get('thirukural-session')?.value;
-    if (!sessionToken) return null;
-    
-    // Fallback block if old unassigned session cookie exists (temp backwards compatibility)
-    try {
-        if (!sessionToken.includes('.')) {
-             const dec = JSON.parse(Buffer.from(sessionToken, 'base64').toString('utf-8'));
-             return dec.userId || null;
-        }
-    } catch {}
-
-    const sessionData = verifySession(sessionToken);
-    return sessionData?.userId || null;
-}
 
 /** Returns today's date as YYYY-MM-DD in UTC */
 function todayUTC() {
@@ -45,13 +29,24 @@ function calcStreak(
 }
 
 export async function GET(request: NextRequest) {
-    const userId = await getUserId(request);
-    if (!userId) return NextResponse.json(null, { status: 401 });
+    const effectiveId = getEffectiveId(request);
+    if (!effectiveId) return NextResponse.json(null, { status: 401 });
 
+    // Check childProfiles first
+    if (effectiveId.startsWith('cp_')) {
+        const [profile] = await db
+            .select({ coins: childProfiles.coins, weeklyXP: childProfiles.weeklyXP, streak: childProfiles.streak, longestStreak: childProfiles.longestStreak })
+            .from(childProfiles)
+            .where(eq(childProfiles.id, effectiveId));
+
+        if (profile) return NextResponse.json(profile);
+    }
+
+    // Fallback to users
     const [user] = await db
         .select({ coins: users.coins, weeklyXP: users.weeklyXP, streak: users.streak, longestStreak: users.longestStreak })
         .from(users)
-        .where(eq(users.id, userId));
+        .where(eq(users.id, effectiveId));
 
     return NextResponse.json({
         coins: user?.coins ?? 0,
@@ -62,8 +57,8 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
-    const userId = await getUserId(request);
-    if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    const effectiveId = getEffectiveId(request);
+    if (!effectiveId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
     try {
         const body = await request.json();
@@ -73,43 +68,53 @@ export async function POST(request: NextRequest) {
             return NextResponse.json({ error: 'Invalid amount' }, { status: 400 });
         }
 
-        const [user] = await db
-            .select({
-                coins: users.coins,
-                weeklyXP: users.weeklyXP,
-                streak: users.streak,
-                longestStreak: users.longestStreak,
-                lastActiveDate: users.lastActiveDate,
-            })
-            .from(users)
-            .where(eq(users.id, userId));
+        const isChild = effectiveId.startsWith('cp_');
+        let current;
 
-        if (!user) return NextResponse.json({ error: 'User not found' }, { status: 404 });
+        if (isChild) {
+            [current] = await db.select().from(childProfiles).where(eq(childProfiles.id, effectiveId));
+        } else {
+            [current] = await db.select().from(users).where(eq(users.id, effectiveId));
+        }
 
-        const newCoins = Math.max(0, user.coins + amount);
-        // Weekly XP only increases (never subtract from it)
-        const newWeeklyXP = amount > 0 ? user.weeklyXP + amount : user.weeklyXP;
+        if (!current) return NextResponse.json({ error: 'Identity not found' }, { status: 404 });
+
+        const newCoins = Math.max(0, current.coins + amount);
+        const newWeeklyXP = amount > 0 ? (current.weeklyXP || 0) + amount : current.weeklyXP;
 
         const today = todayUTC();
         const { streak, longestStreak } = calcStreak(
-            user.lastActiveDate,
-            user.streak,
-            user.longestStreak,
+            current.lastActiveDate,
+            current.streak,
+            current.longestStreak,
         );
 
-        await db.update(users)
-            .set({
-                coins: newCoins,
-                weeklyXP: newWeeklyXP,
-                streak,
-                longestStreak,
-                lastActiveDate: today,
-            })
-            .where(eq(users.id, userId));
+        if (isChild) {
+            await db.update(childProfiles)
+                .set({
+                    coins: newCoins,
+                    weeklyXP: newWeeklyXP,
+                    streak,
+                    longestStreak,
+                    lastActiveDate: today,
+                })
+                .where(eq(childProfiles.id, effectiveId));
+        } else {
+            await db.update(users)
+                .set({
+                    coins: newCoins,
+                    weeklyXP: newWeeklyXP,
+                    streak,
+                    longestStreak,
+                    lastActiveDate: today,
+                })
+                .where(eq(users.id, effectiveId));
+        }
 
         return NextResponse.json({ coins: newCoins, weeklyXP: newWeeklyXP, streak, longestStreak });
     } catch (e) {
-        console.error('Error updating coins:', e);
+        console.error('Error updating stats:', e);
         return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
     }
 }
+

@@ -13,6 +13,7 @@ import PageHeader from '@/components/page-header';
 import PricingModal from '@/components/pricing-modal';
 import { BadgeEarnedToast } from '@/components/badge-earned-toast';
 import { NavigationModal, KuralSlugMap } from '@/components/navigation-modal';
+import { syncVisitedToDB } from '@/lib/db-sync';
 import {
   updateKuralActivity,
   updateStreak,
@@ -25,6 +26,7 @@ import {
   saveBadge,
   getAllBadges,
   getUnviewedBadgeCount,
+  recordDailyVisit,
   Badge
 } from '@/lib/badge-system';
 
@@ -155,9 +157,15 @@ export default function KuralPlayingClient({ initialKurals, initialGame, initial
   const [showPricingModal, setShowPricingModal] = useState(false);
   const { user, logout } = useAuth();
   const isPaidUser = user?.tier === 'paid';
-  const [totalCoins, setTotalCoins] = useState(0);
+  const [totalCoins, setTotalCoins] = useState(user?.coins || 0);
   const [userChapters, setUserChapters] = useState<number[]>([]);
   const [bookmarks, setBookmarks] = useState<number[]>([]);
+
+  useEffect(() => {
+    if (user?.coins !== undefined) {
+      setTotalCoins(user.coins);
+    }
+  }, [user?.coins]);
   const { emotion: avatarEmotion, react: reactAvatar } = useAvatarEmotion();
 
   const currentKural = initialKurals[currentKuralIndex];
@@ -179,11 +187,14 @@ export default function KuralPlayingClient({ initialKurals, initialGame, initial
   const toggleFavorite = useCallback(() => {
     if (!currentKural) return;
     const id = currentKural.id;
+    const profileId = user?.activeProfileId || user?.id || 'guest';
+    const bookmarksKey = `thirukural-bookmarks-${profileId}`;
+
     const next = bookmarks.includes(id)
       ? bookmarks.filter(b => b !== id)
       : [...bookmarks, id];
     setBookmarks(next);
-    localStorage.setItem('thirukural-bookmarks', JSON.stringify(next));
+    localStorage.setItem(bookmarksKey, JSON.stringify(next));
     if (user) {
       fetch('/api/user/favorites', {
         method: 'POST',
@@ -212,10 +223,15 @@ export default function KuralPlayingClient({ initialKurals, initialGame, initial
       setUserAvatar(savedAvatar);
     }
 
-    const savedPuzzleSolved = localStorage.getItem('thirukural-puzzle-solved');
-    const savedFlyingSolved = localStorage.getItem('thirukural-flying-solved');
-    const savedRunnerSolved = localStorage.getItem('thirukural-runner-solved');
-    const savedBalloonSolved = localStorage.getItem('thirukural-balloon-solved');
+    // Load profile-specific bookmarks and visited
+    const profileId = user?.activeProfileId || user?.id || 'guest';
+    const bookmarksKey = `thirukural-bookmarks-${profileId}`;
+    const visitedKey = `thirukural-visited-${profileId}`;
+
+    const savedPuzzleSolved = localStorage.getItem(`thirukural-puzzle-solved-${profileId}`);
+    const savedFlyingSolved = localStorage.getItem(`thirukural-flying-solved-${profileId}`);
+    const savedRunnerSolved = localStorage.getItem(`thirukural-runner-solved-${profileId}`);
+    const savedBalloonSolved = localStorage.getItem(`thirukural-balloon-solved-${profileId}`);
     const puzzleSolved = savedPuzzleSolved ? JSON.parse(savedPuzzleSolved) : [];
     const flyingSolved = savedFlyingSolved ? JSON.parse(savedFlyingSolved) : [];
     const runnerSolved = savedRunnerSolved ? JSON.parse(savedRunnerSolved) : [];
@@ -223,31 +239,50 @@ export default function KuralPlayingClient({ initialKurals, initialGame, initial
     const allSolved = new Set([...puzzleSolved, ...flyingSolved, ...runnerSolved, ...balloonSolved]);
     setSolvedCount(allSolved.size);
 
-    setNewBadgeCount(getUnviewedBadgeCount());
+    setNewBadgeCount(getUnviewedBadgeCount(user, profileId));
 
-    // Load bookmarks
-    const savedBookmarks = localStorage.getItem('thirukural-bookmarks');
+    const savedBookmarks = localStorage.getItem(bookmarksKey);
     if (savedBookmarks) {
       try { setBookmarks(JSON.parse(savedBookmarks)); } catch { /* ignore */ }
     }
+
+    const savedVisited = localStorage.getItem(visitedKey);
+    if (savedVisited) {
+      try {
+        const visited = JSON.parse(savedVisited).map(Number);
+        setVisitedKurals(visited);
+        setStreakCount(visited.length);
+      } catch { }
+    }
+
     if (user) {
       fetch('/api/user/favorites')
         .then(r => r.json())
-        .then(data => { if (Array.isArray(data)) setBookmarks(data); })
+        .then(data => {
+          if (Array.isArray(data)) {
+            setBookmarks(data);
+            localStorage.setItem(bookmarksKey, JSON.stringify(data));
+          }
+        })
         .catch(() => { /* use localStorage fallback */ });
     }
 
-    const { newBadge } = updateStreak();
+    const { streakData, newBadge } = updateStreak(user, profileId);
+    setStreakCount(streakData.currentStreak);
     if (newBadge) {
-      saveBadge(newBadge);
+      saveBadge(newBadge, profileId);
       setNewlyEarnedBadge(newBadge);
       setNewBadgeCount(prev => prev + 1);
     }
-  }, []);
+    recordDailyVisit(user, profileId);
+  }, [user]);
 
   // Fetch coins and progress initially
   useEffect(() => {
     if (user) {
+      const profileId = user.activeProfileId || user.id;
+      const visitedKey = `thirukural-visited-${profileId}`;
+
       fetch('/api/user/coins')
         .then(res => res.json())
         .then(data => { if (data.coins !== undefined) setTotalCoins(data.coins); })
@@ -257,14 +292,48 @@ export default function KuralPlayingClient({ initialKurals, initialGame, initial
         .then(res => res.json())
         .then(data => {
           if (data?.completedChapters) {
-            setUserChapters(data.completedChapters);
+            const serverVisited = Array.from(new Set(data.completedChapters)).map(Number);
+            setVisitedKurals(prev => {
+              const merged = Array.from(new Set([...prev, ...serverVisited]));
+              localStorage.setItem(visitedKey, JSON.stringify(merged));
+              return merged;
+            });
+            setUserChapters(serverVisited);
           }
         })
         .catch(e => console.error(e));
     }
   }, [user]);
 
+  useEffect(() => {
+    if (!currentKural?.id) return;
+    const currentId = Number(currentKural.id);
+
+    const profileId = user?.activeProfileId || user?.id || 'guest';
+    const visitedKey = `thirukural-visited-${profileId}`;
+
+    setVisitedKurals(prev => {
+      if (!prev.includes(currentId)) {
+        const updated = Array.from(new Set([...prev, currentId]));
+        localStorage.setItem(visitedKey, JSON.stringify(updated));
+
+        // Append-only sync to DB
+        fetch('/api/user/progress/visit', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ kuralId: currentId })
+        }).catch(err => console.error('Visit sync failed', err));
+
+        return updated;
+      }
+      return prev;
+    });
+  }, [currentKural?.id, user]);
+
   const openBadgeModal = () => {
+    const profileId = user?.activeProfileId || user?.id || 'guest';
+    const allBadges = getAllBadges(user, profileId);
+    const unviewedBadges = allBadges.filter(b => !b.viewed);
     setShowBadgeModal(true);
     setNewBadgeCount(0);
   };
@@ -324,7 +393,8 @@ export default function KuralPlayingClient({ initialKurals, initialGame, initial
   const initializeFlyingGame = useCallback(() => {
     if (!currentKural) return;
 
-    const savedSolved = localStorage.getItem('thirukural-flying-solved');
+    const profileId = user?.activeProfileId || user?.id || 'guest';
+    const savedSolved = localStorage.getItem(`thirukural-flying-solved-${profileId}`);
     const solvedKurals = savedSolved ? JSON.parse(savedSolved) : [];
     const isAlreadySolved = solvedKurals.includes(currentKural.id);
 
@@ -356,7 +426,8 @@ export default function KuralPlayingClient({ initialKurals, initialGame, initial
   const initializeRunnerGame = useCallback(() => {
     if (!currentKural) return;
 
-    const savedSolved = localStorage.getItem('thirukural-runner-solved');
+    const profileId = user?.activeProfileId || user?.id || 'guest';
+    const savedSolved = localStorage.getItem(`thirukural-runner-solved-${profileId}`);
     const solvedKurals = savedSolved ? JSON.parse(savedSolved) : [];
     const isAlreadySolved = solvedKurals.includes(currentKural.id);
 
@@ -392,7 +463,8 @@ export default function KuralPlayingClient({ initialKurals, initialGame, initial
   const initializeBalloonGame = useCallback(() => {
     if (!currentKural) return;
 
-    const savedSolved = localStorage.getItem('thirukural-balloon-solved');
+    const profileId = user?.activeProfileId || user?.id || 'guest';
+    const savedSolved = localStorage.getItem(`thirukural-balloon-solved-${profileId}`);
     const solvedKurals = savedSolved ? JSON.parse(savedSolved) : [];
     const isAlreadySolved = solvedKurals.includes(currentKural.id);
 
@@ -479,11 +551,12 @@ export default function KuralPlayingClient({ initialKurals, initialGame, initial
         setIsSolved(true);
         if (aiIntervalRef.current) clearInterval(aiIntervalRef.current);
 
-        const savedSolved = localStorage.getItem('thirukural-race-solved');
+        const profileId = user?.activeProfileId || user?.id || 'guest';
+        const savedSolved = localStorage.getItem(`thirukural-race-solved-${profileId}`);
         const solvedKurals = savedSolved ? JSON.parse(savedSolved) : [];
         if (!solvedKurals.includes(currentKural.id)) {
           solvedKurals.push(currentKural.id);
-          localStorage.setItem('thirukural-race-solved', JSON.stringify(solvedKurals));
+          localStorage.setItem(`thirukural-race-solved-${profileId}`, JSON.stringify(solvedKurals));
           handleGameComplete('race');
         }
       }
@@ -502,7 +575,8 @@ export default function KuralPlayingClient({ initialKurals, initialGame, initial
   const handleGameComplete = useCallback((game: 'puzzle' | 'flying' | 'balloon' | 'race', timeSeconds?: number) => {
     if (!currentKural) return;
 
-    updateKuralActivity(currentKural.id, game);
+    const profileId = user?.activeProfileId || user?.id || 'guest';
+    updateKuralActivity(currentKural.id, game, profileId);
 
     // Register Quest Chapter completion!
     if (user && initialChapter && !userChapters.includes(initialChapter)) {
@@ -517,17 +591,17 @@ export default function KuralPlayingClient({ initialKurals, initialGame, initial
       awardCoins(5);
     }
 
-    const stats = getSkillStats();
+    const stats = getSkillStats(profileId);
 
     if (game === 'puzzle' && timeSeconds !== undefined) {
       if (stats.puzzleFastestTime === null || timeSeconds < stats.puzzleFastestTime) {
         stats.puzzleFastestTime = timeSeconds;
-        saveSkillStats(stats);
+        saveSkillStats(stats, profileId);
       }
 
-      const speedBadge = checkSkillBadge('speedDemon', stats);
+      const speedBadge = checkSkillBadge('speedDemon', stats, profileId);
       if (speedBadge) {
-        saveBadge(speedBadge);
+        saveBadge(speedBadge, profileId);
         setNewlyEarnedBadge(speedBadge);
         setNewBadgeCount(prev => prev + 1);
         setCelebrationType('stars');
@@ -539,24 +613,24 @@ export default function KuralPlayingClient({ initialKurals, initialGame, initial
       if (stats.raceWinStreak > stats.maxRaceWinStreak) {
         stats.maxRaceWinStreak = stats.raceWinStreak;
       }
-      saveSkillStats(stats);
+      saveSkillStats(stats, profileId);
 
-      const unbeatableBadge = checkSkillBadge('unbeatable', stats);
+      const unbeatableBadge = checkSkillBadge('unbeatable', stats, profileId);
       if (unbeatableBadge) {
-        saveBadge(unbeatableBadge);
+        saveBadge(unbeatableBadge, profileId);
         setNewlyEarnedBadge(unbeatableBadge);
         setNewBadgeCount(prev => prev + 1);
         setCelebrationType('fireworks');
       }
     } else if (game === 'race') {
       stats.raceWinStreak = 0;
-      saveSkillStats(stats);
+      saveSkillStats(stats, profileId);
     }
 
-    const masteredCount = getMasteredCount();
-    const masteryBadge = checkMasteryBadge(masteredCount);
+    const masteredCount = getMasteredCount(profileId);
+    const masteryBadge = checkMasteryBadge(masteredCount, profileId);
     if (masteryBadge) {
-      saveBadge(masteryBadge);
+      saveBadge(masteryBadge, profileId);
       setNewlyEarnedBadge(masteryBadge);
       setNewBadgeCount(prev => prev + 1);
       setCelebrationType('confetti');
@@ -624,11 +698,12 @@ export default function KuralPlayingClient({ initialKurals, initialGame, initial
       playCompletionAudio();
       setSolvedCount(prevCount => prevCount + 1);
 
-      const savedSolved = localStorage.getItem('thirukural-runner-solved');
+      const profileId = user?.activeProfileId || user?.id || 'guest';
+      const savedSolved = localStorage.getItem(`thirukural-runner-solved-${profileId}`);
       const solved = savedSolved ? JSON.parse(savedSolved) : [];
       if (!solved.includes(currentKural?.id)) {
         solved.push(currentKural?.id);
-        localStorage.setItem('thirukural-runner-solved', JSON.stringify(solved));
+        localStorage.setItem(`thirukural-runner-solved-${profileId}`, JSON.stringify(solved));
       }
     }
   }, [gameMode, runnerFinished, runnerNextWord, runnerWords.length, currentKural, maxPositionReached, playCompletionAudio, user]);
@@ -653,11 +728,12 @@ export default function KuralPlayingClient({ initialKurals, initialGame, initial
             playCompletionAudio();
             setSolvedCount(prevCount => prevCount + 1);
 
-            const savedSolved = localStorage.getItem('thirukural-runner-solved');
+            const profileId = user?.activeProfileId || user?.id || 'guest';
+            const savedSolved = localStorage.getItem(`thirukural-runner-solved-${profileId}`);
             const solved = savedSolved ? JSON.parse(savedSolved) : [];
             if (!solved.includes(currentKural?.id)) {
               solved.push(currentKural?.id);
-              localStorage.setItem('thirukural-runner-solved', JSON.stringify(solved));
+              localStorage.setItem(`thirukural-runner-solved-${profileId}`, JSON.stringify(solved));
               setTimeout(() => handleGameComplete('race'), 100);
             }
           }
@@ -688,11 +764,12 @@ export default function KuralPlayingClient({ initialKurals, initialGame, initial
       setShowMeaning(true);
       playCompletionAudio();
 
-      const savedSolved = localStorage.getItem('thirukural-puzzle-solved');
+      const profileId = user?.activeProfileId || user?.id || 'guest';
+      const savedSolved = localStorage.getItem(`thirukural-puzzle-solved-${profileId}`);
       const solvedKurals = savedSolved ? JSON.parse(savedSolved) : [];
       if (!solvedKurals.includes(currentKural?.id)) {
         const uniqueSolved = new Set([...solvedKurals, currentKural.id]);
-        localStorage.setItem('thirukural-puzzle-solved', JSON.stringify(Array.from(uniqueSolved)));
+        localStorage.setItem(`thirukural-puzzle-solved-${profileId}`, JSON.stringify(Array.from(uniqueSolved)));
         setSolvedCount(uniqueSolved.size);
 
         if (user) {
@@ -975,7 +1052,7 @@ export default function KuralPlayingClient({ initialKurals, initialGame, initial
           onToggleFavorite={toggleFavorite}
           isFavorited={bookmarks.includes(currentKural?.id)}
           onStreakClick={() => setShowNavModal(true)}
-          streakCount={JSON.parse(localStorage.getItem('thirukural-visited') || '[]').length}
+          streakCount={new Set(visitedKurals).size}
           coinCount={totalCoins}
           onCoinClick={openBadgeModal}
         />

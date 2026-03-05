@@ -31,7 +31,10 @@ export function verifySession(token: string): any | null {
         .update(dataStr)
         .digest('base64');
 
-    if (crypto.timingSafeEqual(Buffer.from(signature), Buffer.from(expectedSignature))) {
+    const signatureBuf = Buffer.from(signature);
+    const expectedBuf = Buffer.from(expectedSignature);
+
+    if (signatureBuf.length === expectedBuf.length && crypto.timingSafeEqual(signatureBuf, expectedBuf)) {
         try {
             return JSON.parse(Buffer.from(dataStr, 'base64').toString('utf-8'));
         } catch {

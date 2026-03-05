@@ -10,7 +10,7 @@ import BadgeModal from '@/components/badge-modal';
 import { NavigationModal, KuralSlugMap as NavKuralSlugMap } from '@/components/navigation-modal';
 import AuthModal from '@/components/auth-modal';
 import { useAuth } from '@/lib/use-auth';
-import { syncFavoritesToDB, syncProgressToDB } from '@/lib/db-sync';
+import { syncFavoritesToDB, syncProgressToDB, syncVisitedToDB } from '@/lib/db-sync';
 import ReactingAvatar from '@/components/reacting-avatar';
 import PageHeader from '@/components/page-header';
 import { BadgeEarnedToast } from '@/components/badge-earned-toast';
@@ -188,10 +188,10 @@ export default function KuralLearningClient({
   const [showBadgeModal, setShowBadgeModal] = useState(false);
   const [celebrationType, setCelebrationType] = useState<CelebrationType>(null);
   const [newlyEarnedBadge, setNewlyEarnedBadge] = useState<Badge | null>(null);
-  const [totalCoins, setTotalCoins] = useState(0);
-  const [streakCount, setStreakCount] = useState(0);
-  const { emotion: avatarEmotion, react: reactAvatar } = useAvatarEmotion();
   const { user, logout } = useAuth();
+  const { emotion: avatarEmotion, react: reactAvatar } = useAvatarEmotion();
+  const [totalCoins, setTotalCoins] = useState(user?.coins || 0);
+  const [streakCount, setStreakCount] = useState(0);
   const isPaidUser = user?.tier === 'paid';
   const FREE_FAVORITES_LIMIT = 10;
   const audioRef = useRef<HTMLAudioElement | null>(null);
@@ -217,26 +217,39 @@ export default function KuralLearningClient({
       setUserAvatar(savedAvatar);
     }
 
-    setNewBadgeCount(getUnviewedBadgeCount());
+    const profileId = user?.activeProfileId || user?.id || 'guest';
+    setNewBadgeCount(getUnviewedBadgeCount(user, profileId));
 
-    const { newBadge } = updateStreak();
+    const { newBadge } = updateStreak(user, profileId);
     if (newBadge) {
-      saveBadge(newBadge);
+      saveBadge(newBadge, profileId);
       setNewlyEarnedBadge(newBadge);
       setNewBadgeCount(prev => prev + 1);
     }
 
-    const savedBookmarks = localStorage.getItem('thirukural-bookmarks');
+    const bookmarksKey = `thirukural-bookmarks-${profileId}`;
+    const visitedKey = `thirukural-visited-${profileId}`;
+
+    const savedBookmarks = localStorage.getItem(bookmarksKey);
     if (savedBookmarks) {
       setBookmarks(JSON.parse(savedBookmarks));
     }
-    const streakData = getStreakData();
+    const savedVisited = localStorage.getItem(visitedKey);
+    if (savedVisited) {
+      setVisitedKurals(JSON.parse(savedVisited).map(Number));
+    }
+
+    const streakData = getStreakData(user, profileId);
     setStreakCount(streakData.currentStreak);
-    recordDailyVisit();
-  }, [kural.id]);
+    recordDailyVisit(user, profileId);
+  }, [kural.id, user]);
 
   useEffect(() => {
     if (user) {
+      const profileId = user.activeProfileId || user.id;
+      const visitedKey = `thirukural-visited-${profileId}`;
+      const bookmarksKey = `thirukural-bookmarks-${profileId}`;
+
       fetch('/api/user/favorites')
         .then(res => {
           if (res.ok) return res.json();
@@ -245,28 +258,63 @@ export default function KuralLearningClient({
         .then(data => {
           if (data && Array.isArray(data)) {
             setBookmarks(data);
-            localStorage.setItem('thirukural-bookmarks', JSON.stringify(data));
+            localStorage.setItem(bookmarksKey, JSON.stringify(data));
           }
         })
         .catch(err => console.error('Failed to load favorites from DB', err));
 
-      fetch('/api/user/coins')
+      // Sync local state with server on mount
+      fetch('/api/user/progress')
         .then(res => res.ok ? res.json() : null)
         .then(data => {
-          if (data && data.coins !== undefined) setTotalCoins(data.coins);
+          if (data?.completedChapters) {
+            const serverVisited = Array.from(new Set(data.completedChapters)).map(Number);
+            setVisitedKurals(prev => {
+              const merged = Array.from(new Set([...prev, ...serverVisited]));
+              localStorage.setItem(visitedKey, JSON.stringify(merged));
+              return merged;
+            });
+          }
         })
+        .catch(err => console.error('Failed to sync progress', err));
+
+      // Fetch latest coins
+      fetch('/api/user/coins')
+        .then(res => res.json())
+        .then(data => { if (data.coins !== undefined) setTotalCoins(data.coins); })
         .catch(err => console.error('Failed to load coins', err));
     }
   }, [user]);
 
   useEffect(() => {
-    const savedVisited = localStorage.getItem('thirukural-visited');
-    const visited = savedVisited ? JSON.parse(savedVisited) : [];
-    if (!visited.includes(kural.id)) {
-      visited.push(kural.id);
-      localStorage.setItem('thirukural-visited', JSON.stringify(visited));
+    if (user?.coins !== undefined) {
+      setTotalCoins(user.coins);
     }
-    setVisitedKurals(visited);
+  }, [user?.coins]);
+
+  useEffect(() => {
+    if (!kural.id) return;
+    const currentId = Number(kural.id);
+
+    const profileId = user?.activeProfileId || user?.id || 'guest';
+    const visitedKey = `thirukural-visited-${profileId}`;
+
+    setVisitedKurals(prev => {
+      if (!prev.includes(currentId)) {
+        const updated = Array.from(new Set([...prev, currentId]));
+        localStorage.setItem(visitedKey, JSON.stringify(updated));
+
+        // Append-only sync to DB
+        fetch('/api/user/progress/visit', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ kuralId: currentId })
+        }).catch(err => console.error('Visit sync failed', err));
+
+        return updated;
+      }
+      return prev;
+    });
 
     const userAgent = navigator.userAgent.toLowerCase();
     const isMobile = /iphone|ipod|android.*mobile/.test(userAgent) || window.innerWidth <= 768;
@@ -275,7 +323,7 @@ export default function KuralLearningClient({
 
     const hasSpeechRecognition = ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window);
     setSpeechSupported(hasSpeechRecognition);
-  }, [kural.id]);
+  }, [kural.id, user]);
 
   const toggleBookmark = (kuralId?: number) => {
     const id = kuralId ?? kural.id;
@@ -284,11 +332,14 @@ export default function KuralLearningClient({
       setShowPricingModal(true);
       return;
     }
+    const profileId = user?.activeProfileId || user?.id || 'guest';
+    const bookmarksKey = `thirukural-bookmarks-${profileId}`;
+
     const newBookmarks = bookmarks.includes(id)
       ? bookmarks.filter(b => b !== id)
       : [...bookmarks, id];
     setBookmarks(newBookmarks);
-    localStorage.setItem('thirukural-bookmarks', JSON.stringify(newBookmarks));
+    localStorage.setItem(bookmarksKey, JSON.stringify(newBookmarks));
     if (user) syncFavoritesToDB(newBookmarks);
   };
 
@@ -559,7 +610,8 @@ export default function KuralLearningClient({
 
 
   const openBadgeModal = () => {
-    const allBadges = getAllBadges();
+    const profileId = user?.activeProfileId || user?.id || 'guest';
+    const allBadges = getAllBadges(user, profileId);
     const unviewedBadges = allBadges.filter(b => !b.viewed);
 
     if (unviewedBadges.length > 0) {
@@ -595,19 +647,20 @@ export default function KuralLearningClient({
   };
 
   const handleActivityComplete = useCallback((activity: 'audio' | 'video' | 'puzzle' | 'flying' | 'balloon' | 'race', timeSeconds?: number) => {
-    updateKuralActivity(kural.id, activity);
+    const profileId = user?.activeProfileId || user?.id || 'guest';
+    updateKuralActivity(kural.id, activity, profileId);
 
-    const stats = getSkillStats();
+    const stats = getSkillStats(profileId);
 
     if (activity === 'puzzle' && timeSeconds !== undefined) {
       if (stats.puzzleFastestTime === null || timeSeconds < stats.puzzleFastestTime) {
         stats.puzzleFastestTime = timeSeconds;
-        saveSkillStats(stats);
+        saveSkillStats(stats, profileId);
       }
 
-      const speedBadge = checkSkillBadge('speedDemon', stats);
+      const speedBadge = checkSkillBadge('speedDemon', stats, profileId);
       if (speedBadge) {
-        saveBadge(speedBadge);
+        saveBadge(speedBadge, profileId);
         setNewlyEarnedBadge(speedBadge);
         setNewBadgeCount(prev => prev + 1);
         setCelebrationType('snow');
@@ -615,9 +668,9 @@ export default function KuralLearningClient({
     }
 
     if (activity === 'balloon' && stats.balloonPerfectGames >= 0) {
-      const balloonBadge = checkSkillBadge('balloonMaster', stats);
+      const balloonBadge = checkSkillBadge('balloonMaster', stats, profileId);
       if (balloonBadge) {
-        saveBadge(balloonBadge);
+        saveBadge(balloonBadge, profileId);
         setNewlyEarnedBadge(balloonBadge);
         setNewBadgeCount(prev => prev + 1);
         setCelebrationType('confetti');
@@ -625,19 +678,19 @@ export default function KuralLearningClient({
     }
 
     if (activity === 'flying' && stats.flyingPerfectGames >= 0) {
-      const flyingBadge = checkSkillBadge('flyingAce', stats);
+      const flyingBadge = checkSkillBadge('flyingAce', stats, profileId);
       if (flyingBadge) {
-        saveBadge(flyingBadge);
+        saveBadge(flyingBadge, profileId);
         setNewlyEarnedBadge(flyingBadge);
         setNewBadgeCount(prev => prev + 1);
         setCelebrationType('confetti');
       }
     }
 
-    const masteredCount = getMasteredCount();
-    const masteryBadge = checkMasteryBadge(masteredCount);
+    const masteredCount = getMasteredCount(profileId);
+    const masteryBadge = checkMasteryBadge(masteredCount, profileId);
     if (masteryBadge) {
-      saveBadge(masteryBadge);
+      saveBadge(masteryBadge, profileId);
       setNewlyEarnedBadge(masteryBadge);
       setNewBadgeCount(prev => prev + 1);
       setCelebrationType('confetti');
@@ -731,13 +784,14 @@ export default function KuralLearningClient({
 
         // Track perfect pronunciation for skill badge
         if (result.score >= 0.8) {
-          const stats = getSkillStats();
+          const profileId = user?.activeProfileId || user?.id || 'guest';
+          const stats = getSkillStats(profileId);
           stats.perfectPronunciations = (stats.perfectPronunciations || 0) + 1;
-          saveSkillStats(stats);
+          saveSkillStats(stats, profileId);
 
-          const sharpBadge = checkSkillBadge('sharpEars', stats);
+          const sharpBadge = checkSkillBadge('sharpEars', stats, profileId);
           if (sharpBadge) {
-            saveBadge(sharpBadge);
+            saveBadge(sharpBadge, profileId);
             setNewlyEarnedBadge(sharpBadge);
             setNewBadgeCount(prev => prev + 1);
           }
@@ -826,7 +880,7 @@ export default function KuralLearningClient({
         isFavorited={bookmarks.includes(kural.id)}
         isTamil={currentLanguage === 'tamil'}
         toggleLanguage={toggleLanguage}
-        streakCount={visitedKurals.includes(kural.id) ? visitedKurals.length : visitedKurals.length + 1}
+        streakCount={new Set(visitedKurals).size}
         coinCount={totalCoins}
         onStreakClick={() => setShowNavModal(true)}
         onCoinClick={openBadgeModal}

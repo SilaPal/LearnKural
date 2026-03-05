@@ -8,6 +8,8 @@ import PageHeader from '@/components/page-header';
 import PricingModal from '@/components/pricing-modal';
 import BadgeModal from '@/components/badge-modal';
 import AuthModal from '@/components/auth-modal';
+import CreateClassModal from '@/components/create-class-modal';
+import InviteLinkModal from '@/components/invite-link-modal';
 
 interface Student {
     id: string;
@@ -37,6 +39,12 @@ export default function TeacherDashboardClient() {
     const [showAuthModal, setShowAuthModal] = useState(false);
     const [showBadgeModal, setShowBadgeModal] = useState(false);
 
+    // New Modal States
+    const [showCreateClassModal, setShowCreateClassModal] = useState(false);
+    const [showInviteModal, setShowInviteModal] = useState(false);
+    const [inviteLink, setInviteLink] = useState('');
+    const [inviteClassName, setInviteClassName] = useState('');
+
     useEffect(() => {
         const savedLang = localStorage.getItem('thirukural-language');
         if (savedLang === 'tamil') setIsTamil(true);
@@ -53,10 +61,43 @@ export default function TeacherDashboardClient() {
     };
 
 
+    const generateInvite = async (classroomId?: string, className?: string) => {
+        if (!user?.schoolId) return;
+
+        try {
+            const res = await fetch('/api/schools/invite', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    schoolId: user.schoolId,
+                    classroomId: classroomId || null,
+                    role: 'student'
+                })
+            });
+
+            if (res.ok) {
+                const invite = await res.json();
+                const origin = typeof window !== 'undefined' ? window.location.origin : '';
+                setInviteLink(`${origin}/join/${invite.code}`);
+                setInviteClassName(className || '');
+                setShowInviteModal(true);
+            }
+        } catch (error) {
+            console.error('Failed to generate invite', error);
+        }
+    };
+
     useEffect(() => {
         if (!isLoading && (!user || (user.role !== 'teacher' && user.role !== 'school_admin'))) {
             router.push('/');
             return;
+        }
+
+        const params = new URLSearchParams(window.location.search);
+        if (params.get('create') === 'true') {
+            setShowCreateClassModal(true);
+            // Clean up URL
+            window.history.replaceState({}, '', window.location.pathname);
         }
 
         const fetchData = async () => {
@@ -111,54 +152,6 @@ export default function TeacherDashboardClient() {
                 toggleLanguage={toggleLanguage}
             />
 
-            {/* Premium Requirement & Coming Soon Overlay */}
-            <div className="fixed inset-0 z-40 flex items-center justify-center p-4 bg-gray-900/10 backdrop-blur-md pt-20">
-                <div className="bg-white p-8 sm:p-12 rounded-[2.5rem] shadow-2xl border border-white max-w-lg w-full text-center relative overflow-hidden group">
-                    <div className="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-teal-500 via-indigo-500 to-purple-500 bg-[length:200%_auto] animate-gradient"></div>
-
-                    <div className="text-6xl mb-6 transform group-hover:scale-110 transition-transform duration-500">
-                        {isPaid ? '🚀' : '💎'}
-                    </div>
-
-                    <h2 className="text-3xl sm:text-4xl font-black text-gray-900 mb-4 tracking-tight">
-                        {isPaid
-                            ? (isTamil ? 'விரைவில் வருகிறது!' : 'Coming Soon!')
-                            : (isTamil ? 'பிரீமியம் அனுமதி தேவை' : 'Premium Access Required')}
-                    </h2>
-
-                    <p className="text-gray-600 mb-10 leading-relaxed font-medium text-sm sm:text-base">
-                        {isPaid
-                            ? (isTamil
-                                ? 'ஆசிரியர் பகுதி தற்போது உருவாக்கப்பட்டு வருகிறது. விரைவில் பயன்பாட்டுக்கு வரும்!'
-                                : 'The Teacher Dashboard is currently under construction. Stay tuned for the official launch!')
-                            : (isTamil
-                                ? 'ஆசிரியர் பகுதியைப் பயன்படுத்த பிரீமியம் சந்தா தேவை. உங்கள் திட்டத்தை மேம்படுத்தவும்.'
-                                : 'The Teacher Dashboard is a premium feature. Please upgrade your plan to access this portal.')}
-                    </p>
-
-                    {!isPaid ? (
-                        <button
-                            onClick={() => setShowPricingModal(true)}
-                            className="w-full bg-gradient-to-r from-indigo-600 to-purple-600 text-white py-4 rounded-2xl font-black shadow-xl shadow-indigo-200 transition-all hover:scale-[1.02] active:scale-95 text-lg"
-                        >
-                            {isTamil ? 'பிரீமியத்திற்கு மாறவும்' : 'Upgrade to Premium'}
-                        </button>
-                    ) : (
-                        <Link
-                            href="/"
-                            className="w-full inline-block bg-gray-900 text-white py-4 rounded-2xl font-black shadow-xl transition-all hover:scale-[1.02] active:scale-95 text-lg"
-                        >
-                            {isTamil ? 'முகப்புக்குச் செல்க' : 'Back to Home'}
-                        </Link>
-                    )}
-
-                    {!isPaid && (
-                        <Link href="/" className="mt-6 inline-block text-gray-400 hover:text-gray-600 font-bold text-sm underline underline-offset-4 decoration-2">
-                            {isTamil ? 'பிறகு பார்க்கலாம்' : 'Maybe Later'}
-                        </Link>
-                    )}
-                </div>
-            </div>
 
             <PricingModal
                 isOpen={showPricingModal}
@@ -177,6 +170,31 @@ export default function TeacherDashboardClient() {
                 onClose={() => setShowBadgeModal(false)}
                 language={isTamil ? 'tamil' : 'english'}
                 celebrationType={null}
+            />
+
+            <CreateClassModal
+                isOpen={showCreateClassModal}
+                onClose={() => setShowCreateClassModal(false)}
+                isTamil={isTamil}
+                onSuccess={(newClassroom) => {
+                    if (data) {
+                        setData({
+                            ...data,
+                            classrooms: [...data.classrooms, newClassroom]
+                        });
+                    }
+                    setShowCreateClassModal(false);
+                    // generate invite link immediately after creating a class
+                    generateInvite(newClassroom.id, newClassroom.name);
+                }}
+            />
+
+            <InviteLinkModal
+                isOpen={showInviteModal}
+                onClose={() => setShowInviteModal(false)}
+                inviteLink={inviteLink}
+                classroomName={inviteClassName}
+                isTamil={isTamil}
             />
 
             <main className="max-w-6xl mx-auto px-4 py-10">
@@ -295,8 +313,18 @@ export default function TeacherDashboardClient() {
                             Ready to expand your class? Share the global academy code or generate classroom-specific links to bring your students onto the platform.
                         </p>
                         <div className="flex flex-col sm:flex-row gap-4">
-                            <button className="flex-1 bg-indigo-600 text-white font-black py-4.5 px-6 rounded-2xl hover:bg-indigo-700 transition-all shadow-xl shadow-indigo-100 text-sm">Copy Student Invite</button>
-                            <button className="flex-1 bg-slate-50 text-slate-700 font-black py-4.5 px-6 rounded-2xl hover:bg-slate-100 transition-all border border-slate-200 text-sm">Classroom Setup</button>
+                            <button
+                                onClick={() => generateInvite(selectedClassId !== 'all' ? selectedClassId : undefined, selectedClassId !== 'all' ? data.classrooms.find(c => c.id === selectedClassId)?.name : undefined)}
+                                className="flex-1 bg-indigo-600 text-white font-black py-4.5 px-6 rounded-2xl hover:bg-indigo-700 transition-all shadow-xl shadow-indigo-100 text-sm"
+                            >
+                                {isTamil ? 'அழைப்பை நகலெடு' : 'Copy Student Invite'}
+                            </button>
+                            <button
+                                onClick={() => setShowCreateClassModal(true)}
+                                className="flex-1 bg-slate-50 text-slate-700 font-black py-4.5 px-6 rounded-2xl hover:bg-slate-100 transition-all border border-slate-200 text-sm"
+                            >
+                                {isTamil ? 'புதிய வகுப்பு உருவாக்கு' : 'Classroom Setup'}
+                            </button>
                         </div>
                     </section>
 

@@ -6,6 +6,7 @@ export const schools = pgTable('schools', {
     logo: varchar('logo'),
     banner: varchar('banner'),
     subscriptionStatus: varchar('subscription_status', { enum: ['active', 'expired', 'trial'] }).default('active').notNull(),
+    isApproved: boolean('is_approved').default(false).notNull(),
     createdAt: timestamp('created_at').defaultNow().notNull(),
 });
 
@@ -21,7 +22,8 @@ export const users = pgTable('users', {
     streak: integer('streak').default(0).notNull(),
     longestStreak: integer('longest_streak').default(0).notNull(),
     lastActiveDate: varchar('last_active_date'), // YYYY-MM-DD string
-    activeAvatarId: varchar('active_avatar_id').default('default').notNull(),
+    activeAvatarId: varchar('active_avatar_id').default('none').notNull(),
+    avatarExpiresAt: timestamp('avatar_expires_at'), // null = premium (never expires), set = free tier (+30d)
     region: varchar('region').default('Global').notNull(),
     role: varchar('role', { enum: ['student', 'parent', 'teacher', 'school_admin', 'super_admin'] }).default('student').notNull(),
     schoolId: varchar('school_id'),
@@ -51,6 +53,7 @@ export const classrooms = pgTable('classrooms', {
     schoolId: varchar('school_id').notNull(),
     name: varchar('name').notNull(),
     teacherId: varchar('teacher_id'),
+    endDate: timestamp('end_date'),
     createdAt: timestamp('created_at').defaultNow().notNull(),
 }, (table) => {
     return {
@@ -67,12 +70,13 @@ export const classrooms = pgTable('classrooms', {
 });
 
 export const classroomStudents = pgTable('classroom_students', {
+    id: varchar('id').primaryKey(),
     classroomId: varchar('classroom_id').notNull(),
     studentId: varchar('student_id').notNull(),
+    childProfileId: varchar('child_profile_id'),
     joinedAt: timestamp('joined_at').defaultNow().notNull(),
 }, (table) => {
     return {
-        pk: primaryKey({ columns: [table.classroomId, table.studentId] }),
         classroomRef: foreignKey({
             columns: [table.classroomId],
             foreignColumns: [classrooms.id]
@@ -81,6 +85,9 @@ export const classroomStudents = pgTable('classroom_students', {
             columns: [table.studentId],
             foreignColumns: [users.id]
         }).onDelete('cascade'),
+        classroomIdx: index('cs_classroom_idx').on(table.classroomId),
+        studentIdx: index('cs_student_idx').on(table.studentId),
+        childProfileIdx: index('cs_child_idx').on(table.childProfileId)
     }
 });
 
@@ -129,6 +136,7 @@ export const avatars = pgTable('avatars', {
     description: varchar('description'),
     price: integer('price').default(0).notNull(),
     imageUrl: varchar('image_url').notNull(), // emoji for static, thumbnail for lottie
+    thumbnailUrl: varchar('thumbnail_url'), // HQ PNG preview
     type: varchar('type', { enum: ['static', 'lottie'] }).default('static').notNull(),
     metadata: jsonb('metadata'), // stores { idle: string, happy: string, excited: string, sad: string }
     isPremiumOnly: boolean('is_premium_only').default(false).notNull(),
@@ -143,4 +151,30 @@ export const userAvatars = pgTable('user_avatars', {
     return {
         pk: primaryKey({ columns: [t.userId, t.avatarId] })
     }
+});
+
+// MVP 1: Child Profiles
+// Each row is a child sub-profile under a parent user account.
+// Children never log in directly — parents switch to a child profile via the profile selector.
+export const childProfiles = pgTable('child_profiles', {
+    id: varchar('id').primaryKey(), // Generated: cp_timestamp_rand
+    parentUserId: varchar('parent_user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+    nickname: varchar('nickname').notNull(),
+    activeAvatarId: varchar('active_avatar_id').default('none').notNull(),
+    avatarExpiresAt: timestamp('avatar_expires_at'), // null = premium (never expires), set = free tier (+30d)
+    coins: integer('coins').default(0).notNull(),
+    weeklyXP: integer('weekly_xp').default(0).notNull(),
+    streak: integer('streak').default(0).notNull(),
+    longestStreak: integer('longest_streak').default(0).notNull(),
+    region: varchar('region').default('Global').notNull(),
+    lastActiveDate: varchar('last_active_date'), // YYYY-MM-DD
+    completedLetters: jsonb('completed_letters').default([]).notNull(),
+    completedChapters: jsonb('completed_chapters').default([]).notNull(),
+    badges: jsonb('badges').default([]).notNull(),
+    favoriteKurals: jsonb('favorite_kurals').default([]).notNull(),
+    createdAt: timestamp('created_at').defaultNow().notNull(),
+}, (table) => {
+    return {
+        parentIdx: index('cp_parent_idx').on(table.parentUserId),
+    };
 });
