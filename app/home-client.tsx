@@ -7,6 +7,7 @@ import AuthModal from '@/components/auth-modal';
 import PricingModal from '@/components/pricing-modal';
 import { NavigationModal, KuralSlugMap as NavKuralSlugMap } from '@/components/navigation-modal';
 import { SharedUserMenu } from '@/components/shared-user-menu';
+import { KuralSearchDialog } from '@/components/kural-search-dialog';
 import {
   getAllBadges,
   getMasteredCount,
@@ -113,6 +114,7 @@ export default function HomeClient({ totalKurals, kuralOfDay, firstKuralSlug, al
   const [newBadgeCount, setNewBadgeCount] = useState(0);
   const [newlyEarnedBadge, setNewlyEarnedBadge] = useState<Badge | null>(null);
   const [showNavModal, setShowNavModal] = useState(false);
+  const [showSearchModal, setShowSearchModal] = useState(false);
   const [visitedKurals, setVisitedKurals] = useState<number[]>([]);
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [showUserMenu, setShowUserMenu] = useState(false);
@@ -427,6 +429,17 @@ export default function HomeClient({ totalKurals, kuralOfDay, firstKuralSlug, al
 
       <main className="container mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12 max-w-6xl">
         <div className="flex justify-end mb-4 gap-2">
+          <button
+            onClick={() => setShowSearchModal(true)}
+            className="relative hover:scale-110 transition-transform"
+            title={isTamil ? 'குறளைத் தேடு' : 'Search Kural'}
+            aria-label={isTamil ? 'அனைத்து குறள்களையும் தேடு' : 'Search all kurals'}
+          >
+            <div className="h-12 w-12 bg-white/50 border border-gray-200 rounded-full flex items-center justify-center shadow-md hover:bg-gray-100 transition-colors">
+              <span className="text-xl">🔍</span>
+            </div>
+          </button>
+
           <button
             onClick={() => setShowNavModal(true)}
             className="relative hover:scale-110 transition-transform"
@@ -927,6 +940,13 @@ export default function HomeClient({ totalKurals, kuralOfDay, firstKuralSlug, al
       < PricingModal
         isOpen={showPricingModal}
         onClose={() => setShowPricingModal(false)}
+        isTamil={isTamil}
+      />
+
+      <KuralSearchDialog
+        isOpen={showSearchModal}
+        onClose={() => setShowSearchModal(false)}
+        allKuralSlugs={allKuralSlugs as NavKuralSlugMap[]}
         isTamil={isTamil}
       />
     </>

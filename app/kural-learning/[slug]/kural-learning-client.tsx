@@ -30,6 +30,69 @@ import {
   Badge
 } from '@/lib/badge-system';
 
+const encouragingStatements = [
+  { tm: 'அருமை! நீங்கள் ஒரு புதிய குறளை கற்றுக்கொண்டீர்கள்!', en: 'Awesome! You learned a new Kural!' },
+  { tm: 'மிகச் சிறப்பு! இப்படியே தொடருங்கள்!', en: 'Excellent work! Keep it up!' },
+  { tm: 'கலக்கிறீர்கள்! தமிழ் கற்றல் உங்கள் கைகளில்.', en: 'You are rocking it! Tamil learning is in your hands.' },
+  { tm: 'அற்புதம்! ஒவ்வொரு சொல்லாக வெல்கிறீர்கள்.', en: 'Fantastic! Conquering it word by word.' },
+  { tm: 'தொடர்ந்து கலக்குங்கள்! உங்கள் பயணம் அருமை.', en: 'Keep rocking! Your journey is amazing.' },
+  { tm: 'சபாஷ்! நீங்கள் மென்மேலும் உயருகிறீர்கள்.', en: 'Bravo! You are soaring higher.' },
+  { tm: 'எவ்வளவு விரைவாக கற்றுக்கொண்டீர்கள்! அசத்தல்.', en: 'How quick you learned! Mind-blowing.' },
+  { tm: 'தமிழ் உங்கள் ரத்தத்தில் ஓடுகிறது. மிக நன்று!', en: 'Tamil runs in your blood. Very good!' },
+  { tm: 'வார்த்தைக்கு வார்த்தை உங்கள் திறமை ஒளிர்கிறது.', en: 'Your skill shines word by word.' },
+  { tm: 'இன்னொரு குறள், இன்னொரு வெற்றி!', en: 'Another Kural, another victory!' },
+  { tm: 'பிரமாதம்! உங்களுடைய விடாமுயற்சிக்கு ஒரு சல்யூட்.', en: 'Brilliant! A salute to your perseverance.' },
+  { tm: 'இப்படியே போனால் நீங்கள் ஒரு தமிழ் அறிஞர் ஆகிவிடுவீர்கள்!', en: 'At this rate, you will become a Tamil scholar!' },
+  { tm: 'சூப்பர்! நீங்கள் குறள் உலகத்தை வென்றுவிட்டீர்கள்.', en: 'Super! You have conquered the Kural world.' },
+  { tm: 'உங்கள் வேகம் வியக்க வைக்கிறது!', en: 'Your speed is surprising!' },
+  { tm: 'மிக அழகு! சொற்களை கையாளுவதில் நீங்கள் மன்னன்.', en: 'So beautiful! You are a master of words.' },
+  { tm: 'அருமையான முயற்சி! வெற்றி உங்கள் பக்கம்.', en: 'Great effort! Victory is on your side.' },
+  { tm: 'உங்களின் இந்த சாதனைக்கு ஒரு பெரிய கைதட்டல்!', en: 'A big round of applause for this achievement!' },
+  { tm: 'பிரம்மாண்டம்! நீங்கள் ஒரு குறள் சாம்பியன்.', en: 'Magnificent! You are a Kural champion.' },
+  { tm: 'தமிழ் மொழி உங்கள் மூலம் மேலும் சிறப்படைகிறது.', en: 'The Tamil language is enriched through you.' },
+  { tm: 'கம்பீரமான வெற்றி! அடுத்த குறளுக்குச் செல்வோமா?', en: 'Majestic win! Shall we go to the next Kural?' },
+  { tm: 'அசத்துறீங்க! இது வெறும் ஆரம்பம் தான்.', en: 'You are smashing it! This is just the beginning.' },
+  { tm: 'உங்கள் ஆர்வம் என்னை மெய்சிலிர்க்க வைக்கிறது.', en: 'Your enthusiasm gives me goosebumps.' },
+  { tm: 'வாவ்! என்ன ஒரு அற்புதம்.', en: 'Wow! What a wonder.' },
+  { tm: 'மிகச்சரியாக செய்துள்ளீர்கள்!', en: 'You did it perfectly!' },
+  { tm: 'நன்றாக விளையாடினீர்கள், நன்றாகக் கற்றீர்கள்.', en: 'Played well, learned well.' },
+  { tm: 'உங்கள் தமிழறிவு தினமும் வளர்கிறது.', en: 'Your Tamil knowledge grows daily.' },
+  { tm: 'இந்த குறள் உங்களுக்குப் பிடித்திருக்கும் என நம்புகிறேன்.', en: 'I hope you liked this Kural.' },
+  { tm: 'திறமையான செயல்! அப்படியே தொடரவும்.', en: 'Skillful performance! Keep it going.' },
+  { tm: 'உங்களின் திறமைக்கு எல்லையே இல்லை.', en: 'Your talent has no limits.' },
+  { tm: 'ஒவ்வொரு எழுத்தும் உங்கள் வெற்றியைப் பாடுகிறது.', en: 'Every letter sings your victory.' },
+  { tm: 'உங்கள் தமிழ் உச்சரிப்பு அருமை!', en: 'Your pronunciation is great!' },
+  { tm: 'மீண்டும் ஒரு முறை வென்றுவிட்டீர்கள்.', en: 'You won once again.' },
+  { tm: 'உங்கள் மூளை மின்னல் வேகத்தில் வேலை செய்கிறது.', en: 'Your brain works at lightning speed.' },
+  { tm: 'குறள் அறிவில் நீங்கள் ஒரு சூப்பர் ஹீரோ!', en: 'You are a superhero in Kural knowledge!' },
+  { tm: 'அற்புதம்! உங்களை நினைத்து பெருமைப்படுகிறேன்.', en: 'Wonderful! I am proud of you.' },
+  { tm: 'உங்கள் தமிழ்ப் பயணம் மிக இனிமையாக உள்ளது.', en: 'Your Tamil journey is very sweet.' },
+  { tm: 'அசத்தல்! நீங்கள் ஒரு ஜீனியஸ்.', en: 'Awesome! You are a genius.' },
+  { tm: 'நீங்கள் தொட்டதெல்லாம் துலங்குகிறது.', en: 'Everything you touch shines.' },
+  { tm: 'இது ஒரு அட்டகாசமான வெற்றி.', en: 'This is a fantastic victory.' },
+  { tm: 'இந்த நாள் உங்கள் வசமானது.', en: 'This day is yours.' },
+  { tm: 'உங்களது விடாமுயற்சி எனக்கு ஒரு உந்துதல்.', en: 'Your persistence is an inspiration to me.' },
+  { tm: 'மிகச் சிறப்பான முன்னேற்றம்!', en: 'Excellent progress!' },
+  { tm: 'உங்கள் தமிழ் வாசிப்புத் திறன் அபாரம்.', en: 'Your reading skill is phenomenal.' },
+  { tm: 'வெற்றிப்படிக்கட்டுகளில் நீங்கள் வேகமாக ஏறுகிறீர்கள்.', en: 'You are climbing the stairs of success rapidly.' },
+  { tm: 'அழகுத் தமிழ் உங்கள் நாவில் நடனமாடுகிறது.', en: 'Beautiful Tamil dances on your tongue.' },
+  { tm: 'உங்கள் ஆற்றல் அபாரமானது.', en: 'Your energy is incredible.' },
+  { tm: 'மீண்டும் மீண்டும் சொல்லத் தோன்றும் அருமையான சாதனை.', en: 'A great achievement worth repeating.' },
+  { tm: 'நீங்கள் ஒரு குறள் நிபுணராகி வருகிறீர்கள்.', en: 'You are becoming a Kural expert.' },
+  { tm: 'இந்த அனுபவம் உங்களுக்குப் புது உற்சாகத்தைத் தரும்.', en: 'This experience will give you new excitement.' },
+  { tm: 'உங்கள் திறமையைக் கண்டு வியக்கிறேன்.', en: 'I am amazed by your talent.' },
+  { tm: 'கலக்கலான வெற்றி! அடுத்ததற்குத் தயாரா?', en: 'Rocking win! Ready for the next?' },
+  { tm: 'உங்களின் ஈடுபாடு என்னை பிரம்மிக்க வைக்கிறது.', en: 'Your dedication astonishes me.' },
+  { tm: 'நீங்கள் இன்று வரலாறு படைக்கிறீர்கள்!', en: 'You are making history today!' },
+  { tm: 'அபாரமான சிந்தனை, அருமையான வெற்றி.', en: 'Incredible thinking, awesome win.' },
+  { tm: 'கற்றலில் உங்களுக்கு நிகர் நீங்களே.', en: 'In learning, you are your own match.' },
+  { tm: 'உங்கள் தமிழ்க் காதல் என்னை மகிழ்விக்கிறது.', en: 'Your love for Tamil makes me happy.' },
+  { tm: 'நீங்கள் ஒரு ஒளிரும் நட்சத்திரம்.', en: 'You are a shining star.' },
+  { tm: 'இந்த குறளின் ஆழத்தை நீங்கள் புரிந்து கொண்டீர்கள்.', en: 'You understood the depth of this Kural.' },
+  { tm: 'மிகவும் நேர்த்தியான செயல்பாடு.', en: 'Very elegant performance.' },
+  { tm: 'தொடர்ந்து முன்னேறுங்கள், நீங்கள் உச்சத்தை அடைவீர்கள்.', en: 'Keep moving forward, you will reach the peak.' }
+];
+
 declare global {
   interface Window {
     pronunciationResult?: { transcript: string; score: number } | null;
@@ -121,6 +184,268 @@ interface Props {
   allKuralSlugs: KuralSlugMap[];
 }
 
+type RevealMode = 'tap' | 'ice' | 'hold' | 'scratch';
+
+const GamifiedWord = ({
+  word,
+  mode,
+  isNext,
+  isRevealed,
+  onReveal,
+  equippedTool
+}: {
+  word: string;
+  mode: RevealMode;
+  isNext: boolean;
+  isRevealed: boolean;
+  onReveal: () => void;
+  equippedTool?: 'none' | 'hammer' | 'wand' | 'coin' | 'potion';
+}) => {
+  const [iceTaps, setIceTaps] = useState(0);
+  const [holdProgress, setHoldProgress] = useState(0);
+  const [scratchProgress, setScratchProgress] = useState(0);
+  const [isShattering, setIsShattering] = useState(false);
+  const [showMagic, setShowMagic] = useState(false);
+  const holdTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const scratchBoundsRef = useRef<{ minX: number; maxX: number; startX: number }>({ minX: Infinity, maxX: -Infinity, startX: 0 });
+  const hasRevealedRef = useRef(false);
+
+  const handleReveal = () => {
+    if (!hasRevealedRef.current) {
+      hasRevealedRef.current = true;
+      onReveal();
+    }
+  };
+
+  // Reset internal states when "Read Again" is clicked (isRevealed becomes false)
+  useEffect(() => {
+    if (!isRevealed) {
+      hasRevealedRef.current = false;
+      setIceTaps(0);
+      setHoldProgress(0);
+      setScratchProgress(0);
+      setIsShattering(false);
+      setShowMagic(false);
+      scratchBoundsRef.current = { minX: Infinity, maxX: -Infinity, startX: 0 };
+    }
+  }, [isRevealed]);
+
+  // Clear timers on unmount
+  useEffect(() => {
+    return () => {
+      if (holdTimerRef.current) clearInterval(holdTimerRef.current);
+    };
+  }, []);
+
+  if (isRevealed) {
+    return (
+      <span className="text-lg sm:text-xl font-tamil font-bold px-4 py-3 rounded-xl transition-all duration-500 bg-indigo-50 text-indigo-900 shadow-sm border border-indigo-100 transform scale-100 opacity-100">
+        {word}
+      </span>
+    );
+  }
+
+  if (!isNext) {
+    return (
+      <span className="text-lg sm:text-xl font-tamil font-bold px-4 py-3 rounded-xl bg-gray-100 text-transparent transition-all select-none opacity-50 border border-gray-200">
+        {word}
+      </span>
+    );
+  }
+
+  // Common wrapper classes for the active "next" word
+  const activeClasses = "text-lg sm:text-xl font-tamil font-bold px-4 py-3 rounded-xl transition-all cursor-pointer relative overflow-hidden select-none border-2 border-indigo-300 shadow-md bg-white text-transparent hover:shadow-lg";
+
+  if (mode === 'tap') {
+    const isWandReady = equippedTool === 'wand';
+    return (
+      <button
+        className={`${activeClasses} ${isWandReady ? 'hover:scale-105 active:scale-95 animate-pulse' : ''}`}
+        style={{
+          cursor: isWandReady
+            ? 'url("data:image/svg+xml;utf8,<svg xmlns=\'http://www.w3.org/2000/svg\' width=\'32\' height=\'32\' style=\'font-size: 24px\'><text x=\'0\' y=\'24\'>🪄</text></svg>"), pointer'
+            : 'not-allowed'
+        }}
+        onClick={(e) => {
+          e.stopPropagation();
+          if (!isWandReady) return;
+          setShowMagic(true);
+          setTimeout(() => {
+            handleReveal();
+            setShowMagic(false);
+          }, 400); // Wait for sparkle
+        }}
+        disabled={showMagic}
+      >
+        <div className="absolute inset-0 bg-indigo-500/10 flex items-center justify-center transition-opacity">
+          {isWandReady ? '✨' : '👆'}
+        </div>
+        {showMagic && (
+          <div className="absolute inset-0 flex items-center justify-center z-10 text-2xl animate-spin duration-300">
+            ✨
+          </div>
+        )}
+        <span className={`transition-opacity duration-300 ${showMagic ? 'opacity-100 text-indigo-900' : 'opacity-0'}`}>
+          {word}
+        </span>
+      </button>
+    );
+  }
+
+  if (mode === 'ice') {
+    // 3 taps to break
+    const opacity = iceTaps === 0 ? 'opacity-100' : iceTaps === 1 ? 'opacity-70' : 'opacity-40';
+    return (
+      <button
+        className={`${activeClasses} active:scale-95 bg-cyan-50 overflow-hidden relative ${isShattering ? 'animate-pulse scale-110 !border-cyan-100 shadow-[0_0_20px_rgba(34,211,238,0.5)]' : ''}`}
+        style={{
+          borderColor: '#a5f3fc',
+          cursor: equippedTool === 'hammer'
+            ? 'url("data:image/svg+xml;utf8,<svg xmlns=\'http://www.w3.org/2000/svg\' width=\'32\' height=\'32\' style=\'font-size: 24px\'><text x=\'0\' y=\'24\'>🔨</text></svg>"), pointer'
+            : 'not-allowed'
+        }}
+        disabled={isShattering}
+        onClick={(e) => {
+          e.stopPropagation();
+          if (equippedTool !== 'hammer' || isShattering) return;
+
+          if (iceTaps >= 2) {
+            // Initiate shatter sequence
+            setIsShattering(true);
+            setIceTaps(3);
+            setTimeout(() => {
+              handleReveal();
+              setIsShattering(false);
+              setIceTaps(0);
+            }, 400); // Wait for visual break
+          } else {
+            setIceTaps(p => p + 1);
+          }
+        }}
+      >
+        <div
+          className={`absolute inset-0 bg-cyan-200/50 flex items-center justify-center transition-all duration-300 backdrop-blur-sm ${opacity} 
+            ${isShattering ? 'scale-150 opacity-0 rotate-12 blur-md' : ''}
+          `}
+        >
+          {isShattering ? '💥' : '🧊'}
+        </div>
+        <span className={`transition-opacity duration-300 ${isShattering ? 'opacity-100 text-cyan-900' : 'opacity-0'}`}>
+          {word}
+        </span>
+      </button>
+    );
+  }
+
+  if (mode === 'hold') {
+    const isPotionReady = equippedTool === 'potion';
+    const startHold = () => {
+      if (!isPotionReady) return;
+      setHoldProgress(0);
+      let p = 0;
+      holdTimerRef.current = setInterval(() => {
+        p += 5;
+        setHoldProgress(p);
+        if (p >= 100) {
+          clearInterval(holdTimerRef.current!);
+          handleReveal();
+        }
+      }, 30);
+    };
+    const endHold = () => {
+      if (holdTimerRef.current) clearInterval(holdTimerRef.current);
+      setHoldProgress(0);
+    };
+
+    return (
+      <button
+        className={`${activeClasses} transform transition-transform select-none touch-none`}
+        style={{
+          transform: holdProgress > 0 ? `scale(${1 + (holdProgress / 500)})` : 'scale(1)',
+          cursor: isPotionReady
+            ? 'url("data:image/svg+xml;utf8,<svg xmlns=\'http://www.w3.org/2000/svg\' width=\'32\' height=\'32\' style=\'font-size: 24px\'><text x=\'0\' y=\'24\'>🧪</text></svg>"), pointer'
+            : 'not-allowed'
+        }}
+        onPointerDown={(e) => { e.currentTarget.setPointerCapture(e.pointerId); startHold(); }}
+        onPointerUp={(e) => { e.currentTarget.releasePointerCapture(e.pointerId); endHold(); }}
+        onPointerCancel={endHold}
+        onPointerLeave={endHold}
+      >
+        <div
+          className="absolute left-0 bottom-0 top-0 bg-green-400/40 transition-all ease-linear"
+          style={{ width: `${holdProgress}%` }}
+        />
+        <div className="absolute inset-0 flex items-center justify-center pointer-events-none opacity-50">
+          {isPotionReady ? '🧪' : '⚡'}
+        </div>
+        {word}
+      </button>
+    );
+  }
+
+  if (mode === 'scratch') {
+    const isCoinReady = equippedTool === 'coin';
+
+    const handleDown = (e: React.PointerEvent) => {
+      if (!isCoinReady) return;
+      e.currentTarget.setPointerCapture(e.pointerId);
+
+      const rect = e.currentTarget.getBoundingClientRect();
+      const x = e.clientX - rect.left;
+      scratchBoundsRef.current = { minX: x, maxX: x, startX: x };
+    };
+
+    const handleMove = (e: React.PointerEvent) => {
+      if (!isCoinReady) return;
+      if (e.buttons > 0 || e.pointerType === 'touch') {
+        const rect = e.currentTarget.getBoundingClientRect();
+        const x = e.clientX - rect.left;
+        const width = rect.width;
+
+        let { minX, maxX } = scratchBoundsRef.current;
+        minX = Math.min(minX, x);
+        maxX = Math.max(maxX, x);
+        scratchBoundsRef.current = { ...scratchBoundsRef.current, minX, maxX };
+
+        // Require scratching horizontally across at least 70% of the word's width
+        const distanceCovered = maxX - minX;
+        const requiredDistance = width * 0.7;
+
+        const rawProgress = Math.min(100, (distanceCovered / requiredDistance) * 100);
+        setScratchProgress(rawProgress);
+
+        if (rawProgress >= 100) {
+          handleReveal();
+        }
+      }
+    };
+
+    return (
+      <div
+        className={`${activeClasses} touch-none select-none`}
+        style={{
+          cursor: isCoinReady
+            ? 'url("data:image/svg+xml;utf8,<svg xmlns=\'http://www.w3.org/2000/svg\' width=\'32\' height=\'32\' style=\'font-size: 24px\'><text x=\'0\' y=\'24\'>🪙</text></svg>"), crosshair'
+            : 'not-allowed'
+        }}
+        onPointerDown={handleDown}
+        onPointerUp={(e) => { if (isCoinReady) e.currentTarget.releasePointerCapture(e.pointerId); }}
+        onPointerMove={handleMove}
+      >
+        <div
+          className="absolute inset-0 bg-slate-300 flex items-center justify-center filter drop-shadow-sm transition-opacity duration-75"
+          style={{ opacity: Math.max(0, 1 - (scratchProgress / 100)) }}
+        >
+          {isCoinReady ? '' : '🔒'}
+        </div>
+        <span className="relative z-10 opacity-80">{word}</span>
+      </div>
+    );
+  }
+
+  return null;
+};
+
 export default function KuralLearningClient({
   kural,
   kuralIndex,
@@ -136,6 +461,14 @@ export default function KuralLearningClient({
   const [visitedKurals, setVisitedKurals] = useState<number[]>([]);
   const [jumpToKural, setJumpToKural] = useState('');
   const [showNavModal, setShowNavModal] = useState(false);
+
+  const [revealedWordCount, setRevealedWordCount] = useState(0);
+  const [revealMode, setRevealMode] = useState<RevealMode>('tap');
+  const [equippedTool, setEquippedTool] = useState<'none' | 'hammer' | 'wand' | 'coin' | 'potion'>('none');
+  const [encouragementIndex, setEncouragementIndex] = useState(0);
+  const kuralWords = kural.kural_tamil.replace(/\\n/g, ' ').replace(/\n/g, ' ').split(/\s+/).filter(w => w.length > 0);
+  const isFullyRevealed = revealedWordCount >= kuralWords.length;
+
   const hasVideo = kural.youtube_tamil_url || kural.youtube_english_url;
   const [contentMode, setContentMode] = useState<'video' | 'games'>(hasVideo ? 'video' : 'games');
   const [selectedGame, setSelectedGame] = useState<'puzzle' | 'flying' | 'balloon' | 'race'>(() => {
@@ -242,6 +575,12 @@ export default function KuralLearningClient({
     const streakData = getStreakData(user, profileId);
     setStreakCount(streakData.currentStreak);
     recordDailyVisit(user, profileId);
+
+    const modes: RevealMode[] = ['tap', 'ice', 'hold', 'scratch'];
+    setRevealMode(modes[Math.floor(Math.random() * modes.length)]);
+    setRevealedWordCount(0); // Reset reveal on Kural change
+    setEquippedTool('none');
+    setEncouragementIndex(Math.floor(Math.random() * encouragingStatements.length));
   }, [kural.id, user]);
 
   useEffect(() => {
@@ -601,6 +940,69 @@ export default function KuralLearningClient({
     }
   };
 
+  const speakTamilWord = (word: string, isEnglish: boolean = false) => {
+    if (!('speechSynthesis' in window)) return;
+    const utterance = new SpeechSynthesisUtterance(word);
+
+    const voices = window.speechSynthesis.getVoices();
+    if (isEnglish) {
+      const englishVoice = voices.find(v => v.lang.startsWith('en'));
+      if (englishVoice) utterance.voice = englishVoice;
+      utterance.lang = 'en-US';
+    } else {
+      const tamilVoice = voices.find(v => v.lang.startsWith('ta'));
+      if (tamilVoice) utterance.voice = tamilVoice;
+      utterance.lang = 'ta-IN';
+    }
+
+    utterance.rate = 0.9;
+    utterance.pitch = 1.1;
+    window.speechSynthesis.speak(utterance);
+  };
+
+  const handleRevealNext = () => {
+    if (revealedWordCount < kuralWords.length) {
+      const nextWord = kuralWords[revealedWordCount];
+      speakTamilWord(nextWord);
+
+      const newCount = revealedWordCount + 1;
+      setRevealedWordCount(newCount);
+
+      // Last word revealed?
+      if (newCount === kuralWords.length) {
+        // 1. Celebrate with Avatar for 5 seconds
+        reactAvatar('excited');
+        setTimeout(() => reactAvatar('idle'), 5000);
+
+        // 2. Announce the encouraging statement out loud
+        setTimeout(() => {
+          const statement = currentLanguage === 'tamil' ? encouragingStatements[encouragementIndex].tm : encouragingStatements[encouragementIndex].en;
+          speakTamilWord(statement, currentLanguage === 'english');
+        }, 2000); // Wait 2 seconds before speaking the encouragement
+
+        // 3. Hook into Achievement and Coin System
+        if (user) {
+          const profileId = user.activeProfileId || user.id;
+          fetch('/api/user/progress', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              activity: 'word_by_word',
+              coins: 5,             // Bonus coins for finishing the interaction
+              profileId,
+              kuralId: kural.id     // Log the context
+            })
+          }).catch(console.error);
+        }
+      }
+    }
+  };
+
+  const resetReveal = () => {
+    setRevealedWordCount(0);
+    setEncouragementIndex(Math.floor(Math.random() * encouragingStatements.length));
+  };
+
   const resetGame = () => {
     if (selectedGame === 'puzzle') initializePuzzle();
     else if (selectedGame === 'flying') initializeFlyingGame();
@@ -904,6 +1306,143 @@ export default function KuralLearningClient({
             </p>
           </div>
         </section>
+
+        {/* --- START OF WORD BY WORD REVEAL SECTION --- */}
+        {/* You can comment out this entire <section> to disable the feature */}
+        <section
+          className="mb-8 bg-white rounded-2xl shadow-lg border-2 border-indigo-100 p-6 sm:p-8"
+        >
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
+            <h3 className="text-lg font-bold text-gray-800">
+              {currentLanguage === 'tamil' ? 'படிப்படியாக வாசிக்க' : 'Read Word by Word'}
+            </h3>
+
+            {/* Mode Selector */}
+            <div className="flex flex-wrap items-center gap-2 bg-indigo-50/50 p-1.5 rounded-xl border border-indigo-100">
+              {(['tap', 'ice', 'hold', 'scratch'] as RevealMode[]).map((m) => (
+                <button
+                  key={m}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setRevealMode(m);
+                    setEquippedTool('none');
+                  }}
+                  className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${revealMode === m
+                    ? 'bg-white text-indigo-700 shadow-sm border border-indigo-200 scale-105'
+                    : 'text-indigo-500 hover:bg-indigo-100/50 hover:text-indigo-600'
+                    }`}
+                  title={`Switch to ${m} mode`}
+                >
+                  {m === 'tap' && '👆'}
+                  {m === 'ice' && '🧊'}
+                  {m === 'hold' && '⚡'}
+                  {m === 'scratch' && '🪙'}
+                </button>
+              ))}
+            </div>
+
+            {isFullyRevealed && (
+              <button
+                onClick={(e) => { e.stopPropagation(); resetReveal(); }}
+                className="text-xs sm:text-sm font-medium text-indigo-700 bg-indigo-100 px-4 py-2 rounded-full hover:bg-indigo-200 transition-colors shadow-sm ml-auto sm:ml-0"
+              >
+                {currentLanguage === 'tamil' ? 'மீண்டும் வாசிக்க' : 'Read Again'}
+              </button>
+            )}
+          </div>
+
+          {!isFullyRevealed && (
+            <div className="mb-6 text-center flex flex-col items-center justify-center gap-2">
+              <span className="inline-flex items-center gap-2 text-sm font-medium text-indigo-600 bg-indigo-50 px-4 py-1.5 rounded-full border border-indigo-100 shadow-sm animate-pulse shadow-indigo-100/50">
+                {revealMode === 'tap' && equippedTool !== 'wand' && (currentLanguage === 'tamil' ? '🪄 மந்திரக்கோலை எடுக்கவும்' : '🪄 Take the magic wand')}
+                {revealMode === 'tap' && equippedTool === 'wand' && (currentLanguage === 'tamil' ? '👆 படிக்கச் சொல்லின் மீது தட்டவும்' : '👆 Tap on the word to reveal it')}
+                {revealMode === 'ice' && equippedTool !== 'hammer' && (currentLanguage === 'tamil' ? '🧊 பனியை உடைக்க சுத்தியலை எடுக்கவும்' : '🧊 Take the hammer to break the ice')}
+                {revealMode === 'ice' && equippedTool === 'hammer' && (currentLanguage === 'tamil' ? '🔨 3 முறை தட்டி பனியை உடைக்கவும்' : '🔨 Tap 3 times to break the ice')}
+                {revealMode === 'hold' && equippedTool !== 'potion' && (currentLanguage === 'tamil' ? '🧪 மந்திர திரவத்தை எடுக்கவும்' : '🧪 Take the magic potion')}
+                {revealMode === 'hold' && equippedTool === 'potion' && (currentLanguage === 'tamil' ? '⚡ அழுத்திப் பிடித்து நிரப்பவும்' : '⚡ Press and hold to fill')}
+                {revealMode === 'scratch' && equippedTool !== 'coin' && (currentLanguage === 'tamil' ? '🪙 நாணயத்தை எடுக்கவும்' : '🪙 Take the coin')}
+                {revealMode === 'scratch' && equippedTool === 'coin' && (currentLanguage === 'tamil' ? '🪙 சொல்லின் மீது தேய்த்து அழிக்கவும்' : '🪙 Scratch over the word to reveal')}
+              </span>
+
+              {revealMode === 'ice' && equippedTool !== 'hammer' && (
+                <button
+                  onClick={(e) => { e.stopPropagation(); setEquippedTool('hammer'); }}
+                  className="mt-2 flex items-center gap-2 bg-gradient-to-r from-cyan-400 to-blue-500 text-white px-5 py-2.5 rounded-xl shadow-md hover:scale-105 transition-transform"
+                >
+                  <span className="text-2xl animate-bounce">🔨</span>
+                  <span className="font-bold">{currentLanguage === 'tamil' ? 'சுத்தியலை எடு' : 'Take Hammer'}</span>
+                </button>
+              )}
+              {revealMode === 'tap' && equippedTool !== 'wand' && (
+                <button
+                  onClick={(e) => { e.stopPropagation(); setEquippedTool('wand'); }}
+                  className="mt-2 flex items-center gap-2 bg-gradient-to-r from-purple-400 to-fuchsia-500 text-white px-5 py-2.5 rounded-xl shadow-md hover:scale-105 transition-transform"
+                >
+                  <span className="text-2xl animate-bounce">🪄</span>
+                  <span className="font-bold">{currentLanguage === 'tamil' ? 'மந்திரக்கோலை எடு' : 'Take Wand'}</span>
+                </button>
+              )}
+              {revealMode === 'hold' && equippedTool !== 'potion' && (
+                <button
+                  onClick={(e) => { e.stopPropagation(); setEquippedTool('potion'); }}
+                  className="mt-2 flex items-center gap-2 bg-gradient-to-r from-green-400 to-emerald-500 text-white px-5 py-2.5 rounded-xl shadow-md hover:scale-105 transition-transform"
+                >
+                  <span className="text-2xl animate-bounce">🧪</span>
+                  <span className="font-bold">{currentLanguage === 'tamil' ? 'திரவத்தை எடு' : 'Take Potion'}</span>
+                </button>
+              )}
+              {revealMode === 'scratch' && equippedTool !== 'coin' && (
+                <button
+                  onClick={(e) => { e.stopPropagation(); setEquippedTool('coin'); }}
+                  className="mt-2 flex items-center gap-2 bg-gradient-to-r from-amber-400 to-orange-500 text-white px-5 py-2.5 rounded-xl shadow-md hover:scale-105 transition-transform"
+                >
+                  <span className="text-2xl animate-bounce">🪙</span>
+                  <span className="font-bold">{currentLanguage === 'tamil' ? 'நாணயத்தை எடு' : 'Take Coin'}</span>
+                </button>
+              )}
+            </div>
+          )}
+
+          <div className="flex flex-col gap-6 items-center w-full max-w-2xl mx-auto min-h-[160px] justify-center">
+            {/* Top Row: First 4 words */}
+            <div className="flex flex-wrap gap-x-4 gap-y-6 justify-center w-full">
+              {kuralWords.slice(0, 4).map((word, index) => (
+                <GamifiedWord
+                  key={`top-${index}`}
+                  word={word}
+                  mode={revealMode}
+                  isNext={index === revealedWordCount}
+                  isRevealed={index < revealedWordCount}
+                  onReveal={handleRevealNext}
+                  equippedTool={equippedTool}
+                />
+              ))}
+            </div>
+
+            {/* Bottom Row: Remaining 3 words */}
+            <div className="flex flex-wrap gap-x-4 gap-y-6 justify-center w-full">
+              {kuralWords.slice(4, 7).map((word, index) => (
+                <GamifiedWord
+                  key={`bottom-${index}`}
+                  word={word}
+                  mode={revealMode}
+                  isNext={(index + 4) === revealedWordCount}
+                  isRevealed={(index + 4) < revealedWordCount}
+                  onReveal={handleRevealNext}
+                  equippedTool={equippedTool}
+                />
+              ))}
+            </div>
+          </div>
+
+          {isFullyRevealed && (
+            <div className="mt-8 text-center text-sm font-medium text-emerald-800 bg-emerald-50 py-4 px-6 rounded-2xl border-2 border-emerald-200 shadow-sm animate-fade-in transform transition-all scale-100 hover:scale-[1.02]">
+              <p className="text-lg">✨</p>
+              {currentLanguage === 'tamil' ? encouragingStatements[encouragementIndex].tm : encouragingStatements[encouragementIndex].en}
+            </div>
+          )}
+        </section>
+        {/* --- END OF WORD BY WORD REVEAL SECTION --- */}
 
 
         <div className="space-y-6">

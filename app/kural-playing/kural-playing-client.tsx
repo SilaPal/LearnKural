@@ -103,6 +103,7 @@ export default function KuralPlayingClient({ initialKurals, initialGame, initial
   const [puzzleBonusPoints, setPuzzleBonusPoints] = useState(0);
   const [lastPlacedCorrect, setLastPlacedCorrect] = useState<number | null>(null);
   const [shakeWrongSlot, setShakeWrongSlot] = useState<number | null>(null);
+  const [shakeWrongPuzzlePiece, setShakeWrongPuzzlePiece] = useState<string | null>(null);
 
   const [flyingWords, setFlyingWords] = useState<FlyingWord[]>([]);
   const [nextExpectedPosition, setNextExpectedPosition] = useState(0);
@@ -129,6 +130,7 @@ export default function KuralPlayingClient({ initialKurals, initialGame, initial
   const [revealedWords, setRevealedWords] = useState<BalloonWord[]>([]);
   const [arrangedWords, setArrangedWords] = useState<(BalloonWord | null)[]>([]);
   const [balloonPhase, setBalloonPhase] = useState<'popping' | 'arranging'>('popping');
+  const [shakeWrongBalloonPiece, setShakeWrongBalloonPiece] = useState<string | null>(null);
 
   // Race game state
   const [raceWords, setRaceWords] = useState<{ id: number; word: string; position: number }[]>([]);
@@ -388,6 +390,7 @@ export default function KuralPlayingClient({ initialKurals, initialGame, initial
     setPuzzleBonusPoints(0);
     setLastPlacedCorrect(null);
     setShakeWrongSlot(null);
+    setShakeWrongPuzzlePiece(null);
   };
 
   const initializeFlyingGame = useCallback(() => {
@@ -786,12 +789,13 @@ export default function KuralPlayingClient({ initialKurals, initialGame, initial
     const emptySlotIndex = placedPieces.findIndex(p => p === null);
     if (emptySlotIndex !== -1) {
       const isCorrectPlacement = piece.correctPosition === emptySlotIndex;
-      const newPlacedPieces = [...placedPieces];
-      newPlacedPieces[emptySlotIndex] = piece;
-      setPlacedPieces(newPlacedPieces);
-      setShuffledPieces(prev => prev.filter(p => p.id !== piece.id));
 
       if (isCorrectPlacement) {
+        const newPlacedPieces = [...placedPieces];
+        newPlacedPieces[emptySlotIndex] = piece;
+        setPlacedPieces(newPlacedPieces);
+        setShuffledPieces(prev => prev.filter(p => p.id !== piece.id));
+
         setLastPlacedCorrect(emptySlotIndex);
         setPuzzleStreak(prev => prev + 1);
         const bonusMultiplier = Math.min(puzzleStreak + 1, 5);
@@ -799,8 +803,8 @@ export default function KuralPlayingClient({ initialKurals, initialGame, initial
         setTimeout(() => setLastPlacedCorrect(null), 500);
       } else {
         setPuzzleStreak(0);
-        setShakeWrongSlot(emptySlotIndex);
-        setTimeout(() => setShakeWrongSlot(null), 500);
+        setShakeWrongPuzzlePiece(piece.id); // Shake the selected piece instead of slot
+        setTimeout(() => setShakeWrongPuzzlePiece(null), 500);
       }
     }
   };
@@ -911,36 +915,44 @@ export default function KuralPlayingClient({ initialKurals, initialGame, initial
   const handleArrangeWord = (word: BalloonWord, slotIndex: number) => {
     if (isSolved) return;
 
-    const newArranged = [...arrangedWords];
-    const existingIndex = newArranged.findIndex(w => w?.id === word.id);
-    if (existingIndex !== -1) {
-      newArranged[existingIndex] = null;
-    }
+    if (word.correctPosition === slotIndex) {
+      const newArranged = [...arrangedWords];
+      // Note: we don't need to check for existingIndex since the word can only be correctly placed once,
+      // but keeping it safe just in case.
+      const existingIndex = newArranged.findIndex(w => w?.id === word.id);
+      if (existingIndex !== -1) {
+        newArranged[existingIndex] = null;
+      }
 
-    if (newArranged[slotIndex] !== null) {
-      setRevealedWords(prev => [...prev, newArranged[slotIndex]!]);
-    }
+      if (newArranged[slotIndex] !== null) {
+        setRevealedWords(prev => [...prev, newArranged[slotIndex]!]);
+      }
 
-    newArranged[slotIndex] = word;
-    setArrangedWords(newArranged);
-    setRevealedWords(prev => prev.filter(w => w.id !== word.id));
+      newArranged[slotIndex] = word;
+      setArrangedWords(newArranged);
+      setRevealedWords(prev => prev.filter(w => w.id !== word.id));
 
-    if (newArranged.every(w => w !== null)) {
-      const isCorrect = newArranged.every((w, i) => w?.correctPosition === i);
-      if (isCorrect) {
-        setIsSolved(true);
-        setShowMeaning(true);
-        playCompletionAudio();
-        setSolvedCount(prev => prev + 1);
+      if (newArranged.every(w => w !== null)) {
+        const isCorrect = newArranged.every((w, i) => w?.correctPosition === i);
+        if (isCorrect) {
+          setIsSolved(true);
+          setShowMeaning(true);
+          playCompletionAudio();
+          setSolvedCount(prev => prev + 1);
 
-        const savedSolved = localStorage.getItem('thirukural-balloon-solved');
-        const solved = savedSolved ? JSON.parse(savedSolved) : [];
-        if (!solved.includes(currentKural?.id)) {
-          solved.push(currentKural?.id);
-          localStorage.setItem('thirukural-balloon-solved', JSON.stringify(solved));
-          setTimeout(() => handleGameComplete('balloon'), 100);
+          const savedSolved = localStorage.getItem('thirukural-balloon-solved');
+          const solved = savedSolved ? JSON.parse(savedSolved) : [];
+          if (!solved.includes(currentKural?.id)) {
+            solved.push(currentKural?.id);
+            localStorage.setItem('thirukural-balloon-solved', JSON.stringify(solved));
+            setTimeout(() => handleGameComplete('balloon'), 100);
+          }
         }
       }
+    } else {
+      // Incorrect placement: shake the word instead of placing it
+      setShakeWrongBalloonPiece(word.id);
+      setTimeout(() => setShakeWrongBalloonPiece(null), 500);
     }
   };
 
@@ -1181,7 +1193,8 @@ export default function KuralPlayingClient({ initialKurals, initialGame, initial
                   <button
                     key={piece.id}
                     onClick={() => handlePieceClick(piece)}
-                    className="bg-gradient-to-br from-yellow-400 to-orange-400 text-white px-4 py-2 rounded-lg font-tamil text-lg font-medium cursor-pointer shadow-md hover:shadow-lg transition-all hover:scale-105 animate-wiggle flex items-center"
+                    className="bg-gradient-to-br from-yellow-400 to-orange-400 text-white px-4 py-2 rounded-lg font-tamil text-lg font-medium cursor-pointer shadow-md hover:shadow-lg transition-all hover:scale-105 flex items-center"
+                    style={shakeWrongPuzzlePiece === piece.id ? { animation: 'shake 0.5s ease-in-out' } : {}}
                   >
                     {piece.word}
                   </button>
@@ -1428,7 +1441,7 @@ export default function KuralPlayingClient({ initialKurals, initialGame, initial
                       <button
                         key={word.id}
                         className="px-4 py-2 rounded-lg font-medium shadow-md hover:scale-105 transition-transform"
-                        style={{ background: word.color, color: getTextColorForBackground(word.color) }}
+                        style={{ background: word.color, color: getTextColorForBackground(word.color), ...(shakeWrongBalloonPiece === word.id ? { animation: 'shake 0.5s ease-in-out' } : {}) }}
                         onClick={() => {
                           const firstEmptySlot = arrangedWords.findIndex(w => w === null);
                           if (firstEmptySlot !== -1) {

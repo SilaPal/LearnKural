@@ -14,6 +14,8 @@ export interface KuralSlugMap {
   section_english?: string;
   subsection_tamil?: string;
   subsection_english?: string;
+  meaning_tamil?: string;
+  meaning_english?: string;
 }
 
 interface NavigationModalProps {

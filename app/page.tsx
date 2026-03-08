@@ -32,14 +32,14 @@ export const metadata: Metadata = {
 export default async function HomePage() {
   const kurals = await getAllKurals();
   const totalKurals = kurals.length;
-  
+
   // Get kural of the day based on current date - prioritize kurals with videos
   const today = new Date();
   const dayOfYear = Math.floor((today.getTime() - new Date(today.getFullYear(), 0, 0).getTime()) / (1000 * 60 * 60 * 24));
-  
+
   // Filter kurals that have YouTube videos
   const kuralsWithVideos = kurals.filter(k => k.youtube_tamil_url || k.youtube_english_url);
-  
+
   let kuralOfDay;
   if (kuralsWithVideos.length > 0) {
     // Pick from kurals with videos
@@ -52,7 +52,7 @@ export default async function HomePage() {
   }
 
   const firstKuralSlug = kurals[0]?.slug || 'kural-1';
-  
+
   const allKuralSlugs = kurals.map(k => ({
     id: k.id,
     slug: k.slug,
@@ -60,8 +60,12 @@ export default async function HomePage() {
     section_tamil: k.section_tamil,
     subsection_english: k.subsection_english,
     subsection_tamil: k.subsection_tamil,
+    kural_tamil: k.kural_tamil,
+    kural_english: k.kural_english,
+    meaning_tamil: k.meaning_tamil,
+    meaning_english: k.meaning_english,
   }));
-  
+
   const jsonLd = {
     '@context': 'https://schema.org',
     '@type': 'WebSite',
