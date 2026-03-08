@@ -4,6 +4,7 @@ import UyirmeiQuizClient from './uyirmei-quiz-client';
 export const metadata: Metadata = {
   title: 'Uyirmei Quiz | உயிர்மெய் வினாடி வினா - Learn Tamil',
   description: 'Test your knowledge of Tamil combined letters. Identify which consonant and vowel combine to form each letter.',
+  alternates: { canonical: 'https://learnthirukkural.com/learntamil/quiz' },
 };
 
 export default function UyirmeiQuizPage() {

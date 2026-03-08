@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/lib/use-auth';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import PageHeader from '@/components/page-header';
 import PricingModal from '@/components/pricing-modal';
@@ -42,8 +42,6 @@ export default function TeacherDashboardClient() {
     const [showPricingModal, setShowPricingModal] = useState(false);
     const [showAuthModal, setShowAuthModal] = useState(false);
     const [showBadgeModal, setShowBadgeModal] = useState(false);
-
-    const searchParams = useSearchParams();
 
     // New Modal States
     const [showCreateClassModal, setShowCreateClassModal] = useState(false);
@@ -99,9 +97,12 @@ export default function TeacherDashboardClient() {
             return;
         }
 
-        if (searchParams?.get('create') === 'true') {
-            setShowCreateClassModal(true);
-            router.replace('/dashboard/teacher', { scroll: false });
+        if (typeof window !== 'undefined') {
+            const params = new URLSearchParams(window.location.search);
+            if (params.get('create') === 'true') {
+                setShowCreateClassModal(true);
+                router.replace('/dashboard/teacher', { scroll: false });
+            }
         }
 
         const fetchData = async () => {

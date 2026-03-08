@@ -4,6 +4,7 @@ import BalloonGameClient from './balloon-game-client';
 export const metadata: Metadata = {
   title: 'Letter Pop | எழுத்து பலூன் - Learn Tamil',
   description: 'Pop the balloon with the correct Tamil letter. A fun way to learn Tamil alphabet.',
+  alternates: { canonical: 'https://learnthirukkural.com/learntamil/games/balloon' },
 };
 
 export default function BalloonGamePage() {

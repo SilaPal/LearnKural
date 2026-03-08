@@ -5,6 +5,7 @@ import FavoritesClient from './favorites-client';
 export const metadata: Metadata = {
   title: 'My Favorites | எனக்கு பிடித்தவை - Thirukkural Learning',
   description: 'View and listen to your favorite Thirukkural verses. உங்கள் பிடித்த திருக்குறள்களைக் காணவும் கேட்கவும்.',
+  alternates: { canonical: 'https://learnthirukkural.com/kural-favorites' },
 };
 
 export default async function FavoritesPage() {

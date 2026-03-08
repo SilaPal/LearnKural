@@ -61,14 +61,6 @@ export const metadata: Metadata = {
     description: 'Interactive Tamil wisdom learning with 1330 verses, audio, video, and games.',
     images: ['/og-image.png'],
   },
-  alternates: {
-    canonical: 'https://learnthirukkural.com',
-    languages: {
-      'en': 'https://learnthirukkural.com',
-      'ta': 'https://learnthirukkural.com',
-      'x-default': 'https://learnthirukkural.com',
-    },
-  },
 };
 
 export default function RootLayout({

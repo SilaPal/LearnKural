@@ -4,6 +4,7 @@ import QuestClient from './quest-client';
 export const metadata = {
     title: 'Kural Quest | Gamified Learning Map',
     description: 'Embark on a gamified journey through the 133 chapters of Thirukkural.',
+    alternates: { canonical: 'https://learnthirukkural.com/quest' },
 };
 
 export default async function QuestPage() {

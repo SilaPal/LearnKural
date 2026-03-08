@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { useSearchParams, useRouter } from 'next/navigation';
+import { useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/use-auth';
 import PricingModal from '@/components/pricing-modal';
 import PageHeader from '@/components/page-header';
@@ -31,11 +31,17 @@ interface AvatarItem {
 
 export default function SandhaiClient() {
     const { user, refetch } = useAuth();
-    const searchParams = useSearchParams();
     const router = useRouter();
-    // If ?for=<profileId>&nickname=<name> is set, we're picking avatar FOR a child profile
-    const forProfileId = searchParams.get('for');
-    const forNickname = searchParams.get('nickname');
+    const [forProfileId, setForProfileId] = useState<string | null>(null);
+    const [forNickname, setForNickname] = useState<string | null>(null);
+
+    useEffect(() => {
+        if (typeof window !== 'undefined') {
+            const params = new URLSearchParams(window.location.search);
+            setForProfileId(params.get('for'));
+            setForNickname(params.get('nickname'));
+        }
+    }, []);
 
     const [avatars, setAvars] = useState<AvatarItem[]>([]);
     const [unlockedIds, setUnlockedIds] = useState<string[]>([]);
