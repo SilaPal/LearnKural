@@ -23,6 +23,15 @@ interface Props {
   onClose: () => void;
   language: 'tamil' | 'english';
   celebrationType: 'confetti' | 'fireworks' | 'stars' | 'balloons' | 'snow' | 'golden' | null;
+  profileId?: string;
+  profileData?: {
+    coins: number;
+    weeklyXP?: number;
+    streak: number;
+    longestStreak: number;
+    completedChapters: number[];
+    badges: any[];
+  };
 }
 
 const TIER_STYLES: Record<Badge['tier'], { card: string; label: string; labelText: string; dot: string; holographic?: boolean }> = {
@@ -54,7 +63,7 @@ const TIER_STYLES: Record<Badge['tier'], { card: string; label: string; labelTex
   },
 };
 
-export default function BadgeModal({ isOpen, onClose, language, celebrationType }: Props) {
+export default function BadgeModal({ isOpen, onClose, language, celebrationType, profileId: explicitProfileId, profileData }: Props) {
   const [activeTab, setActiveTab] = useState<'mastery' | 'streak' | 'skill' | 'tamil'>('mastery');
   const [badges, setBadges] = useState<{ mastery: Badge[]; streak: Badge[]; skill: Badge[]; tamil: Badge[] }>({
     mastery: [], streak: [], skill: [], tamil: [],
@@ -71,26 +80,41 @@ export default function BadgeModal({ isOpen, onClose, language, celebrationType 
 
   useEffect(() => {
     if (isOpen) {
-      const profileId = user?.activeProfileId || user?.id || 'guest';
-
-      // Check for newly earned Tamil badges when modal opens
-      checkTamilBadges(profileId);
-      const byCategory = getBadgesByCategory(user, profileId);
-      setBadges(byCategory);
-      setMasteredCount(getMasteredCount(profileId));
-      const streak = getStreakData(user, profileId);
-      setStreakData({ currentStreak: streak.currentStreak, longestStreak: streak.longestStreak, totalDays: streak.totalDays });
-      const skills = getSkillStats(profileId);
-      setSkillStats({ puzzleFastestTime: skills.puzzleFastestTime, maxRaceWinStreak: skills.maxRaceWinStreak });
-      setTamilCompleted(getTamilLettersCompleted(profileId));
-      markBadgesViewed(profileId);
-
-      if (user) {
-        setUserStats({
-          coins: user.coins ?? 0,
-          weeklyXP: user.weeklyXP ?? 0,
-          streak: user.streak ?? 0
+      if (profileData) {
+        // Fast-path: Explicit profile data provided (e.g., from Parent Dashboard for a specific child)
+        setBadges({
+          mastery: profileData.badges.filter(b => b.type === 'mastery'),
+          streak: profileData.badges.filter(b => b.type === 'streak'),
+          skill: profileData.badges.filter(b => b.type === 'skill'),
+          tamil: profileData.badges.filter(b => b.type === 'tamil'),
         });
+        setMasteredCount(profileData.completedChapters.length);
+        setStreakData({ currentStreak: profileData.streak, longestStreak: profileData.longestStreak, totalDays: profileData.streak });
+        setSkillStats({ puzzleFastestTime: null, maxRaceWinStreak: 0 }); // Fallback for explicit data
+        setTamilCompleted(0);
+        setUserStats({
+          coins: profileData.coins,
+          weeklyXP: profileData.weeklyXP ?? 0,
+          streak: profileData.streak
+        });
+      } else {
+        // Standard path: Load from storage or current user session
+        const profileId = explicitProfileId || user?.activeProfileId || user?.id || 'guest';
+        checkTamilBadges(profileId);
+        setBadges(getBadgesByCategory(user, profileId));
+        setMasteredCount(getMasteredCount(profileId));
+        setStreakData(getStreakData(user, profileId));
+        setSkillStats(getSkillStats(profileId));
+        setTamilCompleted(getTamilLettersCompleted(profileId));
+        markBadgesViewed(profileId);
+
+        if (user) {
+          setUserStats({
+            coins: user.coins ?? 0,
+            weeklyXP: user.weeklyXP ?? 0,
+            streak: user.streak ?? 0
+          });
+        }
       }
 
       // Sync celebration and set cleanup timer
@@ -108,7 +132,7 @@ export default function BadgeModal({ isOpen, onClose, language, celebrationType 
       setVisibleCelebration(null);
       setIsFading(false);
     }
-  }, [isOpen, user, celebrationType]);
+  }, [isOpen, user, celebrationType, explicitProfileId, profileData]);
 
   if (!isOpen) return null;
 

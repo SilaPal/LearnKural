@@ -59,8 +59,15 @@ export async function GET(request: NextRequest) {
 
     // Never expose googleId to the client
     const { googleId, ...safeUser } = user;
+
+    // Automatically grant fully-paid client experience to school staff and admins
+    const effectiveTier = (safeUser.role === 'super_admin' || safeUser.role === 'school_admin' || safeUser.role === 'teacher')
+        ? 'paid'
+        : safeUser.tier;
+
     return NextResponse.json({
         ...safeUser,
+        tier: effectiveTier,
         ...childData,
         streak: childData.streak ?? user.streak,
         longestStreak: childData.longestStreak ?? user.longestStreak,

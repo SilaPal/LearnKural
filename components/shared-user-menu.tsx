@@ -49,7 +49,7 @@ export function SharedUserMenu({
   const router = useRouter();
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [profilesOpen, setProfilesOpen] = useState(false);
-  const [schoolMenuOpen, setSchoolMenuOpen] = useState(true);
+  const [schoolMenuOpen, setSchoolMenuOpen] = useState(false);
 
   const handleSwitchProfile = (profileId: string | null) => {
     if (onProfileSwitch) {
@@ -121,14 +121,7 @@ export function SharedUserMenu({
                 onClick={() => handleSwitchProfile(null)}
                 className={`flex items-center gap-3 w-full p-2 rounded-xl transition-all ${!activeProfileNickname ? 'bg-purple-50 ring-1 ring-purple-100' : 'hover:bg-white border border-transparent shadow-sm hover:border-purple-200'}`}
               >
-                <div className="w-8 h-8 rounded-full bg-gradient-to-br from-purple-100 to-indigo-100 flex-shrink-0 flex items-center justify-center overflow-hidden border border-purple-200 shadow-sm">
-                  {user.picture ? (
-                    <img src={user.picture} alt={user.name} className="w-full h-full object-cover" />
-                  ) : (
-                    <span className="text-sm font-bold text-purple-600">{user.name.charAt(0)}</span>
-                  )}
-                </div>
-                <div className="flex flex-col items-start overflow-hidden">
+                <div className="flex flex-col items-start overflow-hidden ml-2">
                   <span className="text-xs font-bold text-gray-800 truncate w-full">{user.name}</span>
                   <span className="text-[10px] text-gray-400 truncate w-full">{isTamil ? 'பெற்றோர்' : 'Parent'}</span>
                 </div>
@@ -142,14 +135,7 @@ export function SharedUserMenu({
                   onClick={() => handleSwitchProfile(profile.id)}
                   className={`flex items-center gap-3 w-full p-2 rounded-xl transition-all ${activeProfileNickname === profile.nickname ? 'bg-orange-50 ring-1 ring-orange-100' : 'hover:bg-white border border-transparent shadow-sm hover:border-orange-200'}`}
                 >
-                  <div className="w-8 h-8 rounded-full bg-gradient-to-br from-orange-100 to-amber-100 flex-shrink-0 flex items-center justify-center overflow-hidden border border-orange-200 shadow-sm">
-                    {profile.avatarThumbnail ? (
-                      <img src={profile.avatarThumbnail} alt={profile.nickname} className="w-full h-full object-cover" />
-                    ) : (
-                      <span className="text-sm">👤</span>
-                    )}
-                  </div>
-                  <div className="flex flex-col items-start overflow-hidden">
+                  <div className="flex flex-col items-start overflow-hidden ml-2">
                     <span className="text-xs font-bold text-gray-800 truncate w-full">{profile.nickname}</span>
                     <span className="text-[10px] text-gray-400 truncate w-full">{isTamil ? 'மாணவர்' : 'Student'}</span>
                   </div>
@@ -162,10 +148,7 @@ export function SharedUserMenu({
                 onClick={handleGlobalProfileSelect}
                 className="flex items-center gap-3 w-full p-2 rounded-xl hover:bg-white transition-all border border-dashed border-gray-300 mt-1 group shadow-sm bg-white/50"
               >
-                <div className="w-8 h-8 rounded-full bg-gray-50 flex-shrink-0 flex items-center justify-center text-gray-400 group-hover:text-orange-500 group-hover:bg-orange-50 transition-colors border border-gray-100">
-                  <span className="text-lg">+</span>
-                </div>
-                <span className="text-xs font-bold text-gray-500 group-hover:text-orange-600 transition-colors text-left uppercase tracking-tight">
+                <span className="text-xs font-bold text-gray-500 group-hover:text-orange-600 transition-colors text-left uppercase tracking-tight ml-2">
                   {isTamil ? 'புதிய சுயவிவரம்' : 'Add Profile'}
                 </span>
               </button>
@@ -243,7 +226,7 @@ export function SharedUserMenu({
             className="flex items-center justify-between w-full px-4 py-2.5 text-sm font-medium text-gray-700 hover:bg-indigo-50 transition-colors group"
           >
             <div className="flex items-center gap-3">
-              <span className="text-lg group-hover:scale-110 transition-transform">🏫</span>
+              <span className="text-lg group-hover:scale-110 transition-transform">🏛️</span>
               <span className="font-bold text-gray-800 text-[13px]">{isTamil ? 'தமிழ் பள்ளி' : 'Tamil School'}</span>
             </div>
             <svg
@@ -256,20 +239,37 @@ export function SharedUserMenu({
 
           {schoolMenuOpen && (
             <div className="bg-indigo-50/30 pb-2">
-              {/* Dashboard / Hub Link */}
-              <Link
-                href={dashboardHref}
-                onClick={onClose}
-                className="flex items-center gap-3 w-full pl-11 pr-4 py-2 text-sm text-gray-700 hover:bg-white transition-colors group"
-              >
-                <div className="flex flex-col">
-                  <span className="font-semibold text-gray-700 text-[12px]">{dashboardLabel}</span>
-                  <span className="text-[9px] text-gray-400">{isTamil ? 'முக்கிய மேடை' : 'Primary Dashboard'}</span>
-                </div>
-              </Link>
+              {/* Dashboard / Hub Link (End-user dashboards only) */}
+              {user.role !== 'super_admin' && (
+                <Link
+                  href={dashboardHref}
+                  onClick={onClose}
+                  className="flex items-center gap-3 w-full pl-11 pr-4 py-2 text-sm text-gray-700 hover:bg-white transition-colors group"
+                >
+                  <div className="flex flex-col">
+                    <span className="font-semibold text-gray-700 text-[12px]">{dashboardLabel}</span>
+                    <span className="text-[9px] text-gray-400">{isTamil ? 'முக்கிய மேடை' : 'Primary Dashboard'}</span>
+                  </div>
+                </Link>
+              )}
 
-              {/* Kid's Hub Link (For Teachers who are also Parents) */}
-              {(user.role === 'teacher' || user.role === 'school_admin' || user.role === 'super_admin') && profiles.length > 0 && (
+              {/* Super Admin specific all-access links */}
+              {user.role === 'super_admin' && (
+                <>
+                  <Link href="/dashboard/school" onClick={onClose} className="flex items-center gap-3 w-full pl-11 pr-4 py-2 text-sm text-gray-700 hover:bg-white transition-colors group">
+                    <span className="font-semibold text-gray-700 text-[12px]">{isTamil ? 'பள்ளி மேடை' : 'School Dashboard'}</span>
+                  </Link>
+                  <Link href="/dashboard/teacher" onClick={onClose} className="flex items-center gap-3 w-full pl-11 pr-4 py-2 text-sm text-gray-700 hover:bg-white transition-colors group">
+                    <span className="font-semibold text-gray-700 text-[12px]">{isTamil ? 'ஆசிரியர் மேடை' : 'Teacher View'}</span>
+                  </Link>
+                  <Link href="/dashboard/parent" onClick={onClose} className="flex items-center gap-3 w-full pl-11 pr-4 py-2 text-sm text-gray-700 hover:bg-white transition-colors group">
+                    <span className="font-semibold text-gray-700 text-[12px]">{isTamil ? 'பெற்றோர் பக்கம்' : 'Parent View'}</span>
+                  </Link>
+                </>
+              )}
+
+              {/* Kid's Hub Link (For Teachers who are also Parents, skipping Super Admin since they have the all-access link above) */}
+              {(user.role === 'teacher' || user.role === 'school_admin') && profiles.length > 0 && (
                 <Link
                   href="/dashboard/parent"
                   onClick={onClose}
@@ -282,36 +282,16 @@ export function SharedUserMenu({
                 </Link>
               )}
 
-              {/* Create Class Link (Admins & Teachers) */}
-              {(user.role === 'super_admin' || user.role === 'school_admin' || user.role === 'teacher') && (
-                <Link
-                  href={user.role === 'teacher' ? '/dashboard/teacher?create=true' : '/dashboard/teacher?create=true'}
-                  onClick={onClose}
-                  className="flex items-center gap-3 w-full pl-11 pr-4 py-2 text-sm text-gray-700 hover:bg-white transition-colors group"
-                >
-                  <span className="font-semibold text-gray-700 text-[12px]">{isTamil ? 'வகுப்பை உருவாக்கு' : 'Create Class'}</span>
-                </Link>
-              )}
 
-              {/* Join Link (Parents / Others) */}
-              {(user.role !== 'school_admin' && user.role !== 'super_admin') && (
+
+              {/* Join Link (Parents / Others, also let Super Admin test it) */}
+              {user.role !== 'school_admin' && (
                 <Link
                   href="/schools/register"
                   onClick={onClose}
                   className="flex items-center gap-3 w-full pl-11 pr-4 py-2 text-sm text-gray-700 hover:bg-white transition-colors group"
                 >
-                  <span className="font-semibold text-gray-700 text-[12px]">{isTamil ? 'பள்ளியில் சேர' : 'Join a School'}</span>
-                </Link>
-              )}
-
-              {/* Register School (Only Super Admin) */}
-              {user.role === 'super_admin' && (
-                <Link
-                  href="/schools/register"
-                  onClick={onClose}
-                  className="flex items-center gap-3 w-full pl-11 pr-4 py-2 text-sm text-gray-700 hover:bg-white transition-colors group"
-                >
-                  <span className="font-semibold text-gray-700 text-[12px]">{isTamil ? 'பள்ளியை பதிவு செய்' : 'Register New School'}</span>
+                  <span className="font-semibold text-gray-700 text-[12px]">{isTamil ? 'பள்ளியைப் பதிவு செய்க' : 'Register a School'}</span>
                 </Link>
               )}
             </div>
@@ -337,6 +317,18 @@ export function SharedUserMenu({
 
         {settingsOpen && (
           <div className="bg-gray-50/50">
+            {/* Admin Portal (Super Admin only) */}
+            {user.role === 'super_admin' && (
+              <Link
+                href="/admin/waitlist"
+                onClick={onClose}
+                className="flex items-center gap-3 w-full pl-11 pr-4 py-2 text-sm text-gray-700 hover:bg-orange-50 transition-colors group text-left"
+              >
+                <span className="font-semibold text-gray-700 text-[12px]">
+                  {isTamil ? 'நிர்வாக பக்கம்' : 'Admin Portal'}
+                </span>
+              </Link>
+            )}
             {/* Profiles Management Link */}
             <button
               onClick={handleGlobalProfileSelect}

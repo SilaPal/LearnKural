@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/lib/use-auth';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import PageHeader from '@/components/page-header';
 import PricingModal from '@/components/pricing-modal';
@@ -19,6 +19,10 @@ interface Student {
     classroomId: string;
     progress: {
         completedChapters: number[];
+        coins: number;
+        streak: number;
+        badges: number;
+        region: string;
     };
 }
 
@@ -38,6 +42,8 @@ export default function TeacherDashboardClient() {
     const [showPricingModal, setShowPricingModal] = useState(false);
     const [showAuthModal, setShowAuthModal] = useState(false);
     const [showBadgeModal, setShowBadgeModal] = useState(false);
+
+    const searchParams = useSearchParams();
 
     // New Modal States
     const [showCreateClassModal, setShowCreateClassModal] = useState(false);
@@ -88,16 +94,14 @@ export default function TeacherDashboardClient() {
     };
 
     useEffect(() => {
-        if (!isLoading && (!user || (user.role !== 'teacher' && user.role !== 'school_admin'))) {
+        if (!isLoading && (!user || (user.role !== 'teacher' && user.role !== 'school_admin' && user.role !== 'super_admin'))) {
             router.push('/');
             return;
         }
 
-        const params = new URLSearchParams(window.location.search);
-        if (params.get('create') === 'true') {
+        if (searchParams?.get('create') === 'true') {
             setShowCreateClassModal(true);
-            // Clean up URL
-            window.history.replaceState({}, '', window.location.pathname);
+            router.replace('/dashboard/teacher', { scroll: false });
         }
 
         const fetchData = async () => {
@@ -198,17 +202,57 @@ export default function TeacherDashboardClient() {
             />
 
             <main className="max-w-6xl mx-auto px-4 py-10">
-                {/* Stats Header */}
-                <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-12">
-                    <div>
-                        <h2 className="text-3xl sm:text-4xl font-black text-gray-900 mb-2 tracking-tight">{isTamil ? 'உங்கள் மாணவர்கள்' : 'Classroom Mastery'} 🎓</h2>
-                        <p className="text-gray-500 font-medium">Monitoring {data.students.length} students across {data.classrooms.length} classes.</p>
-                    </div>
+                <div className="mb-12 text-center">
+                    <h2 className="text-3xl sm:text-5xl font-black text-gray-900 mb-2 tracking-tight">{isTamil ? 'வகுப்பறை மேடை' : 'Classroom Hub'} ⚡️</h2>
+                    <p className="text-gray-500 text-sm sm:text-base font-medium">{isTamil ? 'உங்கள் மாணவர்களின் முன்னேற்றத்தை நிகழ்நேரத்தில் கண்காணியுங்கள்.' : 'Track your students\' real-time progress through the Thirukkural.'}</p>
+                </div>
 
+                {/* Stats Overview Card */}
+                <div className="bg-gradient-to-br from-purple-50 to-white rounded-[2.5rem] p-8 sm:p-10 shadow-sm border border-purple-100 mb-12 relative overflow-hidden group">
+                    <div className="absolute top-0 right-0 opacity-[0.03] text-[200px] pointer-events-none transform translate-x-12 -translate-y-8 transition-transform group-hover:rotate-6 duration-700">🎓</div>
+                    <div className="flex flex-col md:flex-row items-center gap-10 relative z-10">
+                        <div className="text-center md:text-left">
+                            <h3 className="text-2xl font-black text-gray-900 mb-2 uppercase tracking-tight">{isTamil ? 'வகுப்பு சுருக்கம்' : 'Classroom Summary'}</h3>
+                            <div className="flex flex-wrap items-center justify-center md:justify-start gap-3 mt-4">
+                                <span className="bg-purple-100 text-purple-700 text-xs font-black px-4 py-1.5 rounded-full border border-purple-200 uppercase tracking-widest">{data.students.length} {isTamil ? 'மாணவர்கள்' : 'Students'}</span>
+                                <span className="bg-indigo-100 text-indigo-700 text-xs font-black px-4 py-1.5 rounded-full border border-indigo-200 uppercase tracking-widest">{data.classrooms.length} {isTamil ? 'வகுப்புகள்' : 'Classrooms'}</span>
+                            </div>
+                        </div>
+                        <div className="flex-grow grid grid-cols-2 sm:grid-cols-4 gap-4 w-full">
+                            <div className="bg-white/60 backdrop-blur-sm rounded-2xl p-4 border border-purple-100 text-center">
+                                <div className="text-[10px] font-bold text-purple-400 uppercase tracking-widest mb-1">Avg Mastered</div>
+                                <div className="text-2xl font-black text-purple-600">
+                                    {data.students.length > 0 ? Math.round(data.students.reduce((acc, s) => acc + s.progress.completedChapters.length, 0) / data.students.length) : 0}
+                                </div>
+                            </div>
+                            <div className="bg-white/60 backdrop-blur-sm rounded-2xl p-4 border border-purple-100 text-center">
+                                <div className="text-[10px] font-bold text-indigo-400 uppercase tracking-widest mb-1">Avg Coins</div>
+                                <div className="text-2xl font-black text-indigo-600">
+                                    {data.students.length > 0 ? Math.round(data.students.reduce((acc, s) => acc + s.progress.coins, 0) / data.students.length) : 0}
+                                </div>
+                            </div>
+                            <div className="bg-white/60 backdrop-blur-sm rounded-2xl p-4 border border-purple-100 text-center">
+                                <div className="text-[10px] font-bold text-orange-400 uppercase tracking-widest mb-1">Best Streak</div>
+                                <div className="text-2xl font-black text-orange-600">
+                                    {data.students.length > 0 ? Math.max(...data.students.map(s => s.progress.streak)) : 0}
+                                </div>
+                            </div>
+                            <div className="bg-white/60 backdrop-blur-sm rounded-2xl p-4 border border-purple-100 text-center">
+                                <div className="text-[10px] font-bold text-emerald-400 uppercase tracking-widest mb-1">Top Region</div>
+                                <div className="text-sm font-black text-emerald-600 truncate mt-1">
+                                    {data.students.length > 0 ? data.students[0].progress.region : 'Global'}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                {/* Filter Controls */}
+                <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-8">
                     <div className="flex bg-white p-1.5 rounded-2xl shadow-sm border border-gray-100 flex-wrap gap-1">
                         <button
                             onClick={() => setSelectedClassId('all')}
-                            className={`px-4 sm:px-6 py-2 sm:py-2.5 rounded-xl font-bold transition-all text-xs uppercase tracking-widest flex-1 sm:flex-none ${selectedClassId === 'all' ? 'bg-gradient-to-r from-purple-600 to-indigo-600 text-white shadow-md' : 'text-gray-400 hover:bg-gray-50 hover:text-gray-700 border border-transparent'}`}
+                            className={`px-4 sm:px-6 py-2 sm:py-2.5 rounded-xl font-bold transition-all text-[10px] uppercase tracking-widest flex-1 sm:flex-none ${selectedClassId === 'all' ? 'bg-gradient-to-r from-purple-600 to-indigo-600 text-white shadow-md' : 'text-gray-400 hover:bg-gray-50 hover:text-gray-700 border border-transparent'}`}
                         >
                             {isTamil ? 'அனைத்தும்' : 'All Classes'}
                         </button>
@@ -216,7 +260,7 @@ export default function TeacherDashboardClient() {
                             <button
                                 key={c.id}
                                 onClick={() => setSelectedClassId(c.id)}
-                                className={`px-4 sm:px-6 py-2 sm:py-2.5 rounded-xl font-bold transition-all text-xs uppercase tracking-widest flex-1 sm:flex-none ${selectedClassId === c.id ? 'bg-gradient-to-r from-purple-600 to-indigo-600 text-white shadow-md' : 'text-gray-400 hover:bg-gray-50 hover:text-gray-700 border border-transparent'}`}
+                                className={`px-4 sm:px-6 py-2 sm:py-2.5 rounded-xl font-bold transition-all text-[10px] uppercase tracking-widest flex-1 sm:flex-none ${selectedClassId === c.id ? 'bg-gradient-to-r from-purple-600 to-indigo-600 text-white shadow-md' : 'text-gray-400 hover:bg-gray-50 hover:text-gray-700 border border-transparent'}`}
                             >
                                 {c.name}
                             </button>
@@ -224,74 +268,102 @@ export default function TeacherDashboardClient() {
                     </div>
                 </div>
 
-                {/* Students Table/Grid */}
-                <div className="bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden">
+                {/* Students Master Table */}
+                <div className="bg-white rounded-[2.5rem] shadow-xl border border-gray-100 overflow-hidden">
                     {filteredStudents.length === 0 ? (
                         <div className="p-16 sm:p-24 text-center">
                             <div className="text-7xl mb-6 opacity-80">🏝️</div>
-                            <h3 className="text-2xl font-black text-gray-900 mb-2 tracking-tight">No students yet</h3>
-                            <p className="text-gray-500 max-w-sm mx-auto">Share your classroom invite code or link to begin tracking student progress in real-time.</p>
+                            <h3 className="text-2xl font-black text-gray-900 mb-2 tracking-tight">No students discovered</h3>
+                            <p className="text-gray-500 max-w-sm mx-auto font-medium">Share your classroom invite code or link to begin tracking student progress in real-time.</p>
                         </div>
                     ) : (
                         <div className="overflow-x-auto">
-                            <table className="w-full text-left border-collapse min-w-[600px]">
+                            <table className="w-full text-left border-collapse min-w-[800px]">
                                 <thead className="bg-gray-50/80 border-b border-gray-100">
                                     <tr>
-                                        <th className="px-6 sm:px-8 py-5 text-[10px] font-bold uppercase tracking-widest text-gray-500">{isTamil ? 'மாணவர்' : 'Student'}</th>
-                                        <th className="px-6 sm:px-8 py-5 text-[10px] font-bold uppercase tracking-widest text-gray-500">{isTamil ? 'வகுப்பு' : 'Class'}</th>
-                                        <th className="px-6 sm:px-8 py-5 text-[10px] font-bold uppercase tracking-widest text-gray-500">{isTamil ? 'தேர்ச்சி' : 'Mastery Progress'}</th>
-                                        <th className="px-6 sm:px-8 py-5 text-[10px] font-bold uppercase tracking-widest text-gray-500">{isTamil ? 'நிலை' : 'Status'}</th>
-                                        <th className="px-6 sm:px-8 py-5 text-right"></th>
+                                        <th className="px-8 py-6 text-[10px] font-black uppercase tracking-widest text-gray-400">{isTamil ? 'மாணவர்' : 'Champion'}</th>
+                                        <th className="px-6 py-6 text-[10px] font-black uppercase tracking-widest text-gray-400">{isTamil ? 'புள்ளிவிவரம்' : 'Stats'}</th>
+                                        <th className="px-6 py-6 text-[10px] font-black uppercase tracking-widest text-gray-400">{isTamil ? 'தேர்ச்சி' : 'Mastery Progress'}</th>
+                                        <th className="px-6 py-6 text-[10px] font-black uppercase tracking-widest text-gray-400">{isTamil ? 'நிலை' : 'Status'}</th>
+                                        <th className="px-8 py-6 text-right"></th>
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-gray-50">
                                     {filteredStudents.map(student => {
-                                        const progressPercent = Math.min(100, Math.round((student.progress.completedChapters.length / 133) * 100));
+                                        const totalKurals = 1330;
+                                        const masteredCount = student.progress.completedChapters.length;
+                                        const progressPercent = Math.min(100, Math.round((masteredCount / totalKurals) * 100));
                                         const classroomName = data.classrooms.find(c => c.id === student.classroomId)?.name || 'General';
 
                                         return (
-                                            <tr key={student.id} className="hover:bg-gray-50/80 transition-all group duration-200">
-                                                <td className="px-6 sm:px-8 py-4 sm:py-5">
+                                            <tr key={student.id} className="hover:bg-purple-50/30 transition-all group duration-300">
+                                                <td className="px-8 py-5">
                                                     <div className="flex items-center gap-4">
-                                                        <div className="h-10 w-10 sm:h-12 sm:w-12 bg-purple-50 rounded-xl flex items-center justify-center text-xl sm:text-2xl overflow-hidden shadow-inner flex-shrink-0 border border-purple-100">
-                                                            {student.picture ? <img src={student.picture} alt="" className="w-full h-full object-cover" /> : '🧒'}
+                                                        <div className="h-12 w-12 bg-purple-50 rounded-2xl flex items-center justify-center text-3xl overflow-hidden shadow-inner flex-shrink-0 border-2 border-purple-100 group-hover:scale-110 transition-transform relative">
+                                                            {student.picture ? <img src={student.picture} alt="" className="w-full h-full object-cover scale-110 mt-2" /> : '🧒'}
+                                                            {student.progress.streak > 0 && (
+                                                                <div className="absolute -bottom-1 -right-1 bg-white rounded-full p-0.5 shadow-sm border border-orange-100">
+                                                                    <span className="text-[10px] font-black text-orange-600">🔥{student.progress.streak}</span>
+                                                                </div>
+                                                            )}
                                                         </div>
                                                         <div>
-                                                            <div className="font-bold text-gray-900 group-hover:text-purple-700 transition-colors uppercase tracking-tight">{student.name}</div>
-                                                            <div className="text-xs text-gray-500 font-medium truncate max-w-[120px] sm:max-w-none">{student.email}</div>
+                                                            <div className="font-black text-gray-900 group-hover:text-purple-700 transition-colors uppercase tracking-tight text-sm">{student.name}</div>
+                                                            <div className="flex items-center gap-2 mt-1">
+                                                                <span className="text-[9px] font-black text-purple-400 uppercase tracking-widest bg-purple-50 px-2 py-0.5 rounded-md border border-purple-100">{classroomName}</span>
+                                                                <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest">{student.progress.region}</span>
+                                                            </div>
                                                         </div>
                                                     </div>
                                                 </td>
-                                                <td className="px-6 sm:px-8 py-4 sm:py-5">
-                                                    <span className="bg-purple-50 text-purple-700 text-[10px] font-bold px-2.5 py-1 rounded-full border border-purple-100 uppercase tracking-widest whitespace-nowrap">{classroomName}</span>
-                                                </td>
-                                                <td className="px-6 sm:px-8 py-4 sm:py-5">
-                                                    <div className="w-32 sm:w-48">
-                                                        <div className="flex items-center justify-between mb-1">
-                                                            <span className="text-[9px] sm:text-[10px] font-bold text-gray-400 uppercase tracking-widest">{student.progress.completedChapters.length} / 133</span>
-                                                            <span className="text-[10px] sm:text-xs font-black text-purple-600 bg-purple-50 px-1.5 py-0.5 rounded-md">{progressPercent}%</span>
+                                                <td className="px-6 py-5">
+                                                    <div className="flex flex-col gap-1.5">
+                                                        <div className="flex items-center gap-3">
+                                                            <span className="text-[10px] font-bold text-amber-600 bg-amber-50 px-2 py-0.5 rounded-lg border border-amber-100 flex items-center gap-1 min-w-[65px]">🪙 {student.progress.coins}</span>
+                                                            <span className="text-[10px] font-bold text-blue-600 bg-blue-50 px-2 py-0.5 rounded-lg border border-blue-100 flex items-center gap-1 min-w-[65px]">🏆 {student.progress.badges} Badges</span>
                                                         </div>
-                                                        <div className="h-2 w-full bg-gray-100 rounded-full overflow-hidden shadow-inner">
+                                                    </div>
+                                                </td>
+                                                <td className="px-6 py-5">
+                                                    <div className="w-48 sm:w-64">
+                                                        <div className="flex items-center justify-between mb-1.5">
+                                                            <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">{masteredCount} <span className="text-[8px] opacity-70">/ 1330</span></span>
+                                                            <span className="text-[10px] font-black text-purple-600">{progressPercent}%</span>
+                                                        </div>
+                                                        <div className="h-2.5 w-full bg-gray-100 rounded-full overflow-hidden shadow-inner border border-gray-50">
                                                             <div
-                                                                className="h-full bg-gradient-to-r from-purple-400 to-indigo-500 rounded-full transition-all duration-1000 ease-out"
+                                                                className="h-full bg-gradient-to-r from-purple-400 via-indigo-500 to-indigo-600 rounded-full transition-all duration-1000 ease-out"
                                                                 style={{ width: `${progressPercent}%` }}
                                                             ></div>
                                                         </div>
                                                     </div>
                                                 </td>
-                                                <td className="px-6 sm:px-8 py-4 sm:py-5">
-                                                    <div className="flex items-center gap-1.5">
-                                                        {progressPercent === 100 ? (
-                                                            <><span className="h-1.5 w-1.5 bg-emerald-500 rounded-full"></span><span className="text-[10px] sm:text-xs font-bold text-emerald-600">Completed</span></>
+                                                <td className="px-6 py-5">
+                                                    <div className="flex items-center gap-2">
+                                                        {progressPercent >= 90 ? (
+                                                            <div className="flex items-center gap-1.5 bg-emerald-50 px-2.5 py-1 rounded-lg border border-emerald-100">
+                                                                <span className="h-1.5 w-1.5 bg-emerald-500 rounded-full shadow-[0_0_8px_rgba(16,185,129,0.5)]"></span>
+                                                                <span className="text-[10px] font-black text-emerald-600 uppercase tracking-widest">{isTamil ? 'முடிந்தது' : 'Master'}</span>
+                                                            </div>
                                                         ) : progressPercent > 0 ? (
-                                                            <><span className="h-1.5 w-1.5 bg-amber-500 rounded-full animate-pulse"></span><span className="text-[10px] sm:text-xs font-bold text-amber-600">Learning</span></>
+                                                            <div className="flex items-center gap-1.5 bg-amber-50 px-2.5 py-1 rounded-lg border border-amber-100">
+                                                                <span className="h-1.5 w-1.5 bg-amber-500 rounded-full animate-pulse shadow-[0_0_8px_rgba(245,158,11,0.5)]"></span>
+                                                                <span className="text-[10px] font-black text-amber-600 uppercase tracking-widest">{isTamil ? 'கற்கிறார்' : 'Learning'}</span>
+                                                            </div>
                                                         ) : (
-                                                            <><span className="h-1.5 w-1.5 bg-gray-300 rounded-full"></span><span className="text-[10px] sm:text-xs font-bold text-gray-400">Not Started</span></>
+                                                            <div className="flex items-center gap-1.5 bg-gray-50 px-2.5 py-1 rounded-lg border border-gray-100">
+                                                                <span className="h-1.5 w-1.5 bg-gray-300 rounded-full"></span>
+                                                                <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">{isTamil ? 'தொடங்கவில்லை' : 'Pending'}</span>
+                                                            </div>
                                                         )}
                                                     </div>
                                                 </td>
-                                                <td className="px-6 sm:px-8 py-4 sm:py-5 text-right">
-                                                    <button className="text-indigo-600 font-black hover:underline text-xs uppercase tracking-widest opacity-0 group-hover:opacity-100 transition-all translate-x-2 group-hover:translate-x-0">View Stats →</button>
+                                                <td className="px-8 py-5 text-right">
+                                                    <button className="h-8 w-8 hover:bg-white rounded-lg border border-transparent hover:border-purple-100 hover:shadow-sm text-purple-600 transition-all flex items-center justify-center opacity-0 group-hover:opacity-100">
+                                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M9 5l7 7-7 7" />
+                                                        </svg>
+                                                    </button>
                                                 </td>
                                             </tr>
                                         );
@@ -302,45 +374,7 @@ export default function TeacherDashboardClient() {
                     )}
                 </div>
 
-                <div className="mt-14 grid grid-cols-1 md:grid-cols-2 gap-10">
-                    <section className="bg-white p-10 rounded-[2.5rem] shadow-2xl border border-white relative overflow-hidden group">
-                        <div className="absolute top-0 right-0 opacity-[0.03] text-[180px] pointer-events-none transform translate-x-12 -translate-y-8 group-hover:rotate-12 transition-transform duration-700">🎫</div>
-                        <h3 className="text-2xl font-black text-slate-900 mb-6 flex items-center gap-4">
-                            <span className="h-12 w-12 bg-emerald-100 rounded-2xl flex items-center justify-center text-2xl shadow-inner">🎟️</span>
-                            Add More Champions
-                        </h3>
-                        <p className="text-slate-500 font-bold opacity-80 mb-10 leading-relaxed text-sm">
-                            Ready to expand your class? Share the global academy code or generate classroom-specific links to bring your students onto the platform.
-                        </p>
-                        <div className="flex flex-col sm:flex-row gap-4">
-                            <button
-                                onClick={() => generateInvite(selectedClassId !== 'all' ? selectedClassId : undefined, selectedClassId !== 'all' ? data.classrooms.find(c => c.id === selectedClassId)?.name : undefined)}
-                                className="flex-1 bg-indigo-600 text-white font-black py-4.5 px-6 rounded-2xl hover:bg-indigo-700 transition-all shadow-xl shadow-indigo-100 text-sm"
-                            >
-                                {isTamil ? 'அழைப்பை நகலெடு' : 'Copy Student Invite'}
-                            </button>
-                            <button
-                                onClick={() => setShowCreateClassModal(true)}
-                                className="flex-1 bg-slate-50 text-slate-700 font-black py-4.5 px-6 rounded-2xl hover:bg-slate-100 transition-all border border-slate-200 text-sm"
-                            >
-                                {isTamil ? 'புதிய வகுப்பு உருவாக்கு' : 'Classroom Setup'}
-                            </button>
-                        </div>
-                    </section>
 
-                    <section className="bg-gradient-to-br from-indigo-900 via-slate-900 to-black text-white p-10 rounded-[2.5rem] shadow-2xl relative overflow-hidden group border border-white/5">
-                        <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/dark-matter.png')] opacity-20"></div>
-                        <div className="absolute top-0 right-0 opacity-10 text-[180px] pointer-events-none transform translate-x-12 -translate-y-8 group-hover:scale-110 transition-all duration-1000">📊</div>
-                        <h3 className="text-2xl font-black mb-6 flex items-center gap-4 relative z-10">
-                            <span className="h-12 w-12 bg-white/10 rounded-2xl flex items-center justify-center text-2xl border border-white/10 shadow-xl">📈</span>
-                            Parent Engagement
-                        </h3>
-                        <p className="text-indigo-100 font-bold opacity-70 mb-10 leading-relaxed text-sm relative z-10">
-                            Automated progress reports will be sent to parents every Sunday. Ensure parent emails are linked to students for maximum engagement.
-                        </p>
-                        <button className="bg-white/10 hover:bg-white/20 text-white font-black py-4.5 px-8 rounded-2xl transition-all border border-white/10 w-full relative z-10 text-sm shadow-xl backdrop-blur-sm">View Parent Reports</button>
-                    </section>
-                </div>
             </main>
         </div>
     );

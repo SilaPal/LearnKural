@@ -136,6 +136,11 @@ export default function FavoritesClient({ allKuralSlugs }: Props) {
     .map(id => allKuralSlugs.find(k => k.id === id))
     .filter(Boolean) as KuralSlugInfo[];
 
+  const isPremium = user?.tier === 'paid' ||
+    user?.role === 'super_admin' ||
+    user?.role === 'school_admin' ||
+    user?.role === 'teacher';
+
   return (
     <>
       <PageHeader
@@ -157,7 +162,7 @@ export default function FavoritesClient({ allKuralSlugs }: Props) {
 
       <main className="max-w-4xl mx-auto px-4 py-8">
         {/* Free tier limit banner */}
-        {bookmarks.length >= 8 && (
+        {!isPremium && bookmarks.length >= 8 && (
           <div className={`mb-4 rounded-xl p-4 flex items-center justify-between gap-3 ${bookmarks.length >= 10
             ? 'bg-red-50 border border-red-200'
             : 'bg-amber-50 border border-amber-200'

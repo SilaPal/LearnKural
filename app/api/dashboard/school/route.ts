@@ -60,7 +60,18 @@ export async function GET(request: NextRequest) {
         const [classroomCountResult] = await db.select({ value: count() }).from(classrooms).where(eq(classrooms.schoolId, schoolId));
 
         // 3. Classrooms List
-        const schoolClassrooms = await db.select().from(classrooms).where(eq(classrooms.schoolId, schoolId));
+        const schoolClassrooms = await db.select({
+            id: classrooms.id,
+            name: classrooms.name,
+            teacherId: classrooms.teacherId,
+            teacherName: users.name,
+            startDate: classrooms.startDate,
+            endDate: classrooms.endDate,
+            createdAt: classrooms.createdAt
+        })
+            .from(classrooms)
+            .leftJoin(users, eq(classrooms.teacherId, users.id))
+            .where(eq(classrooms.schoolId, schoolId));
 
         // 4. Staff List (school_admin or teacher)
         const staff = await db.select()

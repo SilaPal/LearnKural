@@ -39,6 +39,8 @@ export async function POST(request: NextRequest) {
             return NextResponse.json({ error: 'Invite code has expired' }, { status: 410 });
         }
 
+        const [currentUser] = await db.select().from(users).where(eq(users.id, userId)).limit(1);
+
         // Update user: Assign school and role. If joining as student and childProfileId is present, we only assign parent role.
         let updatedRole: any = invite.role;
         if (invite.role === 'student' && childProfileId) {
@@ -48,7 +50,7 @@ export async function POST(request: NextRequest) {
         const updateData: any = {
             schoolId: invite.schoolId,
             role: updatedRole, // 'student', 'parent', or 'teacher'
-            tier: 'paid' // Joining a school grants premium access
+            // Removing `tier: 'paid'` because this is now a B2C model (Parent Pays).
         };
 
         await db.update(users)
@@ -57,10 +59,30 @@ export async function POST(request: NextRequest) {
 
         // If it was a classroom-specific invite and user is a student, join classroom
         if (invite.classroomId && invite.role === 'student') {
+
+            // If the user already belonged to a different school or different class, mark old active records as transferred/completed
+            const isSwitchingSchools = currentUser?.schoolId && currentUser.schoolId !== invite.schoolId;
+
+            // For safety and history, mark their previous active classroom enrollments as 'transferred'
+            // We do this by dropping any existing active enrollments for this specific student/childProfile combination
+            let historyQuery = db.update(classroomStudents)
+                .set({ status: 'transferred' })
+                .where(eq(classroomStudents.studentId, userId));
+
+            if (childProfileId) {
+                // If it's a specific child, only transfer that child's history, not siblings
+                historyQuery = db.update(classroomStudents)
+                    .set({ status: 'transferred' })
+                    .where(eq(classroomStudents.childProfileId, childProfileId));
+            }
+
+            await historyQuery;
+
             const studentLinkObj: any = {
                 id: 'cs_' + Math.random().toString(36).substring(2, 10),
                 classroomId: invite.classroomId,
                 studentId: userId,
+                status: 'active'
             };
             if (childProfileId) {
                 studentLinkObj.childProfileId = childProfileId;

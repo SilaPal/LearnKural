@@ -45,6 +45,8 @@ export const users = pgTable('users', {
         regionIdx: index('region_idx').on(table.region),
         schoolIdIdx: index('user_school_id_idx').on(table.schoolId),
         createdAtIdx: index('created_at_idx').on(table.createdAt),
+        nameIdx: index('name_idx').on(table.name),
+        emailIdx: index('email_idx').on(table.email),
     }
 });
 
@@ -52,6 +54,7 @@ export const classrooms = pgTable('classrooms', {
     id: varchar('id').primaryKey(),
     schoolId: varchar('school_id').notNull(),
     name: varchar('name').notNull(),
+    startDate: timestamp('start_date'),
     teacherId: varchar('teacher_id'),
     endDate: timestamp('end_date'),
     createdAt: timestamp('created_at').defaultNow().notNull(),
@@ -66,6 +69,7 @@ export const classrooms = pgTable('classrooms', {
             foreignColumns: [users.id]
         }),
         classroomSchoolIdx: index('classroom_school_idx').on(table.schoolId),
+        classroomTeacherIdx: index('classroom_teacher_idx').on(table.teacherId),
     }
 });
 
@@ -74,6 +78,7 @@ export const classroomStudents = pgTable('classroom_students', {
     classroomId: varchar('classroom_id').notNull(),
     studentId: varchar('student_id').notNull(),
     childProfileId: varchar('child_profile_id'),
+    status: varchar('status', { enum: ['active', 'transferred', 'completed', 'dropped'] }).default('active').notNull(),
     joinedAt: timestamp('joined_at').defaultNow().notNull(),
 }, (table) => {
     return {

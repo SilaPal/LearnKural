@@ -156,7 +156,7 @@ export default function KuralPlayingClient({ initialKurals, initialGame, initial
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [showPricingModal, setShowPricingModal] = useState(false);
   const { user, logout } = useAuth();
-  const isPaidUser = user?.tier === 'paid';
+  const isPaidUser = user?.tier === 'paid' || user?.role === 'super_admin' || user?.role === 'school_admin' || user?.role === 'teacher';
   const [totalCoins, setTotalCoins] = useState(user?.coins || 0);
   const [userChapters, setUserChapters] = useState<number[]>([]);
   const [bookmarks, setBookmarks] = useState<number[]>([]);

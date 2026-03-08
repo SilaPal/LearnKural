@@ -14,7 +14,7 @@ export default function RegisterClient() {
     const router = useRouter();
     const [isTamil, setIsTamil] = useState(false);
 
-    const [mode, setMode] = useState<'register' | 'join'>('join');
+    const [mode, setMode] = useState<'register' | 'join'>('register');
     const [joinCode, setJoinCode] = useState('');
     const [schoolName, setSchoolName] = useState('');
     const [submitting, setSubmitting] = useState(false);
@@ -132,7 +132,7 @@ export default function RegisterClient() {
             <div className="max-w-2xl w-full pt-10">
                 <div className="text-center mb-10">
                     <h1 className="text-4xl font-black text-indigo-900 mb-2">
-                        {isTamil ? 'தமிழ் பள்ளிக் கூடம்' : 'Tamil School Portal'} 🏫
+                        {isTamil ? 'தமிழ் பள்ளிக் கூடம் 🏛️' : 'Tamil School Portal'}
                     </h1>
                     <p className="text-indigo-600 font-medium">
                         {isTamil ? 'உங்கள் மாணவர்களுக்கான ஒரு புதிய கற்றல் அனுபவம்' : 'A modern gamified experience for your students'}
@@ -140,20 +140,7 @@ export default function RegisterClient() {
                 </div>
 
                 <div className="bg-white rounded-3xl shadow-2xl overflow-hidden border border-white">
-                    <div className="flex bg-slate-100 p-1.5 m-6 rounded-2xl shadow-inner">
-                        <button
-                            onClick={() => setMode('join')}
-                            className={`flex-1 py-3.5 rounded-xl font-bold transition-all duration-300 ${mode === 'join' ? 'bg-white text-indigo-700 shadow-lg scale-[1.02]' : 'text-slate-500 hover:text-slate-700'}`}
-                        >
-                            {isTamil ? 'சேரவும்' : 'Join a School'}
-                        </button>
-                        <button
-                            onClick={() => setMode('register')}
-                            className={`flex-1 py-3.5 rounded-xl font-bold transition-all duration-300 ${mode === 'register' ? 'bg-white text-indigo-700 shadow-lg scale-[1.02]' : 'text-slate-500 hover:text-slate-700'}`}
-                        >
-                            {isTamil ? 'பதிவு செய்யவும்' : 'Register New School'}
-                        </button>
-                    </div>
+
 
                     <div className="px-8 pb-10">
                         {isPendingApproval ? (
@@ -174,39 +161,7 @@ export default function RegisterClient() {
                                     {isTamil ? 'முகப்புக்குத் திரும்புக' : 'Return to Home'}
                                 </Link>
                             </div>
-                        ) : mode === 'join' ? (
-                            <form onSubmit={handleJoin} className="space-y-6">
-                                <div className="text-center">
-                                    <label className="block text-sm font-black text-slate-700 uppercase tracking-widest mb-4">
-                                        {isTamil ? 'அழைப்புக் குறியீடு' : 'Invite Code'}
-                                    </label>
-                                    <input
-                                        type="text"
-                                        required
-                                        value={joinCode}
-                                        onChange={(e) => setJoinCode(e.target.value.toUpperCase())}
-                                        placeholder="E.g. AX79B2"
-                                        className="w-48 px-6 py-5 bg-slate-50 border-4 border-slate-100 rounded-2xl focus:border-indigo-500 focus:outline-none text-2xl font-black text-center tracking-widest shadow-inner"
-                                    />
-                                    <p className="mt-4 text-sm text-slate-500 max-w-sm mx-auto">
-                                        {isTamil ? 'உங்கள் ஆசிரியர் வழங்கிய 6 இலக்கக் குறியீட்டை இங்கே உள்ளிடவும்.' : 'Enter the 6-character code provided by your teacher or admin to connect your account.'}
-                                    </p>
-                                </div>
 
-                                {error && <div className="p-4 bg-red-50 text-red-600 rounded-2xl font-bold text-sm border-2 border-red-100 text-center animate-shake">{error}</div>}
-
-                                <button
-                                    disabled={submitting}
-                                    className="w-full bg-gradient-to-r from-indigo-600 to-indigo-700 hover:from-indigo-700 hover:to-indigo-800 text-white py-5 rounded-2xl font-black shadow-xl shadow-indigo-200 transition-all hover:scale-[1.02] active:scale-95 disabled:opacity-50 text-lg"
-                                >
-                                    {submitting ? (
-                                        <div className="flex items-center justify-center gap-2">
-                                            <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
-                                            <span>Processing...</span>
-                                        </div>
-                                    ) : (isTamil ? 'நுழையவும்' : 'Join Academy')}
-                                </button>
-                            </form>
                         ) : (
                             <form onSubmit={handleRegister} className="space-y-6">
                                 <div>

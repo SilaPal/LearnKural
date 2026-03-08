@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/db/db';
-import { users, classrooms, classroomStudents, childProfiles } from '@/db/schema';
+import { users, classrooms, classroomStudents, childProfiles, userProgress, avatars } from '@/db/schema';
 import { eq, inArray } from 'drizzle-orm';
 import { verifySession } from '@/lib/session';
 
@@ -9,14 +9,6 @@ export const dynamic = 'force-dynamic';
 async function getUserId(request: NextRequest) {
     const sessionToken = request.cookies.get('thirukural-session')?.value;
     if (!sessionToken) return null;
-
-    // Fallback block if old unassigned session cookie exists (temp backwards compatibility)
-    try {
-        if (!sessionToken.includes('.')) {
-            const dec = JSON.parse(Buffer.from(sessionToken, 'base64').toString('utf-8'));
-            return dec.userId || null;
-        }
-    } catch { }
 
     const sessionData = verifySession(sessionToken);
     return sessionData?.userId || null;
@@ -28,7 +20,7 @@ export async function GET(request: NextRequest) {
 
     try {
         const [user] = await db.select().from(users).where(eq(users.id, userId));
-        if (!user || (user.role !== 'teacher' && user.role !== 'school_admin')) {
+        if (!user || (user.role !== 'teacher' && user.role !== 'school_admin' && user.role !== 'super_admin')) {
             return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
         }
 
@@ -56,19 +48,43 @@ export async function GET(request: NextRequest) {
 
         let activeStudents: any[] = [];
 
-        // 4a. Fetch child profiles
+        // 4a. Fetch child profiles with avatar info
         if (childProfileIds.length > 0) {
-            const children = await db.select().from(childProfiles).where(inArray(childProfiles.id, childProfileIds));
+            const children = await db.select({
+                id: childProfiles.id,
+                nickname: childProfiles.nickname,
+                activeAvatarId: childProfiles.activeAvatarId,
+                avatarThumbnail: avatars.thumbnailUrl,
+                avatarExpiresAt: childProfiles.avatarExpiresAt,
+                coins: childProfiles.coins,
+                badges: childProfiles.badges,
+                streak: childProfiles.streak,
+                completedChapters: childProfiles.completedChapters,
+                region: childProfiles.region,
+            })
+                .from(childProfiles)
+                .leftJoin(avatars, eq(childProfiles.activeAvatarId, avatars.id))
+                .where(inArray(childProfiles.id, childProfileIds));
+
+            const now = new Date();
             children.forEach(child => {
                 const mapping = studentMappings.find(m => m.childProfileId === child.id);
+                // Expiry check
+                const thumb = (child.avatarExpiresAt && child.avatarExpiresAt < now) ? null : child.avatarThumbnail;
+
                 activeStudents.push({
                     id: child.id,
                     name: child.nickname,
-                    email: 'Child Profile', // Child profiles do not have emails
-                    picture: null,          // Can map lottie avatars if needed later
+                    email: 'Student',
+                    picture: thumb,
                     classroomId: mapping?.classroomId,
+                    isChild: true,
                     progress: {
-                        completedChapters: child.completedChapters
+                        completedChapters: child.completedChapters,
+                        coins: child.coins,
+                        streak: child.streak,
+                        badges: (child.badges as any[])?.length || 0,
+                        region: child.region
                     }
                 });
             });
@@ -81,15 +97,31 @@ export async function GET(request: NextRequest) {
                 name: users.name,
                 email: users.email,
                 picture: users.picture,
+                coins: users.coins,
+                streak: users.streak,
+                region: users.region
             }).from(users).where(inArray(users.id, individualStudentIds));
 
-            // Optional: Fetch user_progress for adults here if needed, but assuming most are children right now
+            // Fetch user_progress for adults
+            const progressList = await db.select().from(userProgress).where(inArray(userProgress.userId, individualStudentIds));
+
             independentUsers.forEach(u => {
                 const mapping = studentMappings.find(m => m.studentId === u.id && !m.childProfileId);
+                const p = progressList.find(pl => pl.userId === u.id);
                 activeStudents.push({
-                    ...u,
+                    id: u.id,
+                    name: u.name,
+                    email: u.email,
+                    picture: u.picture,
                     classroomId: mapping?.classroomId,
-                    progress: { completedChapters: [] } // default for now, can join userProgress if needed
+                    isChild: false,
+                    progress: {
+                        completedChapters: p?.completedChapters || [],
+                        coins: u.coins,
+                        streak: u.streak,
+                        badges: (p?.badges as any[])?.length || 0,
+                        region: u.region
+                    }
                 });
             });
         }

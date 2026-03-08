@@ -11,14 +11,7 @@ export function resolveActiveId(request: NextRequest): { userId: string; activeP
     const sessionToken = request.cookies.get('thirukural-session')?.value;
     if (!sessionToken) return null;
 
-    // Backwards compat: handle old unsigned base64 sessions
-    try {
-        if (!sessionToken.includes('.')) {
-            const dec = JSON.parse(Buffer.from(sessionToken, 'base64').toString('utf-8'));
-            return { userId: dec.userId || null, activeProfileId: null };
-        }
-    } catch { }
-
+    // HMAC verification only
     const session = verifySession(sessionToken);
     if (!session?.userId) return null;
 

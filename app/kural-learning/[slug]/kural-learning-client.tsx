@@ -192,7 +192,7 @@ export default function KuralLearningClient({
   const { emotion: avatarEmotion, react: reactAvatar } = useAvatarEmotion();
   const [totalCoins, setTotalCoins] = useState(user?.coins || 0);
   const [streakCount, setStreakCount] = useState(0);
-  const isPaidUser = user?.tier === 'paid';
+  const isPaidUser = user?.tier === 'paid' || user?.role === 'super_admin' || user?.role === 'school_admin' || user?.role === 'teacher';
   const FREE_FAVORITES_LIMIT = 10;
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const recognitionRef = useRef<any>(null);

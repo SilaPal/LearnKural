@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/db/db';
 import { schoolInvites, schools, classrooms } from '@/db/schema';
-import { eq } from 'drizzle-orm';
+import { eq, and } from 'drizzle-orm';
 import { verifySession } from '@/lib/session';
 
 export const dynamic = 'force-dynamic';
@@ -9,14 +9,14 @@ export const dynamic = 'force-dynamic';
 async function getUserId(request: NextRequest) {
     const sessionToken = request.cookies.get('thirukural-session')?.value;
     if (!sessionToken) return null;
-    
+
     // Fallback block if old unassigned session cookie exists (temp backwards compatibility)
     try {
         if (!sessionToken.includes('.')) {
-             const dec = JSON.parse(Buffer.from(sessionToken, 'base64').toString('utf-8'));
-             return dec.userId || null;
+            const dec = JSON.parse(Buffer.from(sessionToken, 'base64').toString('utf-8'));
+            return dec.userId || null;
         }
-    } catch {}
+    } catch { }
 
     const sessionData = verifySession(sessionToken);
     return sessionData?.userId || null;
@@ -65,6 +65,20 @@ export async function POST(request: NextRequest) {
         const { schoolId, classroomId, role } = body;
 
         if (!schoolId) return NextResponse.json({ error: 'School ID is required' }, { status: 400 });
+
+        // Check if an unexpired invite already exists for this specific context
+        const [existing] = await db.select()
+            .from(schoolInvites)
+            .where(and(
+                eq(schoolInvites.schoolId, schoolId),
+                eq(schoolInvites.classroomId, classroomId || null),
+                eq(schoolInvites.role, role || 'student')
+            ))
+            .limit(1);
+
+        if (existing && new Date() < existing.expiresAt) {
+            return NextResponse.json(existing);
+        }
 
         // Generate a 6-character alphanumeric code
         const code = Math.random().toString(36).substring(2, 8).toUpperCase();
