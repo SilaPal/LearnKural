@@ -10,7 +10,7 @@ import BadgeModal from '@/components/badge-modal';
 import AuthModal from '@/components/auth-modal';
 
 export default function RegisterClient() {
-    const { user, isLoading } = useAuth();
+    const { user, isLoading, refetch } = useAuth();
     const router = useRouter();
     const [isTamil, setIsTamil] = useState(false);
 
@@ -86,6 +86,7 @@ export default function RegisterClient() {
             });
             const data = await res.json();
             if (data.id) {
+                await refetch();
                 setIsPendingApproval(true);
             } else {
                 setError(data.error || 'Failed to create school');

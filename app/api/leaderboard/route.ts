@@ -40,7 +40,8 @@ export async function GET(request: NextRequest) {
                     u.region as region,
                     u.tier as tier,
                     u.created_at as created_at,
-                    s.name as school_name
+                    s.name as school_name,
+                    'Self' as relationship
                 FROM ${users} u
                 LEFT JOIN ${avatars} a ON u.active_avatar_id = a.id
                 LEFT JOIN ${schools} s ON u.school_id = s.id
@@ -63,7 +64,8 @@ export async function GET(request: NextRequest) {
                     COALESCE(cp.region, u.region, 'Global') as region,
                     'free' as tier,
                     cp.created_at as created_at,
-                    NULL as school_name
+                    NULL as school_name,
+                    cp.relationship as relationship
                 FROM ${childProfiles} cp
                 LEFT JOIN ${users} u ON cp.parent_user_id = u.id
                 LEFT JOIN ${avatars} a ON cp.active_avatar_id = a.id
@@ -91,7 +93,8 @@ export async function GET(request: NextRequest) {
             avatarThumbnailUrl: r.avatar_thumbnail_url,
             region: r.region,
             tier: r.tier,
-            schoolName: r.school_name
+            schoolName: r.school_name,
+            relationship: r.relationship
         }));
 
         return NextResponse.json(rows);

@@ -9,6 +9,7 @@ import WorldMap from '@/components/world-map';
 import AuthModal from '@/components/auth-modal';
 import PricingModal from '@/components/pricing-modal';
 import { SharedUserMenu } from '@/components/shared-user-menu';
+import JoinClassModal from '@/components/join-class-modal';
 import { useRef } from 'react';
 import { useUserTier } from '@/lib/use-tier';
 
@@ -28,6 +29,7 @@ interface LeaderboardEntry {
     region: string;
     tier: string;
     schoolName: string | null;
+    relationship?: string;
 }
 
 const MEDAL = ['🥇', '🥈', '🥉'];
@@ -207,6 +209,8 @@ export default function LeaderboardClient() {
     const [showPricingModal, setShowPricingModal] = useState(false);
     const [showBadgeModal, setShowBadgeModal] = useState(false);
     const [showUserMenu, setShowUserMenu] = useState(false);
+    const [showJoinClassModal, setShowJoinClassModal] = useState(false);
+    const [profiles, setProfiles] = useState<any[]>([]);
     const userMenuRef = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
@@ -244,6 +248,12 @@ export default function LeaderboardClient() {
             if (selectedRegion === 'Global' && user.region && user.region !== 'Global') {
                 setSelectedRegion(user.region);
             }
+
+            // Fetch child profiles for Hub link wording
+            fetch('/api/child-profiles')
+                .then(res => res.json())
+                .then(data => setProfiles(data.profiles || []))
+                .catch(err => console.error('Failed to fetch profiles:', err));
         }
     }, [user, user?.activeProfileId]);
 
@@ -315,8 +325,27 @@ export default function LeaderboardClient() {
                 onBadgesClick={() => setShowBadgeModal(true)}
                 isTamil={isTamil}
                 toggleLanguage={toggleLanguage}
+                onJoinClassClick={() => setShowJoinClassModal(true)}
             >
                 <div className="flex flex-col items-center">
+                    {/* Hub Link for Parent Users */}
+                    {user && user.role !== 'student' && (
+                        <Link
+                            href="/dashboard/parent"
+                            className="mb-4 inline-flex items-center gap-2 px-4 py-2 bg-white/20 border border-white/40 hover:bg-white/30 rounded-full text-white transition-all shadow-lg backdrop-blur-md group"
+                        >
+                            <span className="text-xl group-hover:scale-110 transition-transform">🏘️</span>
+                            <span className="font-black text-sm uppercase tracking-wider">
+                                {(() => {
+                                    if (profiles.length === 0) return isTamil ? 'சுயவிவர மேடை' : 'Profile Hub';
+                                    const allChildren = profiles.every((p: any) => p.relationship === 'Child' || !p.relationship);
+                                    if (allChildren) return isTamil ? 'குழந்தை மையம்' : "Kid's Hub";
+                                    return isTamil ? 'குடும்ப மேடை' : 'Family Hub';
+                                })()}
+                            </span>
+                            <span className="text-white/60 text-xs ml-1">→</span>
+                        </Link>
+                    )}
                     <p className="text-sm opacity-90 text-center mb-1 max-w-sm">
                         {isTamil ? 'உலகெங்கிலும் உள்ள சிறந்தவர்கள்' : 'Top players from all around the world'}
                     </p>
@@ -472,6 +501,16 @@ export default function LeaderboardClient() {
                                         <div className="flex-1 min-w-0">
                                             <div className="text-gray-800 font-bold text-sm truncate flex items-center gap-2">
                                                 {entry.name}
+                                                {entry.relationship && entry.relationship !== 'Self' && (
+                                                    <span className="text-[10px] bg-slate-100 text-slate-500 px-1.5 py-0.5 rounded font-bold uppercase tracking-tight">
+                                                        {isTamil ? (
+                                                            entry.relationship === 'Child' ? 'குழந்தை' :
+                                                                entry.relationship === 'Sibling' ? 'உடன் பிறப்பு' :
+                                                                    entry.relationship === 'Friend' ? 'நண்பர்' :
+                                                                        entry.relationship === 'Spouse' ? 'துணைவர்' : entry.relationship
+                                                        ) : entry.relationship}
+                                                    </span>
+                                                )}
                                                 {isMe && <span className="text-purple-400 text-xs font-normal">({isTamil ? 'நீங்கள்' : 'you'})</span>}
                                             </div>
                                             <div className="flex items-center gap-1.5 text-[10px] font-bold text-gray-400 mt-0.5 uppercase tracking-wider">
@@ -528,6 +567,17 @@ export default function LeaderboardClient() {
                 language={isTamil ? 'tamil' : 'english'}
                 celebrationType={null}
             />
+
+            {user && (
+                <JoinClassModal
+                    isOpen={showJoinClassModal}
+                    onClose={() => setShowJoinClassModal(false)}
+                    isTamil={isTamil}
+                    profiles={[]}
+                    userId={user.id}
+                    userName={user.name}
+                />
+            )}
         </div>
     );
 }

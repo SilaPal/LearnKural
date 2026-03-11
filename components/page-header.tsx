@@ -5,6 +5,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { useAuth } from '@/lib/use-auth';
 import { SharedUserMenu } from '@/components/shared-user-menu';
+import JoinClassModal from '@/components/join-class-modal';
 
 interface PageHeaderProps {
     /** Gradient classes for the header bg. Defaults to purple/indigo. */
@@ -47,6 +48,8 @@ interface PageHeaderProps {
     alignLeft?: boolean;
     /** If true, hides the second row (sub-bar) completely. */
     hideSubBar?: boolean;
+    /** Called when Join a Class is clicked in user menu */
+    onJoinClassClick?: () => void;
     /** Optional children rendered below the logo row (e.g. region tabs). */
     children?: React.ReactNode;
 }
@@ -60,6 +63,7 @@ interface PageHeaderProps {
 interface ChildProfile {
     id: string;
     nickname: string;
+    relationship: string;
     activeAvatarId: string;
     avatarThumbnail?: string | null;
 }
@@ -85,6 +89,7 @@ export default function PageHeader({
     alignLeft = false,
     hideSubBar = false,
     maxWidthClass = 'max-w-4xl',
+    onJoinClassClick: onJoinClassClickProp,
     children
 }: PageHeaderProps) {
     const { user, logout, refetch } = useAuth();
@@ -92,6 +97,7 @@ export default function PageHeader({
     const hasChildProfiles = !!(user?.activeProfileId);
     const [isTamilInternal, setIsTamilInternal] = useState(false);
     const [showUserMenu, setShowUserMenu] = useState(false);
+    const [showJoinClassModal, setShowJoinClassModal] = useState(false);
     const [profiles, setProfiles] = useState<ChildProfile[]>([]);
     const menuRef = useRef<HTMLDivElement>(null);
 
@@ -242,6 +248,7 @@ export default function PageHeader({
                                             className="h-9 w-9 rounded-full border-2 border-white/60 shadow-lg"
                                             width={36}
                                             height={36}
+                                            referrerPolicy="no-referrer"
                                         />
                                     ) : (
                                         <div className="h-9 w-9 rounded-full bg-white/20 border-2 border-white/60 shadow-lg flex items-center justify-center text-white font-bold text-sm">
@@ -258,7 +265,8 @@ export default function PageHeader({
                                             email: user.email,
                                             picture: user.picture || undefined,
                                             tier: user.tier || 'free',
-                                            role: user.role || 'user'
+                                            role: user.role || 'user',
+                                            schoolId: user.schoolId
                                         }}
                                         isTamil={isTamil}
                                         isPaidUser={isPaidUser}
@@ -267,10 +275,18 @@ export default function PageHeader({
                                         onBadgesClick={onBadgesClick}
                                         newBadgeCount={newBadgeCount}
                                         onLogout={logout}
+                                        isSchoolApproved={user?.isSchoolApproved}
                                         hasChildProfiles={hasChildProfiles}
                                         activeProfileNickname={user.activeProfileNickname}
                                         profiles={profiles}
                                         onProfileSwitch={handleProfileSwitch}
+                                        onJoinClassClick={() => {
+                                            if (onJoinClassClickProp) {
+                                                onJoinClassClickProp();
+                                            } else {
+                                                setShowJoinClassModal(true);
+                                            }
+                                        }}
                                     />
                                 )}
                             </>
@@ -405,6 +421,17 @@ export default function PageHeader({
                         </div>
                     </div >
                 </div >
+            )}
+
+            {user && (
+                <JoinClassModal
+                    isOpen={showJoinClassModal}
+                    onClose={() => setShowJoinClassModal(false)}
+                    isTamil={isTamil}
+                    profiles={profiles}
+                    userId={user.id}
+                    userName={user.name}
+                />
             )}
         </div >
     );

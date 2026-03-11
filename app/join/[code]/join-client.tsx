@@ -13,13 +13,17 @@ interface JoinSchoolClientProps {
 export default function JoinSchoolClient({ inviteCode }: JoinSchoolClientProps) {
     const router = useRouter();
     const { user, refetch } = useAuth();
-    const [loading, setLoading] = useState(true);
+    const [loading, setLoading] = useState(false);
     const [validating, setValidating] = useState(true);
     const [error, setError] = useState('');
     const [inviteData, setInviteData] = useState<any>(null);
     const [showAuthModal, setShowAuthModal] = useState(false);
     const [childProfiles, setChildProfiles] = useState<any[]>([]);
     const [selectedProfileId, setSelectedProfileId] = useState<string | null>(null);
+    const [showAddProfile, setShowAddProfile] = useState(false);
+    const [newProfileNickname, setNewProfileNickname] = useState('');
+    const [newProfileRelationship, setNewProfileRelationship] = useState('Child');
+    const [creatingProfile, setCreatingProfile] = useState(false);
 
     // 1. Validate Invite Link
     useEffect(() => {
@@ -57,6 +61,9 @@ export default function JoinSchoolClient({ inviteCode }: JoinSchoolClientProps) 
                         if (data.profiles && data.profiles.length > 0) {
                             setSelectedProfileId(data.profiles[0].id);
                         }
+                    } else if (res.status === 401 || res.status === 403) {
+                        // If unauthorized, just keep empty profiles rather than erroring
+                        setChildProfiles([]);
                     }
                 } catch (err) {
                     console.error('Failed to fetch profiles', err);
@@ -66,6 +73,34 @@ export default function JoinSchoolClient({ inviteCode }: JoinSchoolClientProps) 
 
         fetchProfiles();
     }, [user, inviteData]);
+
+    const handleAddProfile = async () => {
+        if (!newProfileNickname.trim()) return;
+        setCreatingProfile(true);
+        try {
+            const res = await fetch('/api/child-profiles', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    nickname: newProfileNickname.trim(),
+                    relationship: newProfileRelationship
+                })
+            });
+            const data = await res.json();
+            if (res.ok && data.profile) {
+                setChildProfiles(prev => [...prev, data.profile]);
+                setSelectedProfileId(data.profile.id);
+                setNewProfileNickname('');
+                setShowAddProfile(false);
+            } else {
+                setError(data.error || 'Failed to create profile');
+            }
+        } catch (err) {
+            setError('Error creating profile');
+        } finally {
+            setCreatingProfile(false);
+        }
+    };
 
     const handleJoin = async () => {
         if (!user) {
@@ -91,11 +126,9 @@ export default function JoinSchoolClient({ inviteCode }: JoinSchoolClientProps) 
             if (res.ok) {
                 await refetch(); // Refresh user state
 
-                // If it was a student invite joined via parent, show success then redirect to home
-                // so they can use the profile selector.
+                // If it was a student invite joined via parent, redirect to classes view
                 if (inviteData.invite.role === 'student') {
-                    alert(`Successfully enrolled in ${inviteData.classroom?.name || 'Class'}!`);
-                    router.push('/');
+                    router.push('/dashboard/parent/classes');
                 } else {
                     router.push('/dashboard/teacher');
                 }
@@ -202,7 +235,7 @@ export default function JoinSchoolClient({ inviteCode }: JoinSchoolClientProps) 
                                 ))}
 
                                 <button
-                                    onClick={() => alert("Normally this would route to profile creation with a 'next' param.")}
+                                    onClick={() => setShowAddProfile(true)}
                                     className="w-full mt-2 flex items-center justify-center p-3 rounded-2xl border-2 border-dashed border-gray-300 text-gray-500 hover:text-purple-600 hover:border-purple-300 hover:bg-purple-50 transition-all font-bold text-sm"
                                 >
                                     + Add another child
@@ -213,9 +246,63 @@ export default function JoinSchoolClient({ inviteCode }: JoinSchoolClientProps) 
                                 <div className="text-4xl mb-3">👶</div>
                                 <h3 className="text-gray-900 font-bold mb-1">No Child Profiles Found</h3>
                                 <p className="text-sm text-gray-500 font-medium mb-4">You need to create a profile for your child before enrolling them.</p>
-                                <button className="bg-purple-100 text-purple-700 font-bold py-2 px-6 rounded-xl hover:bg-purple-200 transition-colors text-sm">
-                                    Create Profile
-                                </button>
+                                {!showAddProfile ? (
+                                    <button
+                                        onClick={() => setShowAddProfile(true)}
+                                        className="bg-purple-100 text-purple-700 font-bold py-2 px-6 rounded-xl hover:bg-purple-200 transition-colors text-sm"
+                                    >
+                                        Create Profile
+                                    </button>
+                                ) : null}
+                            </div>
+                        )}
+
+                        {showAddProfile && (
+                            <div className="mt-4 bg-white border border-purple-100 p-4 rounded-2xl space-y-4 animate-in slide-in-from-top-2 duration-200">
+                                <div className="flex flex-col gap-4">
+                                    <div className="space-y-3">
+                                        <div className="flex flex-col gap-1">
+                                            <label className="text-[10px] font-black uppercase text-gray-400 ml-1">Nickname</label>
+                                            <input
+                                                type="text"
+                                                value={newProfileNickname}
+                                                onChange={e => setNewProfileNickname(e.target.value)}
+                                                placeholder="Enter name"
+                                                className="w-full border border-gray-200 rounded-2xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500 font-bold"
+                                            />
+                                        </div>
+                                        <div className="flex flex-col gap-1">
+                                            <label className="text-[10px] font-black uppercase text-gray-400 ml-1">Relationship</label>
+                                            <select
+                                                value={newProfileRelationship}
+                                                onChange={e => setNewProfileRelationship(e.target.value)}
+                                                className="w-full border border-gray-200 rounded-2xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500 bg-gray-50 font-bold text-gray-700"
+                                            >
+                                                <option value="child">Child</option>
+                                                <option value="sibling">Sibling</option>
+                                                <option value="friend">Friend</option>
+                                                <option value="spouse">Spouse</option>
+                                                <option value="self">Self</option>
+                                                <option value="other">Other</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                    <div className="flex gap-3">
+                                        <button
+                                            onClick={handleAddProfile}
+                                            disabled={creatingProfile || !newProfileNickname.trim()}
+                                            className="flex-1 bg-purple-600 text-white font-black py-3 rounded-2xl text-sm hover:bg-purple-700 transition-all shadow-lg shadow-purple-100 disabled:opacity-50"
+                                        >
+                                            {creatingProfile ? 'Creating...' : 'Create & Select'}
+                                        </button>
+                                        <button
+                                            onClick={() => setShowAddProfile(false)}
+                                            className="flex-1 bg-gray-100 text-gray-600 font-black py-3 rounded-2xl text-sm hover:bg-gray-200 transition-all font-bold"
+                                        >
+                                            Cancel
+                                        </button>
+                                    </div>
+                                </div>
                             </div>
                         )}
                     </div>
@@ -223,13 +310,13 @@ export default function JoinSchoolClient({ inviteCode }: JoinSchoolClientProps) 
 
                 <button
                     onClick={handleJoin}
-                    disabled={loading || Boolean((isStudentJoin && user && childProfiles.length > 0 && !selectedProfileId) || (isStudentJoin && user && childProfiles.length === 0))}
+                    disabled={loading || Boolean(user && isStudentJoin && childProfiles.length === 0 && !showAddProfile)}
                     className="w-full bg-gradient-to-r from-purple-600 to-indigo-600 text-white font-black py-4.5 px-6 rounded-2xl hover:shadow-xl hover:shadow-purple-500/30 transition-all disabled:opacity-50 disabled:hover:shadow-none translate-y-0 hover:-translate-y-0.5 active:translate-y-0 text-lg flex justify-center items-center"
                 >
                     {loading ? (
                         <div className="h-6 w-6 border-3 border-white/30 border-t-white rounded-full animate-spin"></div>
                     ) : (
-                        user ? 'Confirm Join Request' : 'Login / Signup to Join'
+                        user ? 'Confirm & Join' : 'Login / Signup to Join'
                     )}
                 </button>
 

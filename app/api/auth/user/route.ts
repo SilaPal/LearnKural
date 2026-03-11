@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/db/db';
-import { users, childProfiles, userProgress } from '@/db/schema';
+import { users, childProfiles, userProgress, schools } from '@/db/schema';
 import { eq } from 'drizzle-orm';
 import { verifySession } from '@/lib/session';
 
@@ -29,6 +29,14 @@ export async function GET(request: NextRequest) {
 
     const [user] = await db.select().from(users).where(eq(users.id, sessionData.userId));
     if (!user) return NextResponse.json(null, { status: 401 });
+
+    let isSchoolApproved = false;
+    if (user.schoolId) {
+        const [school] = await db.select({ isApproved: schools.isApproved }).from(schools).where(eq(schools.id, user.schoolId));
+        if (school) {
+            isSchoolApproved = school.isApproved;
+        }
+    }
 
     // Fetch parent badge data as fallback/default
     const [parentProgress] = await db.select().from(userProgress).where(eq(userProgress.userId, sessionData.userId));
@@ -68,6 +76,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({
         ...safeUser,
         tier: effectiveTier,
+        isSchoolApproved,
         ...childData,
         streak: childData.streak ?? user.streak,
         longestStreak: childData.longestStreak ?? user.longestStreak,

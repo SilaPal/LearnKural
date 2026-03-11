@@ -165,6 +165,7 @@ export const childProfiles = pgTable('child_profiles', {
     id: varchar('id').primaryKey(), // Generated: cp_timestamp_rand
     parentUserId: varchar('parent_user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
     nickname: varchar('nickname').notNull(),
+    relationship: varchar('relationship').default('child').notNull(), // child, friend, spouse, sibling, self, other
     activeAvatarId: varchar('active_avatar_id').default('none').notNull(),
     avatarExpiresAt: timestamp('avatar_expires_at'), // null = premium (never expires), set = free tier (+30d)
     coins: integer('coins').default(0).notNull(),

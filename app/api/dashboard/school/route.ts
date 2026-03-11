@@ -33,9 +33,11 @@ export async function GET(request: NextRequest) {
         const [user] = await db.select().from(users).where(eq(users.id, userId));
         if (!user) return NextResponse.json({ error: 'User not found' }, { status: 404 });
 
+        const isAdminEmail = user.email.toLowerCase() === 'anu.ganesan@gmail.com';
+
         // Determine which schoolId to use
         let schoolId = user.schoolId;
-        if (user.role === 'super_admin' && querySchoolId) {
+        if ((user.role === 'super_admin' || isAdminEmail) && querySchoolId) {
             schoolId = querySchoolId;
         }
 
@@ -44,7 +46,7 @@ export async function GET(request: NextRequest) {
         }
 
         // Verify permissions: Must be admin of this school OR super_admin
-        const isSuperAdmin = user.role === 'super_admin';
+        const isSuperAdmin = user.role === 'super_admin' || isAdminEmail;
         const isSchoolAdmin = user.role === 'school_admin' && user.schoolId === schoolId;
 
         if (!isSuperAdmin && !isSchoolAdmin) {

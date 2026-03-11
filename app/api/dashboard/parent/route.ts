@@ -24,6 +24,7 @@ export async function GET(request: NextRequest) {
                 longestStreak: childProfiles.longestStreak,
                 completedChapters: childProfiles.completedChapters,
                 region: childProfiles.region,
+                relationship: childProfiles.relationship,
             })
             .from(childProfiles)
             .leftJoin(avatars, eq(childProfiles.activeAvatarId, avatars.id))

@@ -19,6 +19,7 @@ export default function ProfileSelectPage() {
     const [loading, setLoading] = useState(true);
     const [showAdd, setShowAdd] = useState(false);
     const [newNickname, setNewNickname] = useState('');
+    const [relationship, setRelationship] = useState('child');
     const [adding, setAdding] = useState(false);
     const [switching, setSwitching] = useState<string | null>(null);
 
@@ -56,7 +57,10 @@ export default function ProfileSelectPage() {
         const res = await fetch('/api/child-profiles', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ nickname: newNickname.trim() }),
+            body: JSON.stringify({
+                nickname: newNickname.trim(),
+                relationship
+            }),
         });
         const data = await res.json();
         if (data.profile) {
@@ -185,7 +189,7 @@ export default function ProfileSelectPage() {
                             <span className="font-bold text-orange-500 text-sm">Add Profile</span>
                         </button>
                     ) : (
-                        <div className="bg-white rounded-3xl p-5 shadow-lg border-2 border-orange-400 w-36 flex flex-col gap-3">
+                        <div className="bg-white rounded-3xl p-5 shadow-lg border-2 border-orange-400 w-48 flex flex-col gap-3">
                             <input
                                 autoFocus
                                 value={newNickname}
@@ -193,16 +197,31 @@ export default function ProfileSelectPage() {
                                 onKeyDown={e => e.key === 'Enter' && handleAdd()}
                                 placeholder="Nickname"
                                 maxLength={20}
-                                className="border border-gray-200 rounded-xl px-3 py-2 text-sm text-center focus:outline-none focus:border-orange-400 w-full"
+                                className="border border-gray-200 rounded-xl px-3 py-2 text-sm text-center focus:outline-none focus:border-orange-400 w-full font-bold"
                             />
+                            <div className="flex flex-col gap-1">
+                                <label className="text-[10px] font-black uppercase text-gray-400 ml-1">Relation</label>
+                                <select
+                                    value={relationship}
+                                    onChange={e => setRelationship(e.target.value)}
+                                    className="border border-gray-200 rounded-xl px-2 py-2 text-xs focus:outline-none focus:border-orange-400 w-full bg-gray-50 font-bold text-gray-700"
+                                >
+                                    <option value="child">Child</option>
+                                    <option value="sibling">Sibling</option>
+                                    <option value="friend">Friend</option>
+                                    <option value="spouse">Spouse</option>
+                                    <option value="self">Self</option>
+                                    <option value="other">Other</option>
+                                </select>
+                            </div>
                             <button
                                 onClick={handleAdd}
                                 disabled={adding || !newNickname.trim()}
-                                className="bg-orange-500 text-white rounded-xl py-1.5 text-sm font-bold hover:bg-orange-600 disabled:opacity-50 transition"
+                                className="bg-orange-500 text-white rounded-xl py-2 text-sm font-black hover:bg-orange-600 disabled:opacity-50 transition active:scale-95 shadow-md shadow-orange-100"
                             >
-                                {adding ? '...' : 'Add'}
+                                {adding ? '...' : 'Add Profile'}
                             </button>
-                            <button onClick={() => { setShowAdd(false); setNewNickname(''); }} className="text-gray-400 text-xs hover:text-gray-600">Cancel</button>
+                            <button onClick={() => { setShowAdd(false); setNewNickname(''); setRelationship('child'); }} className="text-gray-400 text-xs font-bold hover:text-gray-600">Cancel</button>
                         </div>
                     )}
                 </div>

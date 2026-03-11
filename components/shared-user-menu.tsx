@@ -11,6 +11,7 @@ interface User {
   picture?: string;
   tier: string;
   role: string;
+  schoolId?: string | null;
 }
 
 interface ChildProfile {
@@ -29,10 +30,12 @@ interface SharedUserMenuProps {
   onLogout: () => void;
   onBadgesClick?: () => void;
   newBadgeCount?: number;
+  isSchoolApproved?: boolean;
   hasChildProfiles?: boolean;
   activeProfileNickname?: string | null;
-  profiles?: ChildProfile[];
+  profiles?: any[];
   onProfileSwitch?: (profileId: string | null) => void;
+  onJoinClassClick?: () => void;
 }
 
 export function SharedUserMenu({
@@ -42,14 +45,19 @@ export function SharedUserMenu({
   onClose,
   onUpgradeClick,
   onLogout,
+  onBadgesClick,
+  isSchoolApproved = false,
   activeProfileNickname = null,
   profiles = [],
   onProfileSwitch,
+  onJoinClassClick,
 }: SharedUserMenuProps) {
   const router = useRouter();
+  console.log('SharedUserMenu Props:', { role: user.role, isSchoolApproved });
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [profilesOpen, setProfilesOpen] = useState(false);
   const [schoolMenuOpen, setSchoolMenuOpen] = useState(false);
+  const isAdminEmail = user.email.toLowerCase() === 'anu.ganesan@gmail.com';
 
   const handleSwitchProfile = (profileId: string | null) => {
     if (onProfileSwitch) {
@@ -73,17 +81,15 @@ export function SharedUserMenu({
             '/schools/register';
 
   const dashboardLabel =
-    user.role === 'super_admin' ? (isTamil ? 'நிர்வாக பக்கம்' : 'Admin Portal') :
-      user.role === 'school_admin' ? (isTamil ? 'என் பள்ளி' : 'My School') :
-        user.role === 'teacher' ? (isTamil ? 'வகுப்பு மேடை' : 'Class Hub') :
-          user.role === 'parent' ? (isTamil ? 'குழந்தை முன்னேற்றம்' : "Kid's Hub") :
-            (isTamil ? 'பள்ளியில் சேர' : 'Join a School');
+    user.role === 'super_admin' ? (isTamil ? 'நிர்வாக மையம்' : 'Admin Portal') :
+      user.role === 'school_admin' ? (isTamil ? 'நிர்வாக மையம்' : 'Admin Portal') :
+        user.role === 'teacher' ? (isTamil ? 'மாணவர் மேடை' : 'Student Portal') :
+          '';
 
   const dashboardEmoji =
     user.role === 'super_admin' ? '🛡️' :
       user.role === 'school_admin' ? '🎓' :
-        user.role === 'teacher' ? '📋' :
-          user.role === 'parent' ? '👨‍👩‍👧' : '🏫';
+        user.role === 'teacher' ? '📋' : '🏫';
 
   return (
     <div className="absolute top-full right-0 mt-2 w-64 bg-white rounded-2xl shadow-2xl border border-gray-100 py-2 z-50 max-h-[85vh] overflow-y-auto">
@@ -239,59 +245,76 @@ export function SharedUserMenu({
 
           {schoolMenuOpen && (
             <div className="bg-indigo-50/30 pb-2">
-              {/* Dashboard / Hub Link (End-user dashboards only) */}
-              {user.role !== 'super_admin' && (
-                <Link
-                  href={dashboardHref}
-                  onClick={onClose}
-                  className="flex items-center gap-3 w-full pl-11 pr-4 py-2 text-sm text-gray-700 hover:bg-white transition-colors group"
-                >
-                  <div className="flex flex-col">
-                    <span className="font-semibold text-gray-700 text-[12px]">{dashboardLabel}</span>
-                    <span className="text-[9px] text-gray-400">{isTamil ? 'முக்கிய மேடை' : 'Primary Dashboard'}</span>
+              {/* Register School Link */}
+              {user.schoolId ? (
+                <div className="relative group/reg">
+                  <div
+                    className="flex items-center gap-3 w-full pl-11 pr-4 py-2 text-sm text-gray-400 cursor-not-allowed opacity-60 transition-colors"
+                  >
+                    <span className="font-semibold text-[12px]">{isTamil ? 'பள்ளியைப் பதிவு செய்க' : 'Register a School'}</span>
                   </div>
-                </Link>
-              )}
-
-              {/* Super Admin specific all-access links */}
-              {user.role === 'super_admin' && (
-                <>
-                  <Link href="/dashboard/school" onClick={onClose} className="flex items-center gap-3 w-full pl-11 pr-4 py-2 text-sm text-gray-700 hover:bg-white transition-colors group">
-                    <span className="font-semibold text-gray-700 text-[12px]">{isTamil ? 'பள்ளி மேடை' : 'School Dashboard'}</span>
-                  </Link>
-                  <Link href="/dashboard/teacher" onClick={onClose} className="flex items-center gap-3 w-full pl-11 pr-4 py-2 text-sm text-gray-700 hover:bg-white transition-colors group">
-                    <span className="font-semibold text-gray-700 text-[12px]">{isTamil ? 'ஆசிரியர் மேடை' : 'Teacher View'}</span>
-                  </Link>
-                  <Link href="/dashboard/parent" onClick={onClose} className="flex items-center gap-3 w-full pl-11 pr-4 py-2 text-sm text-gray-700 hover:bg-white transition-colors group">
-                    <span className="font-semibold text-gray-700 text-[12px]">{isTamil ? 'பெற்றோர் பக்கம்' : 'Parent View'}</span>
-                  </Link>
-                </>
-              )}
-
-              {/* Kid's Hub Link (For Teachers who are also Parents, skipping Super Admin since they have the all-access link above) */}
-              {(user.role === 'teacher' || user.role === 'school_admin') && profiles.length > 0 && (
-                <Link
-                  href="/dashboard/parent"
-                  onClick={onClose}
-                  className="flex items-center gap-3 w-full pl-11 pr-4 py-2 text-sm text-gray-700 hover:bg-white transition-colors group"
-                >
-                  <div className="flex flex-col">
-                    <span className="font-semibold text-gray-700 text-[12px]">{isTamil ? 'குழந்தை முன்னேற்றம்' : "Kid's Hub"}</span>
-                    <span className="text-[9px] text-gray-400">{isTamil ? 'பெற்றோர் பக்கம்' : 'Parent View'}</span>
+                  {/* Custom Tooltip */}
+                  <div className="absolute left-1/2 -translate-x-1/2 bottom-full mb-2 w-max max-w-[200px] bg-gray-900 text-white text-[10px] font-bold py-1.5 px-3 rounded-lg opacity-0 group-hover/reg:opacity-100 pointer-events-none transition-all z-[60] shadow-xl text-center">
+                    {!isSchoolApproved
+                      ? (isTamil ? 'உங்கள் பள்ளி பதிவு ஒப்புதலுக்காகக் காத்திருக்கிறது' : 'Your school registration is pending approval')
+                      : (isTamil ? 'உங்கள் பள்ளி ஏற்கனவே பதிவு செய்யப்பட்டுள்ளது' : 'Your school is already registered')
+                    }
+                    <div className="absolute top-full left-1/2 -translate-x-1/2 border-8 border-transparent border-t-gray-900"></div>
                   </div>
-                </Link>
-              )}
-
-
-
-              {/* Join Link (Parents / Others, also let Super Admin test it) */}
-              {user.role !== 'school_admin' && (
+                </div>
+              ) : (
                 <Link
                   href="/schools/register"
                   onClick={onClose}
                   className="flex items-center gap-3 w-full pl-11 pr-4 py-2 text-sm text-gray-700 hover:bg-white transition-colors group"
                 >
                   <span className="font-semibold text-gray-700 text-[12px]">{isTamil ? 'பள்ளியைப் பதிவு செய்க' : 'Register a School'}</span>
+                </Link>
+              )}
+
+              {/* View Classes Link (For parents/students) */}
+              <Link
+                href="/dashboard/parent/classes"
+                onClick={onClose}
+                className="flex items-center gap-3 w-full pl-11 pr-4 py-2 text-sm text-gray-700 hover:bg-white transition-colors group"
+              >
+                <div className="flex flex-col">
+                  <span className="font-semibold text-gray-700 text-[12px]">{isTamil ? 'வகுப்புகளைப் பார்க்க' : 'View Classes'}</span>
+                  <span className="text-[9px] text-gray-400">{isTamil ? 'அனைத்து வகுப்புகள்' : 'View active & completed'}</span>
+                </div>
+              </Link>
+
+              {/* Join Class Link */}
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  if (onJoinClassClick) {
+                    onJoinClassClick();
+                  }
+                  onClose();
+                }}
+                className="flex items-center gap-3 w-full pl-11 pr-4 py-2 text-sm text-gray-700 hover:bg-white transition-colors group text-left mb-1"
+              >
+                <div className="flex flex-col">
+                  <span className="font-semibold text-gray-700 text-[12px]">{isTamil ? 'வகுப்பில் சேர' : 'Join a Class'}</span>
+                  <span className="text-[9px] text-gray-400">{isTamil ? 'குறியீட்டை உள்ளிடவும்' : 'Enter invite code'}</span>
+                </div>
+              </button>
+
+              <div className="border-t border-indigo-100/50 my-1 mx-4"></div>
+
+              {/* Administrative Portals (Admin Portal & Student Portal) */}
+              {/* Student Portal: Visible to super_admin, school_admin, or teacher */}
+              {(user.role === 'super_admin' || user.role === 'school_admin' || user.role === 'teacher' || isAdminEmail) && (
+                <Link href="/dashboard/teacher" onClick={onClose} className="flex items-center gap-3 w-full pl-11 pr-4 py-2 text-sm text-gray-700 hover:bg-white transition-colors group">
+                  <span className="font-semibold text-gray-700 text-[12px]">{isTamil ? 'மாணவர் மேடை' : 'Student Portal'}</span>
+                </Link>
+              )}
+
+              {/* Admin Portal: Visible to super_admin or school_admin */}
+              {(user.role === 'super_admin' || user.role === 'school_admin' || isAdminEmail) && (
+                <Link href="/dashboard/school" onClick={onClose} className="flex items-center gap-3 w-full pl-11 pr-4 py-2 text-sm text-gray-700 hover:bg-white transition-colors group">
+                  <span className="font-semibold text-gray-700 text-[12px]">{isTamil ? 'நிர்வாக மையம்' : 'Admin Portal'}</span>
                 </Link>
               )}
             </div>
@@ -317,8 +340,8 @@ export function SharedUserMenu({
 
         {settingsOpen && (
           <div className="bg-gray-50/50">
-            {/* Admin Portal (Super Admin only) */}
-            {user.role === 'super_admin' && (
+            {/* Admin Portal (Super Admin or Admin Email) */}
+            {(user.role === 'super_admin' || isAdminEmail) && (
               <Link
                 href="/admin/waitlist"
                 onClick={onClose}

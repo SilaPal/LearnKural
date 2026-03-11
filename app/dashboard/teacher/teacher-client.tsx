@@ -31,11 +31,17 @@ interface Classroom {
     name: string;
 }
 
+interface DashboardData {
+    schoolName: string | null;
+    classrooms: Classroom[];
+    students: Student[];
+}
+
 export default function TeacherDashboardClient() {
     const { user, isLoading } = useAuth();
     const router = useRouter();
     const [isTamil, setIsTamil] = useState(false);
-    const [data, setData] = useState<{ classrooms: Classroom[], students: Student[] } | null>(null);
+    const [data, setData] = useState<DashboardData | null>(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
     const [selectedClassId, setSelectedClassId] = useState<string>('all');
@@ -47,6 +53,7 @@ export default function TeacherDashboardClient() {
     const [showCreateClassModal, setShowCreateClassModal] = useState(false);
     const [showInviteModal, setShowInviteModal] = useState(false);
     const [inviteLink, setInviteLink] = useState('');
+    const [inviteCode, setInviteCode] = useState('');
     const [inviteClassName, setInviteClassName] = useState('');
 
     useEffect(() => {
@@ -83,6 +90,7 @@ export default function TeacherDashboardClient() {
                 const invite = await res.json();
                 const origin = typeof window !== 'undefined' ? window.location.origin : '';
                 setInviteLink(`${origin}/join/${invite.code}`);
+                setInviteCode(invite.code);
                 setInviteClassName(className || '');
                 setShowInviteModal(true);
             }
@@ -92,7 +100,8 @@ export default function TeacherDashboardClient() {
     };
 
     useEffect(() => {
-        if (!isLoading && (!user || (user.role !== 'teacher' && user.role !== 'school_admin' && user.role !== 'super_admin'))) {
+        const isAdminEmail = user?.email?.toLowerCase() === 'anu.ganesan@gmail.com';
+        if (!isLoading && (!user || (user.role !== 'teacher' && user.role !== 'school_admin' && user.role !== 'super_admin' && !isAdminEmail))) {
             router.push('/');
             return;
         }
@@ -198,6 +207,7 @@ export default function TeacherDashboardClient() {
                 isOpen={showInviteModal}
                 onClose={() => setShowInviteModal(false)}
                 inviteLink={inviteLink}
+                inviteCode={inviteCode}
                 classroomName={inviteClassName}
                 isTamil={isTamil}
             />
@@ -205,6 +215,11 @@ export default function TeacherDashboardClient() {
             <main className="max-w-6xl mx-auto px-4 py-10">
                 <div className="mb-12 text-center">
                     <h2 className="text-3xl sm:text-5xl font-black text-gray-900 mb-2 tracking-tight">{isTamil ? 'வகுப்பறை மேடை' : 'Classroom Hub'} ⚡️</h2>
+                    {data.schoolName && (
+                        <p className="text-indigo-600 font-black text-lg sm:text-xl uppercase tracking-widest mb-2 flex items-center justify-center gap-2">
+                            <span className="text-2xl">🏛️</span> {data.schoolName}
+                        </p>
+                    )}
                     <p className="text-gray-500 text-sm sm:text-base font-medium">{isTamil ? 'உங்கள் மாணவர்களின் முன்னேற்றத்தை நிகழ்நேரத்தில் கண்காணியுங்கள்.' : 'Track your students\' real-time progress through the Thirukkural.'}</p>
                 </div>
 

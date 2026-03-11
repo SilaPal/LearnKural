@@ -11,6 +11,7 @@ export interface AuthUser {
     activeAvatarId: string;
     role: 'student' | 'parent' | 'teacher' | 'school_admin' | 'super_admin';
     schoolId: string | null;
+    isSchoolApproved: boolean;
     classroomId: string | null;
     parentId: string | null;
     createdAt: string;

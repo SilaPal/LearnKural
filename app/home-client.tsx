@@ -8,6 +8,7 @@ import PricingModal from '@/components/pricing-modal';
 import { NavigationModal, KuralSlugMap as NavKuralSlugMap } from '@/components/navigation-modal';
 import { SharedUserMenu } from '@/components/shared-user-menu';
 import { KuralSearchDialog } from '@/components/kural-search-dialog';
+import JoinClassModal from '@/components/join-class-modal';
 import {
   getAllBadges,
   getMasteredCount,
@@ -119,6 +120,7 @@ export default function HomeClient({ totalKurals, kuralOfDay, firstKuralSlug, al
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [showUserMenu, setShowUserMenu] = useState(false);
   const [showPricingModal, setShowPricingModal] = useState(false);
+  const [showJoinClassModal, setShowJoinClassModal] = useState(false);
   const [profiles, setProfiles] = useState<any[]>([]);
   const [selectedHomeGame, setSelectedHomeGame] = useState<'puzzle' | 'flying' | 'balloon' | 'race'>('puzzle');
   const [iframeLoading, setIframeLoading] = useState(true);
@@ -344,7 +346,8 @@ export default function HomeClient({ totalKurals, kuralOfDay, firstKuralSlug, al
                     email: user.email,
                     picture: user.picture || undefined,
                     tier: user.tier || 'free',
-                    role: user.role || 'user'
+                    role: user.role || 'user',
+                    schoolId: user.schoolId
                   }}
                   isTamil={isTamil}
                   isPaidUser={isPaidUser}
@@ -352,10 +355,12 @@ export default function HomeClient({ totalKurals, kuralOfDay, firstKuralSlug, al
                   onUpgradeClick={() => setShowPricingModal(true)}
                   onBadgesClick={() => setShowBadgeModal(true)}
                   onLogout={logout}
+                  isSchoolApproved={user?.isSchoolApproved}
                   hasChildProfiles={!!user.activeProfileId}
                   activeProfileNickname={user.activeProfileNickname}
                   profiles={profiles}
                   onProfileSwitch={handleProfileSwitch}
+                  onJoinClassClick={() => setShowJoinClassModal(true)}
                 />
               )}
             </>
@@ -949,6 +954,17 @@ export default function HomeClient({ totalKurals, kuralOfDay, firstKuralSlug, al
         allKuralSlugs={allKuralSlugs as NavKuralSlugMap[]}
         isTamil={isTamil}
       />
+
+      {user && (
+        <JoinClassModal
+          isOpen={showJoinClassModal}
+          onClose={() => setShowJoinClassModal(false)}
+          isTamil={isTamil}
+          profiles={profiles as any[]}
+          userId={user.id}
+          userName={user.name}
+        />
+      )}
     </>
   );
 }

@@ -47,6 +47,12 @@ export async function POST(request: NextRequest) {
             return NextResponse.json({ error: 'School name is required' }, { status: 400 });
         }
 
+        const [currentUser] = await db.select({ role: users.role, schoolId: users.schoolId }).from(users).where(eq(users.id, userId));
+
+        if (currentUser?.schoolId) {
+            return NextResponse.json({ error: 'You are already registered to a school.' }, { status: 403 });
+        }
+
         const schoolId = `school_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
 
         const [newSchool] = await db.insert(schools).values({
@@ -59,7 +65,6 @@ export async function POST(request: NextRequest) {
         }).returning();
 
         // Update the user who created it to be the school_admin
-        const [currentUser] = await db.select({ role: users.role }).from(users).where(eq(users.id, userId));
         const newRole = currentUser?.role === 'super_admin' ? 'super_admin' : 'school_admin';
 
         await db.update(users)

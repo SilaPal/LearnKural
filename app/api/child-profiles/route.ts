@@ -22,6 +22,7 @@ export async function GET(request: NextRequest) {
             coins: childProfiles.coins,
             badges: childProfiles.badges,
             region: childProfiles.region,
+            relationship: childProfiles.relationship,
         })
         .from(childProfiles)
         .leftJoin(avatars, eq(childProfiles.activeAvatarId, avatars.id))
@@ -42,7 +43,7 @@ export async function POST(request: NextRequest) {
     const session = resolveActiveId(request);
     if (!session?.userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-    const { nickname } = await request.json();
+    const { nickname, relationship = 'child' } = await request.json();
     if (!nickname?.trim()) return NextResponse.json({ error: 'Nickname is required' }, { status: 400 });
 
     // Inherit region from parent
@@ -56,6 +57,7 @@ export async function POST(request: NextRequest) {
         id,
         parentUserId: session.userId,
         nickname: nickname.trim(),
+        relationship: relationship.trim(),
         activeAvatarId: 'none',
         region: parentRegion,
     }).returning();
