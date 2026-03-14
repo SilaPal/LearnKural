@@ -37,7 +37,8 @@ export async function GET() {
 `;
 
   for (const kural of kuralsWithVideos) {
-    const pageUrl = `${baseUrl}/kural-learning/${kural.slug}/`;
+    // No trailing slash — must match canonical URL exactly
+    const pageUrl = `${baseUrl}/kural-learning/${kural.slug}`;
     const tamilVideoId = extractYouTubeId(kural.youtube_tamil_url);
     const englishVideoId = extractYouTubeId(kural.youtube_english_url);
 
@@ -46,16 +47,19 @@ export async function GET() {
 `;
 
     if (tamilVideoId) {
-      const title = `Thirukkural ${kural.id} - ${escapeXml((kural.kural_english || 'Tamil Wisdom').replace(/\\n/g, ' ').substring(0, 80))} | குறள் ${kural.id}`;
+      const title = escapeXml(
+        `Thirukkural ${kural.id} - ${(kural.kural_tamil || '').replace(/\\n/g, ' ').substring(0, 80)} | குறள் ${kural.id} விளக்கம்`
+      );
       const description = escapeXml(
-        `Learn Thirukkural ${kural.id} with Tamil video explanation. ${(kural.meaning_english || '').replace(/\\n/g, ' ')} குறள் ${kural.id}: ${(kural.kural_tamil || '').replace(/\\n/g, ' ').substring(0, 150)}`
+        `Learn Thirukkural ${kural.id} with Tamil video explanation. ${(kural.meaning_english || '').replace(/\\n/g, ' ')} குறள் ${kural.id}: ${(kural.kural_tamil || '').replace(/\\n/g, ' ').substring(0, 100)}`
       );
 
+      // Note: video:content_loc is omitted for YouTube — it requires a direct video file URL,
+      // not a YouTube watch URL. Google will use video:player_loc for YouTube embeds.
       xml += `<video:video>
 <video:thumbnail_loc>https://img.youtube.com/vi/${tamilVideoId}/maxresdefault.jpg</video:thumbnail_loc>
 <video:title>${title}</video:title>
 <video:description>${description}</video:description>
-<video:content_loc>https://www.youtube.com/watch?v=${tamilVideoId}</video:content_loc>
 <video:player_loc>https://www.youtube.com/embed/${tamilVideoId}</video:player_loc>
 <video:family_friendly>yes</video:family_friendly>
 <video:requires_subscription>no</video:requires_subscription>
@@ -71,7 +75,9 @@ export async function GET() {
     }
 
     if (englishVideoId && englishVideoId !== tamilVideoId) {
-      const title = `Thirukkural ${kural.id} English Explanation - ${escapeXml((kural.kural_english || 'Tamil Wisdom').replace(/\\n/g, ' ').substring(0, 80))}`;
+      const title = escapeXml(
+        `Thirukkural ${kural.id} English - ${(kural.kural_english || '').replace(/\\n/g, ' ').substring(0, 80)}`
+      );
       const description = escapeXml(
         `Learn Thirukkural ${kural.id} with English video explanation. ${(kural.meaning_english || '').replace(/\\n/g, ' ')}`
       );
@@ -80,7 +86,6 @@ export async function GET() {
 <video:thumbnail_loc>https://img.youtube.com/vi/${englishVideoId}/maxresdefault.jpg</video:thumbnail_loc>
 <video:title>${title}</video:title>
 <video:description>${description}</video:description>
-<video:content_loc>https://www.youtube.com/watch?v=${englishVideoId}</video:content_loc>
 <video:player_loc>https://www.youtube.com/embed/${englishVideoId}</video:player_loc>
 <video:family_friendly>yes</video:family_friendly>
 <video:requires_subscription>no</video:requires_subscription>

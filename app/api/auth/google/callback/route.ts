@@ -90,10 +90,12 @@ export async function GET(request: NextRequest) {
                 tier: 'free',
             }).returning();
         } else {
-            // Update profile picture if missing
-            if (!user.picture && profile.picture) {
+            const updates: Record<string, string> = {};
+            if (!user.picture && profile.picture) updates.picture = profile.picture;
+            if (user.googleId === 'pending_google_signin' && profile.id) updates.googleId = profile.id;
+            if (Object.keys(updates).length > 0) {
                 [user] = await db.update(users)
-                    .set({ picture: profile.picture })
+                    .set(updates)
                     .where(eq(users.id, user.id))
                     .returning();
             }
