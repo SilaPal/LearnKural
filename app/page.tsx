@@ -12,17 +12,17 @@ export const metadata: Metadata = {
     'குழந்தைகளுக்கான தமிழ்', 'தமிழ் உச்சரிப்பு', 'தமிழ் கல்வி'
   ],
   alternates: {
-    canonical: 'https://learnthirukkural.com',
+    canonical: 'https://learnthirukkural.com/',
     languages: {
-      'en': 'https://learnthirukkural.com',
-      'ta': 'https://learnthirukkural.com',
-      'x-default': 'https://learnthirukkural.com',
+      'en': 'https://learnthirukkural.com/',
+      'ta': 'https://learnthirukkural.com/',
+      'x-default': 'https://learnthirukkural.com/',
     },
   },
   openGraph: {
     title: 'Learn Thirukkural Online | திருக்குறள் கற்க',
     description: 'Discover ancient Tamil wisdom through 1330 Thirukkural verses with audio, video, and interactive games. திருக்குறள் - ஒலி, வீடியோ, விளையாட்டுகள் மூலம் கற்கவும்.',
-    url: 'https://learnthirukkural.com',
+    url: 'https://learnthirukkural.com/',
     type: 'website',
     locale: 'en_US',
     alternateLocale: 'ta_IN',
