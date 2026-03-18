@@ -158,6 +158,24 @@ export const userAvatars = pgTable('user_avatars', {
     }
 });
 
+export const pageViews = pgTable('page_views', {
+    id: varchar('id').primaryKey(),
+    page: varchar('page').notNull(),
+    country: varchar('country').default('Unknown').notNull(),
+    countryCode: varchar('country_code').default('').notNull(),
+    visitorId: varchar('visitor_id').notNull(),
+    isReturning: boolean('is_returning').default(false).notNull(),
+    referrer: varchar('referrer').default('').notNull(),
+    createdAt: timestamp('created_at').defaultNow().notNull(),
+}, (table) => {
+    return {
+        pageIdx: index('pv_page_idx').on(table.page),
+        countryIdx: index('pv_country_idx').on(table.country),
+        visitorIdx: index('pv_visitor_idx').on(table.visitorId),
+        createdAtIdx: index('pv_created_at_idx').on(table.createdAt),
+    };
+});
+
 // MVP 1: Child Profiles
 // Each row is a child sub-profile under a parent user account.
 // Children never log in directly — parents switch to a child profile via the profile selector.
