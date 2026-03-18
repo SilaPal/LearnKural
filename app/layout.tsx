@@ -1,6 +1,7 @@
 import './globals.css';
 import type { Metadata } from 'next';
 import Script from 'next/script';
+import AnalyticsTracker from '@/components/analytics-tracker';
 
 export const metadata: Metadata = {
   metadataBase: new URL('https://learnthirukkural.com'),
@@ -72,6 +73,7 @@ export default function RootLayout({
     <html lang="en" suppressHydrationWarning>
       <body className="min-h-screen bg-gradient-to-br from-purple-50 to-purple-100 font-sans antialiased" suppressHydrationWarning>
         {children}
+        <AnalyticsTracker />
         <Script 
           src="https://analytics.ahrefs.com/analytics.js" 
           data-key="1DskMOze8Olcc4VIK4Tt2g"
