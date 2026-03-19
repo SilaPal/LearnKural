@@ -352,6 +352,17 @@ export function SharedUserMenu({
                 </span>
               </Link>
             )}
+            {(user.role === 'super_admin' || isAdminEmail) && (
+              <Link
+                href="/dashboard/superadmin/analytics"
+                onClick={onClose}
+                className="flex items-center gap-3 w-full pl-11 pr-4 py-2 text-sm text-gray-700 hover:bg-purple-50 transition-colors group text-left"
+              >
+                <span className="font-semibold text-gray-700 text-[12px]">
+                  {isTamil ? 'பகுப்பாய்வு' : 'Analytics'}
+                </span>
+              </Link>
+            )}
             {/* Profiles Management Link */}
             <button
               onClick={handleGlobalProfileSelect}
