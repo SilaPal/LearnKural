@@ -23,6 +23,10 @@ export default function AnalyticsTracker() {
 
   useEffect(() => {
     if (pathname === lastTracked.current) return;
+
+    const host = window.location.hostname;
+    if (host !== 'learnthirukkural.com') return;
+
     lastTracked.current = pathname;
 
     const visitorId = getOrCreateVisitorId();
