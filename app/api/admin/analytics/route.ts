@@ -2,13 +2,17 @@ import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/db/db';
 import { users, pageViews } from '@/db/schema';
 import { eq, desc, gte, sql, count, countDistinct } from 'drizzle-orm';
+import { verifySession } from '@/lib/session';
+
+const ADMIN_EMAIL = 'anu.ganesan@gmail.com';
 
 async function getAuthenticatedUser(request: NextRequest) {
   const session = request.cookies.get('thirukural-session')?.value;
   if (!session) return null;
   try {
-    const { userId } = JSON.parse(Buffer.from(session, 'base64').toString('utf-8'));
-    const [user] = await db.select().from(users).where(eq(users.id, userId));
+    const payload = verifySession(session);
+    if (!payload?.userId) return null;
+    const [user] = await db.select().from(users).where(eq(users.id, payload.userId));
     return user || null;
   } catch {
     return null;
@@ -17,7 +21,7 @@ async function getAuthenticatedUser(request: NextRequest) {
 
 export async function GET(request: NextRequest) {
   const user = await getAuthenticatedUser(request);
-  if (!user || user.role !== 'super_admin') {
+  if (!user || (user.role !== 'super_admin' && user.email.toLowerCase() !== ADMIN_EMAIL.toLowerCase())) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 403 });
   }
 
