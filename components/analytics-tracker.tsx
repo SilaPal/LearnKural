@@ -26,6 +26,7 @@ export default function AnalyticsTracker() {
 
     const host = window.location.hostname;
     if (host !== 'learnthirukkural.com') return;
+    if (pathname.startsWith('/dashboard/superadmin')) return;
 
     lastTracked.current = pathname;
 
